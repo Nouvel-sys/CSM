@@ -1,0 +1,12 @@
+{
+  "name": "co-studymaxx",
+  "version": "1.0.0",
+  "description": "Co-Studymaxx — Study Reviewer & Countdown Quiz System",
+  "scripts": {
+    "start": "python -m http.server 8080",
+    "serve": "python -m http.server 8080"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
