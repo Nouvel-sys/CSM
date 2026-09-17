@@ -22,9 +22,9 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-            display: ['"Outfit"', 'sans-serif'],
-            mono: ['"Plus Jakarta Sans"', 'sans-serif']
+            sans: ['Helvetica', 'Arial', 'sans-serif'],
+            display: ['Helvetica', 'Arial', 'sans-serif'],
+            mono: ['Helvetica', 'Arial', 'sans-serif']
           },
           colors: {
             brand: {
@@ -84,9 +84,14 @@
       padding: 0;
     }
 
+    /* Match the browser's 125% presentation consistently across every tab. */
+    html {
+      font-size: 100%;
+    }
+
     body {
       background-color: #e8ddd0;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: Helvetica, Arial, sans-serif;
       min-height: 100vh;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
@@ -100,7 +105,14 @@
     h2,
     h3,
     .font-display {
-      font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+      font-family: Helvetica, Arial, sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font-family: inherit;
     }
 
     /* Ambient Warm Blurred Backdrop */
@@ -134,6 +146,895 @@
 
     .custom-scroll::-webkit-scrollbar-thumb:hover {
       background: #f04824;
+    }
+
+    /* Keep every tab on the same stable app-shell footprint. */
+    .app-shell {
+      width: 80% !important;
+      height: 80% !important;
+      flex: none !important;
+      min-width: 0;
+      min-height: 0;
+      margin: auto;
+      transform: scale(1.25);
+      transform-origin: center;
+    }
+
+    .app-shell > nav {
+      width: 60px !important;
+      min-width: 60px !important;
+    }
+
+    .app-shell > main,
+    .home-dashboard-content {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .home-chat-panel {
+      width: 306px;
+      background: #060b11;
+      color: #f8fafc;
+      border-left: 0;
+      border-radius: 21px;
+      box-shadow: 0 7px 18px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+      position: relative;
+      margin: 14px 14px 14px 0;
+    }
+
+    .home-chat-header {
+      min-height: 67px;
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(104, 122, 145, 0.18);
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-chat-avatar {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      object-fit: contain;
+    }
+
+    .home-chat-heading {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.02;
+      flex: 1;
+    }
+
+    .home-chat-title {
+      color: #f8fafc;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .home-chat-powered {
+      margin-top: 4px;
+      color: #ff690d;
+      font-size: 9px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .home-chat-reset {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      color: #8090a4;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+
+    .home-chat-reset:hover {
+      color: #f8fafc;
+      transform: rotate(-25deg);
+    }
+
+    .home-chat-body {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background:
+        radial-gradient(circle at 59% 43%, rgba(233, 89, 3, 0.76) 0, rgba(181, 62, 0, 0.38) 13%, rgba(75, 31, 8, 0.18) 25%, transparent 47%),
+        radial-gradient(circle at 62% 45%, rgba(255, 117, 22, 0.17), transparent 31%),
+        #060b11;
+    }
+
+    .home-chat-body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(6, 11, 17, 0.03) 0%, rgba(6, 11, 17, 0.1) 62%, rgba(6, 11, 17, 0.62) 100%);
+    }
+
+    .home-chat-footer {
+      position: relative;
+      z-index: 1;
+      padding: 10px 16px 14px;
+      background: #060b11;
+    }
+
+    .home-chat-footer-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #8895a8;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .home-chat-footer-label::after {
+      content: '';
+      height: 1px;
+      flex: 1;
+      background: rgba(133, 148, 169, 0.24);
+    }
+
+    .home-chat-quick-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .home-chat-quick-button {
+      width: 100%;
+      min-height: 22px;
+      padding: 0 12px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 0;
+      border-radius: 999px;
+      color: #f5f7fa;
+      background: #18212d;
+      font: 500 10px/1 Helvetica, Arial, sans-serif;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .home-chat-quick-button:hover {
+      background: #222f3e;
+      transform: translateX(2px);
+    }
+
+    .home-chat-quick-button svg {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 13px;
+      color: #b4beca;
+    }
+
+    /* Reference-matched home dashboard content */
+    .home-dashboard-content {
+      padding: 24px 30px 22px !important;
+      color: #050505;
+    }
+
+    .home-dashboard-header {
+      margin-bottom: 21px;
+    }
+
+    .home-dashboard-eyebrow {
+      display: block;
+      color: #ff4a1f;
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.015em;
+    }
+
+    .home-dashboard-title {
+      margin-top: 5px;
+      color: #050505;
+      font: 700 31px/0.98 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.055em;
+    }
+
+    .home-dashboard-subtitle {
+      margin-top: 6px;
+      color: #435a7b;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .home-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 19px;
+      margin-bottom: 23px;
+    }
+
+    .home-stat-card {
+      min-height: 123px;
+      padding: 24px 25px;
+      display: flex;
+      align-items: center;
+      gap: 17px;
+      border: 1px solid #b8cbe2;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-stat-card:hover,
+    .home-tool-card:hover,
+    .home-recent-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 7px rgba(0, 0, 0, 0.12);
+    }
+
+    .home-stat-card.cards-stat {
+      border-color: #ffad9d;
+    }
+
+    .home-stat-icon,
+    .home-tool-icon,
+    .home-activity-icon {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .home-stat-icon {
+      width: 43px;
+      height: 43px;
+      color: #3e6da9;
+      background: #c4d5ed;
+    }
+
+    .home-stat-card.cards-stat .home-stat-icon {
+      color: #ff522c;
+      background: #ffb4a4;
+    }
+
+    .home-stat-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .home-stat-copy {
+      min-width: 0;
+    }
+
+    .home-stat-label {
+      display: block;
+      color: #416da5;
+      font-size: 11px;
+      line-height: 1;
+      font-family: 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    .home-stat-card.cards-stat .home-stat-label {
+      color: #ff4b25;
+    }
+
+    .home-stat-value {
+      margin-top: 8px;
+      color: #050505;
+      font: 700 27px/0.95 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+      letter-spacing: -0.04em;
+    }
+
+    .home-stat-description {
+      display: block;
+      margin-top: 7px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .home-tools-section {
+      margin-bottom: 31px;
+    }
+
+    .home-tools-heading {
+      color: #050505;
+      font: 700 23px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.045em;
+    }
+
+    .home-tools-subtitle {
+      margin-top: 5px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .home-tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 230px);
+      gap: 16px;
+      margin-top: 17px;
+    }
+
+    .home-tool-card {
+      min-height: 181px;
+      padding: 16px 27px 17px;
+      border: 1px solid #b9b9b9;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-tool-icon {
+      width: 43px;
+      height: 43px;
+      color: #e9c735;
+      background: #fff0a7;
+    }
+
+    .home-tool-card.bomb-tool .home-tool-icon {
+      color: #ff651d;
+      background: #ffc08c;
+    }
+
+    .home-tool-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .home-tool-title {
+      margin-top: 10px;
+      color: #050505;
+      font: 700 18px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.035em;
+    }
+
+    .home-tool-description {
+      margin-top: 8px;
+      min-height: 25px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .home-tool-button,
+    .home-activity-button {
+      border: 0;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 3px 4px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .home-tool-button:hover,
+    .home-activity-button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    .home-tool-button {
+      height: 34px;
+      margin-top: 11px;
+      padding: 0 15px 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 13px;
+      border-radius: 999px;
+      background: #f0cd37;
+    }
+
+    .home-tool-card.bomb-tool .home-tool-button {
+      background: #ff6816;
+    }
+
+    .home-tool-button svg,
+    .home-activity-button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .home-recent-card {
+      min-height: 136px;
+      padding: 14px 27px 15px;
+      border: 1px solid #b9b9b9;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-recent-heading {
+      color: #050505;
+      font: 700 16px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.025em;
+    }
+
+    .home-recent-subtitle {
+      margin-top: 6px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .home-recent-divider {
+      height: 1px;
+      margin-top: 11px;
+      background: rgba(121, 121, 121, 0.28);
+    }
+
+    .home-recent-row {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 17px;
+    }
+
+    .home-activity-icon {
+      width: 38px;
+      height: 38px;
+      color: #ff5531;
+      background: #ffb5a5;
+    }
+
+    .home-activity-icon svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    .home-activity-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .home-activity-title {
+      color: #050505;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .home-activity-meta {
+      margin-top: 4px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .home-activity-button {
+      height: 34px;
+      padding: 0 13px 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      background: #ff4b25;
+    }
+
+    /* Game Mode reference layout */
+    .game-view {
+      height: 100%;
+      padding: 23px 22px 22px;
+      overflow-y: auto;
+      background: #d9d9d9;
+      color: #070707;
+    }
+
+    .game-view-header {
+      margin-bottom: 23px;
+    }
+
+    .game-view-eyebrow {
+      display: block;
+      color: #ff4b25;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+    }
+
+    .game-view-title {
+      margin-top: 6px;
+      color: #050505;
+      font: 700 27px/0.98 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.045em;
+    }
+
+    .game-view-subtitle {
+      margin-top: 7px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.15;
+    }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .game-left-column {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .game-section-card {
+      padding: 16px 15px 20px;
+      border: 1px solid #b8b8b8;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.16);
+    }
+
+    .game-section-title {
+      color: #090909;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .game-section-subtitle {
+      margin-top: 5px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .game-deck-selector {
+      min-height: 69px;
+      margin-top: 15px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border: 1px solid #b8cee9;
+      border-radius: 18px;
+      background: #cdd8e7;
+    }
+
+    .game-deck-icon {
+      width: 49px;
+      height: 49px;
+      flex: 0 0 49px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #3f72b3;
+      background: #d9e4f4;
+    }
+
+    .game-deck-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .game-deck-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .game-deck-name {
+      color: #080808;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+    }
+
+    .game-deck-meta {
+      margin-top: 4px;
+      color: #435a7b;
+      font-size: 9px;
+      line-height: 1;
+    }
+
+    .game-deck-select-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .game-deck-select {
+      width: 92px;
+      height: 31px;
+      appearance: none;
+      padding: 0 27px 0 14px;
+      border: 0;
+      border-radius: 999px;
+      color: #ffffff;
+      background: #4e78b0;
+      font-size: 9px;
+      font-weight: 800;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .game-deck-select-wrap svg {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      top: 9px;
+      right: 10px;
+      pointer-events: none;
+      color: #ffffff;
+    }
+
+    .game-settings-card {
+      padding: 16px 11px 19px;
+    }
+
+    .game-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px 12px;
+      margin-top: 15px;
+    }
+
+    .game-setting {
+      min-height: 70px;
+      padding: 10px 11px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      border: 1px solid #b8b8b8;
+      border-radius: 18px;
+    }
+
+    .game-setting-icon {
+      width: 31px;
+      height: 31px;
+      flex: 0 0 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .game-setting-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .game-setting.lives .game-setting-icon {
+      color: #ff4f2e;
+      background: #ffb0a0;
+    }
+
+    .game-setting.time .game-setting-icon {
+      color: #17739f;
+      background: #a8d6ea;
+    }
+
+    .game-setting.order .game-setting-icon {
+      color: #7734d0;
+      background: #c4a7e9;
+    }
+
+    .game-setting.type .game-setting-icon {
+      color: #229d53;
+      background: #a5e2b7;
+    }
+
+    .game-setting-content {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .game-setting-name {
+      color: #090909;
+      font: 700 14px/1 Helvetica, Arial, sans-serif;
+    }
+
+    .game-setting-help {
+      margin-top: 3px;
+      color: #435a7b;
+      font-size: 9px;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    .game-options {
+      display: flex;
+      gap: 9px;
+      margin-top: 8px;
+    }
+
+    .game-option {
+      min-width: 34px;
+      height: 23px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 999px;
+      color: #111111;
+      background: #c9c9c9;
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .game-option:hover {
+      filter: brightness(1.04);
+      transform: translateY(-1px);
+    }
+
+    .game-option.selected {
+      color: #ffffff;
+      background: #ff4b25;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.18);
+    }
+
+    .game-summary {
+      min-height: 414px;
+      padding: 26px 24px 23px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 67% 24%, rgba(168, 66, 5, 0.55) 0, rgba(123, 43, 2, 0.19) 18%, transparent 38%),
+        linear-gradient(160deg, #0c0c0c 0%, #11100f 52%, #131313 100%);
+      box-shadow: 0 3px 4px rgba(0, 0, 0, 0.32);
+      color: #ffffff;
+    }
+
+    .game-summary-title {
+      width: 150px;
+      position: relative;
+      z-index: 1;
+      color: #ffffff;
+      font: 700 29px/1.08 Helvetica, Arial, sans-serif;
+      letter-spacing: 0.01em;
+    }
+
+    .game-summary-title span {
+      display: block;
+    }
+
+    .game-summary-count {
+      position: relative;
+      z-index: 1;
+      margin-top: 5px;
+      color: #ffffff;
+      font-size: 9px;
+    }
+
+    .game-summary-mascot {
+      width: 101px;
+      height: 101px;
+      object-fit: contain;
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      z-index: 1;
+      filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.2));
+    }
+
+    .game-summary-rules {
+      margin-top: 25px;
+      padding: 17px 17px 15px;
+      position: relative;
+      z-index: 1;
+      border-radius: 13px;
+      background: #18212d;
+    }
+
+    .game-summary-rule {
+      min-height: 31px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .game-summary-rule-icon {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+      display: grid;
+      place-items: center;
+    }
+
+    .game-summary-rule-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .game-summary-rule.lives .game-summary-rule-icon { color: #ff4e2c; }
+    .game-summary-rule.time .game-summary-rule-icon { color: #1687b7; }
+    .game-summary-rule.order .game-summary-rule-icon { color: #8538e9; }
+    .game-summary-rule.type .game-summary-rule-icon { color: #53bf69; }
+
+    .game-summary-rule-label {
+      color: #83a6d6;
+      font-size: 9px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .game-summary-rule-value {
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .game-launch-button {
+      width: 100%;
+      height: 38px;
+      margin-top: 18px;
+      position: relative;
+      z-index: 1;
+      border: 0;
+      border-radius: 11px;
+      color: #ffffff;
+      background: #ff4827;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.22);
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .game-launch-button:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+
+    .game-launch-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .game-launch-button svg {
+      width: 15px;
+      height: 15px;
+      margin-left: 4px;
+      vertical-align: -3px;
+    }
+
+    @media (max-width: 900px) {
+      .game-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .game-summary {
+        min-height: 0;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .home-tools-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 767px) {
+      .app-shell {
+        width: 100% !important;
+        height: 100% !important;
+        transform: none;
+      }
+
+      .app-shell > nav {
+        width: 56px !important;
+        min-width: 56px !important;
+      }
+
+      .home-dashboard-content {
+        padding: 20px !important;
+      }
     }
   </style>
 </head>
@@ -367,7 +1268,7 @@
       <svg className="w-6 h-7 shrink-0" viewBox="0 0 24 28" fill="none">
         <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
         <path d="M15 1V8.5H23" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
-        <text x="4" y="20" fontFamily="'Plus Jakarta Sans', sans-serif" fontSize="7.5" fontWeight="900" fill="#222222" letterSpacing="-0.4">PDF</text>
+        <text x="4" y="20" fontFamily="Helvetica, Arial, sans-serif" fontSize="7.5" fontWeight="900" fill="#222222" letterSpacing="-0.4">PDF</text>
       </svg>
     );
 
@@ -564,8 +1465,8 @@
       const [newQAlternates, setNewQAlternates] = useState('');
 
       // --- Game Mode Lobby State ---
-      const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-1']);
-      const [gameFormat, setGameFormat] = useState('BOTH'); // 'BOTH', 'MCQ', 'ID'
+      const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
+      const [gameFormat, setGameFormat] = useState('MCQ'); // 'BOTH', 'MCQ', 'ID'
       const [countdownSpeed, setCountdownSpeed] = useState(15); // 10, 15, 30
       const [healthSetting, setHealthSetting] = useState(3); // 1, 3
       const [questionOrder, setQuestionOrder] = useState('SHUFFLE'); // 'SHUFFLE', 'CHRONO'
@@ -719,6 +1620,8 @@
           .filter(d => selectedDeckIds.includes(d.id))
           .reduce((acc, d) => acc + d.cards.length, 0);
       }, [decks, selectedDeckIds]);
+
+      const activeGameDeck = decks.find(d => d.id === selectedDeckIds[0]) || decks[0];
 
       // Notification Toast Helper
       const triggerToast = (msg) => {
@@ -1170,7 +2073,7 @@
       const fusePercent = Math.max(0, Math.min(100, (arenaTimeRemaining / countdownSpeed) * 100));
 
       return (
-        <div className="w-full h-full flex gap-3 md:gap-4 items-stretch overflow-hidden">
+        <div className="app-shell w-full h-full flex gap-3 md:gap-4 items-stretch overflow-hidden">
 
           {/* ========================================================
               LEFT CAPSULE SIDEBAR
@@ -1268,116 +2171,158 @@
               <div className="flex h-full overflow-hidden">
 
                 {/* LEFT COLUMN: Dashboard Content */}
-                <div className="flex-1 p-6 md:p-8 overflow-y-auto custom-scroll">
+                <div className="home-dashboard-content flex-1 overflow-y-auto custom-scroll">
 
                   {/* Header */}
-                  <div className="mb-6">
-                    <span className="text-[11px] font-extrabold tracking-widest text-[#f04824] uppercase">OVERVIEW</span>
-                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">Welcome Back, Nouvel!</h1>
-                    <p className="text-xs text-slate-400 mt-1">Your personalized study headquarters and review metrics.</p>
+                  <div className="home-dashboard-header">
+                    <span className="home-dashboard-eyebrow">OVERVIEW</span>
+                    <h1 className="home-dashboard-title">Welcome Back, Nouvel!</h1>
+                    <p className="home-dashboard-subtitle">Your personalized study headquarters and review metrics.</p>
                   </div>
 
                   {/* Statistic Cards Row */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+                  <div className="home-stat-grid">
                     <div
                       onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                      className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm cursor-pointer hover:border-slate-300 hover:shadow-md transition-all"
+                      className="home-stat-card"
                     >
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 block">TOTAL REVIEWERS</span>
-                      <div className="text-2xl font-black text-slate-900 mt-1.5 mb-1">{totalReviewers} Decks</div>
-                      <span className="text-[11px] text-slate-400">Pure management & Authoring.</span>
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL REVIEWERS</span>
+                        <span className="home-stat-value">{totalReviewers} Decks</span>
+                        <span className="home-stat-description">Pure management &amp; Authoring.</span>
+                      </span>
                     </div>
                     <div
                       onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                      className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm cursor-pointer hover:border-slate-300 hover:shadow-md transition-all"
+                      className="home-stat-card cards-stat"
                     >
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-slate-400 block">TOTAL BOMBCARDS</span>
-                      <div className="text-2xl font-black text-slate-900 mt-1.5 mb-1">{totalBombCards} Cards</div>
-                      <span className="text-[11px] text-slate-400">Across all study sets</span>
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                          <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL BOMBCARDS</span>
+                        <span className="home-stat-value">{totalBombCards} Cards</span>
+                        <span className="home-stat-description">Across all study sets.</span>
+                      </span>
                     </div>
                   </div>
 
-                  {/* Reviewer Library Card */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm mb-5">
-                    <span className="text-[10px] font-extrabold tracking-wider text-[#f04824] uppercase block mb-1">AUTHORING WORKSHOP</span>
-                    <h3 className="text-base font-black text-slate-900">Reviewer Library</h3>
-                    <p className="text-[11px] text-slate-400 mt-1">Create, Edit, Manage your decks and PDF materials.</p>
-                    <button
-                      onClick={() => setActiveTab('library')}
-                      className="mt-4 h-9 px-5 bg-[#333333] hover:bg-[#222222] text-white font-bold text-[11px] rounded-full transition-colors"
-                    >
-                      Open Library Workshop
-                    </button>
-                  </div>
+                  {/* Study Tools */}
+                  <section className="home-tools-section">
+                    <h2 className="home-tools-heading">Your Study Tools</h2>
+                    <p className="home-tools-subtitle">Everything you need to create , study, improve.</p>
+                    <div className="home-tools-grid">
+                      <article className="home-tool-card" onClick={() => setActiveTab('library')}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">Reviewer Library</h3>
+                        <p className="home-tool-description">Create, edit, and manage<br />your reviewers and PDF materials.</p>
+                        <button className="home-tool-button" type="button" onClick={() => setActiveTab('library')}>
+                          <span>Open Library</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
 
-                  {/* BombStyle Mode Card */}
-                  <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm mb-5">
-                    <span className="text-[10px] font-extrabold tracking-wider text-[#f04824] uppercase block mb-1">TIME-ATTACK ARENA</span>
-                    <h3 className="text-base font-black text-slate-900">BombStyle Mode</h3>
-                    <p className="text-[11px] text-slate-400 mt-1">Combine folders, customize gamemode, set lives, and launch solo defusals.</p>
-                    <button
-                      onClick={() => setActiveTab('game')}
-                      className="mt-4 h-9 px-5 bg-[#f04824] hover:bg-[#e03e1b] text-white font-bold text-[11px] rounded-full transition-colors shadow-sm"
-                    >
-                      Enter BombStyle Mode
-                    </button>
-                  </div>
-
-                  {/* Play History Section */}
-                  {arenaHistory.length > 0 && (
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
-                      <span className="text-[10px] font-extrabold tracking-wider text-slate-400 uppercase block mb-2">PLAY HISTORY</span>
-                      <div className="space-y-2 max-h-40 overflow-y-auto custom-scroll pr-1">
-                        {arenaHistory.slice(0, 8).map((item, idx) => (
-                          <div key={idx} className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${item.isRight ? 'bg-emerald-50/50 border-emerald-200/60 text-emerald-700' : 'bg-red-50/50 border-red-200/60 text-red-600'
-                            }`}>
-                            <div className="flex-1 min-w-0">
-                              <span className="font-bold text-slate-800 block truncate">{item.prompt}</span>
-                              <span className="text-[10px] opacity-70">Ans: {item.userAns}</span>
-                            </div>
-                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${item.isRight ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-500'
-                              }`}>
-                              {item.isRight ? 'PASS' : 'FAIL'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                      <article className="home-tool-card bomb-tool" onClick={() => setActiveTab('game')}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                            <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">BombStyle Mode</h3>
+                        <p className="home-tool-description">Customize game mode<br />and play.</p>
+                        <button className="home-tool-button" type="button" onClick={() => setActiveTab('game')}>
+                          <span>Enter BS Mode</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
                     </div>
-                  )}
+                  </section>
+
+                  {/* Recent Activity */}
+                  <section className="home-recent-card">
+                    <h2 className="home-recent-heading">Recent Activity</h2>
+                    <p className="home-recent-subtitle">Pick up where you left off.</p>
+                    <div className="home-recent-divider" />
+                    <div className="home-recent-row">
+                      <span className="home-activity-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M7 3h7l4 4v14H7z" />
+                          <path d="M14 3v5h4M10 12h5M10 15h5M10 18h3" />
+                        </svg>
+                      </span>
+                      <span className="home-activity-copy">
+                        <span className="home-activity-title">ITE 292 B1</span>
+                        <span className="home-activity-meta">Last studied 2 hours ago · 3 cards</span>
+                      </span>
+                      <button className="home-activity-button" type="button" onClick={() => setActiveTab('library')}>
+                        <span>Continue</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 12h15" />
+                          <path d="m13 6 6 6-6 6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </section>
 
                 </div>
 
                 {/* RIGHT COLUMN: Study Assistant Panel */}
-                <div className="w-[300px] lg:w-[320px] border-l border-slate-200/80 bg-[#f9fafb] flex flex-col shrink-0 hidden md:flex">
+                <div className="home-chat-panel flex flex-col shrink-0 hidden md:flex">
 
                   {/* Assistant Header */}
-                  <div className="p-5 border-b border-slate-200/80">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm overflow-hidden relative">
-                        <img src="csm-sidebar-logo.png" alt="Study Assistant" className="w-10 h-10 object-contain" />
-                        <span className="absolute -top-0.5 -right-0.5 text-[#f04824] text-[10px] font-black leading-none">*</span>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black text-slate-900 leading-tight">Your Study Assistant</h3>
-                        <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase">POWERED BY CO-STUDYMAXX</span>
-                      </div>
+                  <div className="home-chat-header">
+                    <img src="csm-sidebar-logo.png" alt="Co-StudyMaxx Chat Bot" className="home-chat-avatar" />
+                    <div className="home-chat-heading">
+                      <h3 className="home-chat-title">MAXX</h3>
+                      <span className="home-chat-powered">Powered by Co-StudyMaxx</span>
                     </div>
+                    <button className="home-chat-reset" type="button" aria-label="Restart chat" title="Restart chat">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 11a8 8 0 0 0-14.8-4L3 9" />
+                        <path d="M3 4v5h5" />
+                        <path d="M4 13a8 8 0 0 0 14.8 4L21 15" />
+                      </svg>
+                    </button>
                   </div>
 
                   {/* Chat / Conversation Area */}
-                  <div className="flex-1 p-4 overflow-y-auto custom-scroll">
-                    {/* Empty conversation area */}
-                  </div>
+                  <div className="home-chat-body flex-1 overflow-y-auto custom-scroll" aria-label="Chat conversation area"></div>
 
                   {/* Quick Questions Footer */}
-                  <div className="p-4 border-t border-slate-200/80">
-                    <span className="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">RESTART CHAT</span>
-                    <span className="text-[10px] font-extrabold tracking-wider text-slate-500 uppercase block mb-2.5">QUICK QUESTIONS</span>
-                    <div className="flex flex-col gap-1.5">
-                      <button className="w-full text-left text-[11px] font-medium text-slate-500 bg-white border border-slate-200/90 rounded-full px-3.5 py-2 hover:bg-slate-50 hover:text-slate-700 transition-colors">What should I review today?</button>
-                      <button className="w-full text-left text-[11px] font-medium text-slate-500 bg-white border border-slate-200/90 rounded-full px-3.5 py-2 hover:bg-slate-50 hover:text-slate-700 transition-colors">Show my weakest topics</button>
-                      <button className="w-full text-left text-[11px] font-medium text-slate-500 bg-white border border-slate-200/90 rounded-full px-3.5 py-2 hover:bg-slate-50 hover:text-slate-700 transition-colors">How does Bomb Mode Work?</button>
-                      <button className="w-full text-left text-[11px] font-medium text-slate-500 bg-white border border-slate-200/90 rounded-full px-3.5 py-2 hover:bg-slate-50 hover:text-slate-700 transition-colors">How do I share my reviewer?</button>
+                  <div className="home-chat-footer">
+                    <span className="home-chat-footer-label">Quick Questions</span>
+                    <div className="home-chat-quick-list">
+                      {['What should I review today?', 'Show my weakest topics', 'How does Bomb Mode Work?', 'How do I share my reviewer?'].map((question) => (
+                        <button key={question} className="home-chat-quick-button" type="button">
+                          <span>{question}</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m9 5 7 7-7 7" />
+                          </svg>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
