@@ -23,7 +23,7 @@
         extend: {
           fontFamily: {
             sans: ['Helvetica', 'Arial', 'sans-serif'],
-            display: ['Helvetica', 'Arial', 'sans-serif'],
+            display: ['Helvetica Rounded', 'Arial Rounded MT Bold', 'Helvetica', 'Arial', 'sans-serif'],
             mono: ['Helvetica', 'Arial', 'sans-serif']
           },
           colors: {
@@ -84,6 +84,11 @@
       padding: 0;
     }
 
+    :root {
+      --font-helvetica: Helvetica, Arial, sans-serif;
+      --font-helvetica-rounded: 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+    }
+
     /* Match the browser's 125% presentation consistently across every tab. */
     html {
       font-size: 100%;
@@ -91,7 +96,7 @@
 
     body {
       background-color: #e8ddd0;
-      font-family: Helvetica, Arial, sans-serif;
+      font-family: var(--font-helvetica);
       min-height: 100vh;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
@@ -151,18 +156,19 @@
     /* Keep every tab on the same stable app-shell footprint. */
     .app-shell {
       width: 80% !important;
-      height: 80% !important;
+      height: 77% !important;
       flex: none !important;
       min-width: 0;
       min-height: 0;
       margin: auto;
       transform: scale(1.25);
       transform-origin: center;
+      gap: 11px !important;
     }
 
     .app-shell > nav {
-      width: 60px !important;
-      min-width: 60px !important;
+      width: 78px !important;
+      min-width: 78px !important;
     }
 
     .app-shell > main,
@@ -625,6 +631,44 @@
       background: #ff4b25;
     }
 
+    /* Every bold treatment uses the rounded Helvetica family. */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    strong,
+    b,
+    [class~="font-semibold"],
+    [class~="font-bold"],
+    [class~="font-extrabold"],
+    [class~="font-black"] {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
+    .home-chat-title,
+    .home-chat-powered,
+    .home-dashboard-eyebrow,
+    .home-dashboard-title,
+    .home-stat-label,
+    .home-stat-value,
+    .home-tools-heading,
+    .home-tool-title,
+    .home-tool-button,
+    .home-recent-heading,
+    .home-activity-title,
+    .home-activity-button,
+    .game-view-eyebrow,
+    .game-view-title,
+    .game-section-title,
+    .game-deck-name,
+    .game-setting-name,
+    .game-summary-title,
+    .game-launch-button {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
     /* Game Mode reference layout */
     .game-view {
       height: 100%;
@@ -674,6 +718,7 @@
       display: flex;
       flex-direction: column;
       gap: 28px;
+      padding-top: 21px;
     }
 
     .game-section-card {
@@ -932,10 +977,14 @@
     }
 
     .game-summary-rule {
-      min-height: 31px;
+      min-height: 40px;
       display: flex;
       align-items: center;
       gap: 9px;
+    }
+
+    .game-summary-rule:not(:last-child) {
+      border-bottom: 1px solid rgba(124, 143, 168, 0.28);
     }
 
     .game-summary-rule-icon {
@@ -1035,6 +1084,128 @@
       .home-dashboard-content {
         padding: 20px !important;
       }
+    }
+
+    /* Pixel-match overrides for the Game Mode reference frame. */
+    body {
+      background-color: #e5e0da;
+    }
+
+    .outer-glow-backdrop {
+      background:
+        radial-gradient(ellipse 58% 92% at 100% 0%, rgba(245, 113, 27, 0.8) 0%, rgba(232, 139, 77, 0.35) 27%, transparent 67%),
+        radial-gradient(ellipse 58% 88% at 100% 100%, rgba(245, 113, 27, 0.78) 0%, rgba(232, 139, 77, 0.3) 29%, transparent 68%),
+        radial-gradient(ellipse 46% 100% at 0% 50%, rgba(224, 137, 78, 0.38) 0%, transparent 72%),
+        #e5e0da;
+      filter: blur(30px);
+    }
+
+    .app-shell > nav button.active {
+      background: #ff6b1a !important;
+      box-shadow: 0 0 15px rgba(255, 107, 26, 0.38) !important;
+    }
+
+    .app-shell > main {
+      background: #f2f0ec !important;
+    }
+
+    .game-view {
+      background: #f2f0ec;
+    }
+
+    .game-view-header {
+      margin-bottom: 2px;
+    }
+
+    .game-view-eyebrow,
+    .game-view-title,
+    .game-section-title,
+    .game-deck-name,
+    .game-setting-name,
+    .game-summary-title {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
+    .game-view-eyebrow {
+      color: #ff6b1a;
+    }
+
+    .game-section-card,
+    .game-setting {
+      background: transparent;
+      border-color: #bdbdbd;
+    }
+
+    .game-section-card {
+      padding-bottom: 17px;
+    }
+
+    .game-settings-card {
+      padding-bottom: 12px;
+    }
+
+    .game-deck-selector {
+      background: #d4dfed;
+      border-color: #bfd4ef;
+    }
+
+    .game-deck-icon {
+      background: #dce7f5;
+    }
+
+    .game-deck-select,
+    .game-option.selected,
+    .game-launch-button {
+      background: #ff6b1a;
+    }
+
+    .game-deck-select {
+      background: #4f78ad;
+    }
+
+    .game-option {
+      background: #d5d5d5;
+    }
+
+    .game-summary {
+      background:
+        radial-gradient(circle at 68% 22%, rgba(170, 68, 4, 0.58) 0%, rgba(124, 44, 4, 0.2) 19%, transparent 39%),
+        #12141f;
+    }
+
+    .game-summary-rules {
+      background: #18212d;
+    }
+
+    .game-summary-rule:not(:last-child) {
+      border-bottom-color: rgba(124, 143, 168, 0.3);
+    }
+
+    .game-left-column {
+      padding-top: 21px;
+    }
+
+    @media (max-width: 767px) {
+      .game-left-column {
+        padding-top: 0;
+      }
+    }
+
+    /* Shared eased press interaction for every button. */
+    button {
+      transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease !important;
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.98) !important;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -1468,7 +1639,7 @@
       const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
       const [gameFormat, setGameFormat] = useState('MCQ'); // 'BOTH', 'MCQ', 'ID'
       const [countdownSpeed, setCountdownSpeed] = useState(15); // 10, 15, 30
-      const [healthSetting, setHealthSetting] = useState(3); // 1, 3
+      const [healthSetting, setHealthSetting] = useState(1); // 1, 2, 3
       const [questionOrder, setQuestionOrder] = useState('SHUFFLE'); // 'SHUFFLE', 'CHRONO'
       const [roomCodeInput, setRoomCodeInput] = useState('');
       const [shareToast, setShareToast] = useState('');
@@ -1622,6 +1793,7 @@
       }, [decks, selectedDeckIds]);
 
       const activeGameDeck = decks.find(d => d.id === selectedDeckIds[0]) || decks[0];
+      const activeGameDeckCodeParts = (activeGameDeck?.code || 'ITE 292 B1').split(' ');
 
       // Notification Toast Helper
       const triggerToast = (msg) => {
@@ -2128,7 +2300,7 @@
                     }`}
                   title="Game Mode (Countdown Arena Lobby)"
                 >
-                  <IconBomb />
+                  <IconCards className="w-6 h-6" />
                 </button>
               </div>
             </div>
@@ -2650,231 +2822,139 @@
                 VIEW C: GAME MODE SECTION (Lobby & Launch Configuration)
                 ======================================================== */}
             {activeTab === 'game' && (
-              <div className="p-6 md:p-8 overflow-y-auto h-full custom-scroll flex flex-col">
+              <div className="game-view custom-scroll">
+                <header className="game-view-header">
+                  <span className="game-view-eyebrow">YOUR STUDY DESK</span>
+                  <h1 className="game-view-title">Enter Bomb Mode</h1>
+                  <p className="game-view-subtitle">Pick a deck, customize your game rules, and start playing.</p>
+                </header>
 
-                {/* Header */}
-                <div className="mb-6">
-                  <span className="text-[11px] font-extrabold tracking-widest text-[#f04824] uppercase">TIME-ATTACK ARENA</span>
-                  <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Game Launch Lobby</h1>
-                  <p className="text-xs text-slate-500 mt-0.5">Select deck combinations, calibrate session rules, and enter the active Word Bomb drill.</p>
-                </div>
+                <div className="game-layout">
+                  <div className="game-left-column">
+                    <section className="game-section-card">
+                      <h2 className="game-section-title">Select a BombCard Deck</h2>
+                      <p className="game-section-subtitle">Choose one deck from your library to play.</p>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-
-                  {/* LEFT COLUMN: Deck & Folder Selection Grid (7 Cols) */}
-                  <div className="lg:col-span-7 flex flex-col gap-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
-                        Step 1: Select Decks to Combine
-                      </h3>
-                      <button
-                        onClick={() => setSelectedDeckIds(decks.map(d => d.id))}
-                        className="text-xs font-bold text-[#f04824] hover:underline"
-                      >
-                        Select All
-                      </button>
-                    </div>
-
-                    {/* Folder Selection Grid */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {decks.map(deck => {
-                        const isSelected = selectedDeckIds.includes(deck.id);
-                        return (
-                          <div
-                            key={deck.id}
-                            onClick={() => toggleSelectDeck(deck.id)}
-                            className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${isSelected
-                              ? 'bg-white border-[#f04824] shadow-md ring-2 ring-[#f04824]/20'
-                              : 'bg-white/80 border-slate-200 hover:border-slate-300'
-                              }`}
+                      <div className="game-deck-selector">
+                        <span className="game-deck-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                          </svg>
+                        </span>
+                        <span className="game-deck-copy">
+                          <span className="game-deck-name">{activeGameDeck?.code || activeGameDeck?.title || 'No deck selected'}</span>
+                          <span className="game-deck-meta">{activeGameDeck?.cards?.length || 0} Bombcards&nbsp; Last studied 2h ago.</span>
+                        </span>
+                        <span className="game-deck-select-wrap">
+                          <select
+                            className="game-deck-select"
+                            value={activeGameDeck?.id || ''}
+                            onChange={(e) => setSelectedDeckIds([e.target.value])}
+                            aria-label="Change deck"
                           >
-                            <div className="flex items-start justify-between">
-                              <span className={`text-xs font-extrabold px-2 py-0.5 rounded ${isSelected ? 'bg-[#f04824] text-white' : 'bg-slate-100 text-slate-600'
-                                }`}>
-                                {deck.code}
-                              </span>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => { }}
-                                className="w-4 h-4 text-[#f04824] rounded focus:ring-[#f04824] cursor-pointer"
-                              />
-                            </div>
-                            <div className="mt-3">
-                              <h4 className="text-sm font-extrabold text-slate-900">{deck.title}</h4>
-                              <p className="text-xs text-slate-500 mt-0.5">{deck.cards.length} BombCards Available</p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Live Summary Chip */}
-                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-3.5 text-xs text-slate-800 flex items-center justify-between shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#f04824]"></span>
-                        <span className="font-bold">
-                          Selected {selectedDeckIds.length} of {decks.length} Decks
+                            {decks.map(deck => <option key={deck.id} value={deck.id}>{deck.code}</option>)}
+                          </select>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
                         </span>
                       </div>
-                      <span className="font-extrabold text-[#f04824] bg-white px-2.5 py-1 rounded-md border border-orange-200">
-                        {selectedTotalCards} Total BombCards in Run
-                      </span>
-                    </div>
+                    </section>
 
-                    {/* Multiplayer / Study Group Box */}
-                    <div className="mt-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        MULTIPLAYER DRILL
-                      </span>
-                      <h4 className="text-sm font-extrabold text-slate-900 mb-2">Join via Room Code</h4>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={roomCodeInput}
-                          onChange={(e) => setRoomCodeInput(e.target.value)}
-                          placeholder="e.g. ITE001-X9A2"
-                          className="flex-1 h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#f04824]"
-                        />
-                        <button
-                          onClick={() => {
-                            if (!roomCodeInput.trim()) return alert('Enter room code first.');
-                            triggerToast(`Connecting to room ${roomCodeInput.toUpperCase()}...`);
-                          }}
-                          className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-colors"
-                        >
-                          Join Lobby
-                        </button>
-                        <button
-                          onClick={() => {
-                            const gen = `CSM-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-                            setRoomCodeInput(gen);
-                            triggerToast(`Hosting room: ${gen}`);
-                          }}
-                          className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl transition-colors"
-                        >
-                          Host Match
-                        </button>
+                    <section className="game-section-card game-settings-card">
+                      <h2 className="game-section-title">Game Settings</h2>
+                      <p className="game-section-subtitle">Customize how you want to play.</p>
+
+                      <div className="game-settings-grid">
+                        <div className="game-setting lives">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Lives</h3>
+                            <p className="game-setting-help">How many mistakes before the game ends.</p>
+                            <div className="game-options">
+                              {[1, 2, 3].map(value => <button key={value} type="button" className={`game-option ${healthSetting === value ? 'selected' : ''}`} onClick={() => setHealthSetting(value)}>{value}</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting time">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Time per Card</h3>
+                            <p className="game-setting-help">Time you have to answer each card.</p>
+                            <div className="game-options">
+                              {[15, 30, 45].map(value => <button key={value} type="button" className={`game-option ${countdownSpeed === value ? 'selected' : ''}`} onClick={() => setCountdownSpeed(value)}>{value}s</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting order">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Card Order</h3>
+                            <p className="game-setting-help">The order in which cards will appear.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${questionOrder === 'SHUFFLE' ? 'selected' : ''}`} onClick={() => setQuestionOrder('SHUFFLE')}>Randomized</button>
+                              <button type="button" className={`game-option ${questionOrder === 'CHRONO' ? 'selected' : ''}`} onClick={() => setQuestionOrder('CHRONO')}>Sequential</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting type">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Test Type</h3>
+                            <p className="game-setting-help">Which card type to include in the game.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${gameFormat === 'MCQ' ? 'selected' : ''}`} onClick={() => setGameFormat('MCQ')}>MCQ</button>
+                              <button type="button" className={`game-option ${gameFormat === 'ID' ? 'selected' : ''}`} onClick={() => setGameFormat('ID')}>ID</button>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    </section>
                   </div>
 
-                  {/* RIGHT COLUMN: Step 2 & 3 Session Configuration & Launch (5 Cols) */}
-                  <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-5">
-                    <div>
-                      <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block mb-1">
-                        STEP 2: SESSION RULES
-                      </span>
-                      <h3 className="text-base font-extrabold text-slate-900">Drill Configuration</h3>
-                    </div>
+                  <aside className="game-summary">
+                    <h2 className="game-summary-title">
+                      <span>{activeGameDeckCodeParts.slice(0, -1).join(' ')}</span>
+                      <span>{activeGameDeckCodeParts[activeGameDeckCodeParts.length - 1]}</span>
+                    </h2>
+                    <p className="game-summary-count">{selectedTotalCards} BombCards</p>
+                    <img className="game-summary-mascot" src="csm-sidebar-logo.png" alt="Co-StudyMaxx bomb mascot" />
 
-                    {/* Rule 1: Question Format */}
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Question Format</label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { id: 'BOTH', label: 'Both Types' },
-                          { id: 'MCQ', label: 'MCQ Only' },
-                          { id: 'ID', label: 'Identification' }
-                        ].map(fmt => (
-                          <button
-                            key={fmt.id}
-                            onClick={() => setGameFormat(fmt.id)}
-                            className={`h-8 rounded-lg text-xs font-bold transition-all border ${gameFormat === fmt.id
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {fmt.label}
-                          </button>
-                        ))}
+                    <div className="game-summary-rules">
+                      <div className="game-summary-rule lives">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg></span>
+                        <span className="game-summary-rule-label">Lives</span><span className="game-summary-rule-value">{healthSetting}</span>
+                      </div>
+                      <div className="game-summary-rule time">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg></span>
+                        <span className="game-summary-rule-label">Time per Card</span><span className="game-summary-rule-value">{countdownSpeed}s</span>
+                      </div>
+                      <div className="game-summary-rule order">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg></span>
+                        <span className="game-summary-rule-label">Order</span><span className="game-summary-rule-value">{questionOrder === 'SHUFFLE' ? 'Randomized' : 'Sequential'}</span>
+                      </div>
+                      <div className="game-summary-rule type">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg></span>
+                        <span className="game-summary-rule-label">Test Type</span><span className="game-summary-rule-value">{gameFormat === 'MCQ' ? 'MCQ' : gameFormat === 'ID' ? 'ID' : 'All Cards'}</span>
                       </div>
                     </div>
 
-                    {/* Rule 2: Fuse Countdown Speed */}
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Fuse Countdown Speed</label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[
-                          { val: 10, label: '10s Fast' },
-                          { val: 15, label: '15s Standard' },
-                          { val: 30, label: '30s Relaxed' }
-                        ].map(spd => (
-                          <button
-                            key={spd.val}
-                            onClick={() => setCountdownSpeed(spd.val)}
-                            className={`h-8 rounded-lg text-xs font-bold transition-all border ${countdownSpeed === spd.val
-                              ? 'bg-[#f04824] text-white border-[#f04824] shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {spd.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Rule 3: Health / Lives */}
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Mistake Tolerance</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { val: 3, label: '3 Lives Standard' },
-                          { val: 1, label: '1 Life Sudden Death' }
-                        ].map(hp => (
-                          <button
-                            key={hp.val}
-                            onClick={() => setHealthSetting(hp.val)}
-                            className={`h-8 rounded-lg text-xs font-bold transition-all border ${healthSetting === hp.val
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {hp.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Rule 4: Question Order */}
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1.5">Question Ordering</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { id: 'SHUFFLE', label: 'Randomized' },
-                          { id: 'CHRONO', label: 'Chronological' }
-                        ].map(ord => (
-                          <button
-                            key={ord.id}
-                            onClick={() => setQuestionOrder(ord.id)}
-                            className={`h-8 rounded-lg text-xs font-bold transition-all border ${questionOrder === ord.id
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                              }`}
-                          >
-                            {ord.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Step 3: Primary Launch Button */}
-                    <div className="pt-4 border-t border-slate-100">
-                      <button
-                        onClick={handleLaunchArena}
-                        disabled={selectedTotalCards === 0}
-                        className="w-full h-12 bg-[#f04824] hover:bg-[#e03e1b] disabled:bg-slate-300 text-white font-extrabold text-sm rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2"
-                      >
-                        <IconBomb />
-                        <span>Launch Solo Defusal ({selectedTotalCards} Cards)</span>
-                      </button>
-                      <span className="text-[11px] text-slate-400 text-center block mt-2">
-                        Transitions directly into the time-attack Word Bomb arena.
-                      </span>
-                    </div>
-
-                  </div>
-
+                    <button className="game-launch-button" type="button" onClick={handleLaunchArena} disabled={selectedTotalCards === 0}>
+                      Start Bomb Mode <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+                    </button>
+                  </aside>
                 </div>
               </div>
             )}
