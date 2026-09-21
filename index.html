@@ -534,6 +534,9 @@
       const [bombIsCorrect, setBombIsCorrect] = useState(null);
       const [bombRemainingLives, setBombRemainingLives] = useState(1);
       const [bombDefusedCount, setBombDefusedCount] = useState(0);
+      const [bombTotalAttempts, setBombTotalAttempts] = useState(0);
+      const [bombIsRevealingAnswer, setBombIsRevealingAnswer] = useState(false);
+      const [bombFeedback, setBombFeedback] = useState(null);
       const [bombGameStatus, setBombGameStatus] = useState('PLAYING'); // 'PLAYING', 'WON', 'DETONATED'
 
       // Prepare cards with randomized options & dynamic correctIndex tracking
@@ -588,7 +591,7 @@
       // Handle Bomb Countdown Timer
       useEffect(() => {
         let timer;
-        if (isBombPlaying && bombGameStatus === 'PLAYING') {
+        if (isBombPlaying && bombGameStatus === 'PLAYING' && !bombIsRevealingAnswer) {
           timer = setInterval(() => {
             setBombTimeRemaining(prev => {
               if (prev <= 1) {
@@ -596,24 +599,42 @@
                 sound.wrong();
                 const nextLives = bombRemainingLives - 1;
                 setBombRemainingLives(nextLives);
-                if (nextLives <= 0) {
-                  setBombGameStatus('DETONATED');
-                  return 0;
-                } else {
-                  // Advance to next question so player does not get stuck!
-                  const currentDeckCards = bombActiveCards.length > 0 ? bombActiveCards : (selectedBombDeck?.cards || []);
-                  if (bombCurrentQIndex + 1 < currentDeckCards.length) {
-                    setBombCurrentQIndex(curr => curr + 1);
-                    setBombSelectedOption(null);
-                    setBombIdInput('');
-                    setBombIsCorrect(null);
-                    const seconds = parseInt(timeSetting, 10) || 30;
-                    return seconds;
+                setBombTotalAttempts(a => a + 1);
+
+                const currentDeckCards = bombActiveCards.length > 0 ? bombActiveCards : (selectedBombDeck?.cards || []);
+                const currentCard = currentDeckCards[bombCurrentQIndex] || currentDeckCards[0];
+                const rawAnswer = currentCard?.options?.[currentCard?.correctIndex ?? 0] || currentCard?.answerText || 'Correct Answer';
+                const cleanAnswer = rawAnswer.replace(/^[A-D]\.\s*/i, '').trim();
+
+                setBombIsRevealingAnswer(true);
+                setBombFeedback({
+                  isTimeout: true,
+                  isWrong: true,
+                  correctText: cleanAnswer,
+                  fullOptionText: rawAnswer
+                });
+
+                setTimeout(() => {
+                  setBombIsRevealingAnswer(false);
+                  setBombFeedback(null);
+                  setBombSelectedOption(null);
+                  setBombIdInput('');
+                  setBombIsCorrect(null);
+
+                  if (nextLives <= 0) {
+                    setBombGameStatus('DETONATED');
                   } else {
-                    setBombGameStatus('WON');
-                    return 0;
+                    if (bombCurrentQIndex + 1 < currentDeckCards.length) {
+                      setBombCurrentQIndex(curr => curr + 1);
+                      const seconds = parseInt(timeSetting, 10) || 30;
+                      setBombTimeRemaining(seconds);
+                    } else {
+                      setBombGameStatus('WON');
+                    }
                   }
-                }
+                }, 2200);
+
+                return 0;
               }
               if (prev <= 5) {
                 sound.tick();
@@ -623,7 +644,7 @@
           }, 1000);
         }
         return () => clearInterval(timer);
-      }, [isBombPlaying, bombGameStatus, bombRemainingLives, bombCurrentQIndex, bombActiveCards, selectedBombDeck, timeSetting]);
+      }, [isBombPlaying, bombGameStatus, bombIsRevealingAnswer, bombRemainingLives, bombCurrentQIndex, bombActiveCards, selectedBombDeck, timeSetting]);
 
       // Start Bomb Mode
       const handleStartBombMode = () => {
@@ -633,9 +654,12 @@
         setBombSelectedOption(null);
         setBombIdInput('');
         setBombIsCorrect(null);
+        setBombTotalAttempts(0);
+        setBombDefusedCount(0);
+        setBombIsRevealingAnswer(false);
+        setBombFeedback(null);
         const startingLives = livesSetting === '∞' ? 999 : parseInt(livesSetting, 10);
         setBombRemainingLives(startingLives);
-        setBombDefusedCount(0);
         setBombGameStatus('PLAYING');
         const prepared = prepareBombCards(selectedBombDeck?.cards || [], orderSetting);
         setBombActiveCards(prepared);
@@ -646,12 +670,13 @@
 
       // Handle Answer Choice in Bomb Mode
       const handleAnswerChoice = (choiceIndex) => {
-        if (bombSelectedOption !== null || bombGameStatus !== 'PLAYING') return;
+        if (bombSelectedOption !== null || bombGameStatus !== 'PLAYING' || bombIsRevealingAnswer) return;
 
         const currentDeckCards = bombActiveCards.length > 0 ? bombActiveCards : (selectedBombDeck?.cards || []);
         const currentCard = currentDeckCards[bombCurrentQIndex] || currentDeckCards[0];
         const isRight = choiceIndex === (currentCard?.correctIndex ?? 0);
 
+        setBombTotalAttempts(prev => prev + 1);
         setBombSelectedOption(choiceIndex);
         setBombIsCorrect(isRight);
 
@@ -673,31 +698,44 @@
           sound.wrong();
           const nextLives = bombRemainingLives - 1;
           setBombRemainingLives(nextLives);
-          if (nextLives <= 0) {
-            setTimeout(() => {
+          setBombIsRevealingAnswer(true);
+
+          const correctOpt = currentCard?.options?.[currentCard?.correctIndex ?? 0] || currentCard?.answerText || '';
+          const cleanAnswer = correctOpt.replace(/^[A-D]\.\s*/i, '').trim();
+
+          setBombFeedback({
+            isTimeout: false,
+            isWrong: true,
+            correctText: cleanAnswer,
+            fullOptionText: correctOpt
+          });
+
+          // Reveal the correct answer for 2.2 seconds before advancing or detonating
+          setTimeout(() => {
+            setBombIsRevealingAnswer(false);
+            setBombFeedback(null);
+            setBombSelectedOption(null);
+            setBombIsCorrect(null);
+
+            if (nextLives <= 0) {
               setBombGameStatus('DETONATED');
-            }, 800);
-          } else {
-            // Player still has lives: show red feedback, deduct life, and advance to next question!
-            setTimeout(() => {
+            } else {
               if (bombCurrentQIndex + 1 < currentDeckCards.length) {
                 setBombCurrentQIndex(prev => prev + 1);
                 const seconds = parseInt(timeSetting, 10) || 30;
                 setBombTimeRemaining(seconds);
-                setBombSelectedOption(null);
-                setBombIsCorrect(null);
               } else {
                 setBombGameStatus('WON');
               }
-            }, 900);
-          }
+            }
+          }, 2200);
         }
       };
 
       // Handle Identification (Type-to-Defuse) Mode
       const handleIdentificationSubmit = (e) => {
         if (e) e.preventDefault();
-        if (!bombIdInput.trim() || bombGameStatus !== 'PLAYING') return;
+        if (!bombIdInput.trim() || bombGameStatus !== 'PLAYING' || bombIsRevealingAnswer) return;
 
         const currentDeckCards = bombActiveCards.length > 0 ? bombActiveCards : (selectedBombDeck?.cards || []);
         const currentCard = currentDeckCards[bombCurrentQIndex] || currentDeckCards[0];
@@ -708,6 +746,7 @@
         // Exact match or contains key phrase
         const isRight = input === target || (target.length > 3 && target.includes(input)) || (input.length > 3 && input.includes(target));
 
+        setBombTotalAttempts(prev => prev + 1);
         setBombIsCorrect(isRight);
 
         if (isRight) {
@@ -728,24 +767,36 @@
           sound.wrong();
           const nextLives = bombRemainingLives - 1;
           setBombRemainingLives(nextLives);
-          if (nextLives <= 0) {
-            setTimeout(() => {
+          setBombIsRevealingAnswer(true);
+
+          const cleanTarget = rawTarget.replace(/^[A-D]\.\s*/i, '').trim();
+
+          setBombFeedback({
+            isTimeout: false,
+            isWrong: true,
+            correctText: cleanTarget,
+            fullOptionText: cleanTarget
+          });
+
+          // Reveal the correct answer for 2.2 seconds before advancing or detonating
+          setTimeout(() => {
+            setBombIsRevealingAnswer(false);
+            setBombFeedback(null);
+            setBombIdInput('');
+            setBombIsCorrect(null);
+
+            if (nextLives <= 0) {
               setBombGameStatus('DETONATED');
-            }, 800);
-          } else {
-            // Player still has lives: show red feedback, deduct life, and advance to next question!
-            setTimeout(() => {
+            } else {
               if (bombCurrentQIndex + 1 < currentDeckCards.length) {
                 setBombCurrentQIndex(prev => prev + 1);
                 const seconds = parseInt(timeSetting, 10) || 30;
                 setBombTimeRemaining(seconds);
-                setBombIdInput('');
-                setBombIsCorrect(null);
               } else {
                 setBombGameStatus('WON');
               }
-            }, 900);
-          }
+            }
+          }, 2200);
         }
       };
 
@@ -1170,7 +1221,9 @@
                       onClick={() => setExpandLast7(!expandLast7)}
                       className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-3 cursor-pointer select-none"
                     >
-                      <span className="text-[10px] text-slate-500">{expandLast7 ? '▼' : '▶'}</span>
+                      <svg className={`w-3 h-3 text-slate-500 transition-transform ${expandLast7 ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
                       <span>Last 7 days</span>
                     </button>
 
@@ -1217,7 +1270,9 @@
                       onClick={() => setExpandOlder(!expandOlder)}
                       className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-3 cursor-pointer select-none"
                     >
-                      <span className="text-[10px] text-slate-500">{expandOlder ? '▼' : '▶'}</span>
+                      <svg className={`w-3 h-3 text-slate-500 transition-transform ${expandOlder ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
                       <span>Longer than a week</span>
                     </button>
 
@@ -1672,7 +1727,11 @@
                         {/* 1. Lives */}
                         <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-rose-500 text-sm">&#10084;</span>
+                            <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[#f04824] shrink-0">
+                              <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                              </svg>
+                            </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Lives</span>
                           </div>
                           <p className="text-[10.5px] text-slate-500 mb-3">How many mistakes before the game ends.</p>
@@ -1696,7 +1755,12 @@
                         {/* 2. Time per Card */}
                         <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-blue-500 text-sm">&#9201;</span>
+                            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 shrink-0">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <polyline points="12 6 12 12 16 14"/>
+                              </svg>
+                            </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Time per Card</span>
                           </div>
                           <p className="text-[10.5px] text-slate-500 mb-3">Time you have to answer each card.</p>
@@ -1720,7 +1784,15 @@
                         {/* 3. Card Order */}
                         <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-purple-500 text-sm">&#128256;</span>
+                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 shrink-0">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="16 3 21 3 21 8"/>
+                                <line x1="4" y1="20" x2="21" y2="3"/>
+                                <polyline points="21 16 21 21 16 21"/>
+                                <line x1="15" y1="15" x2="21" y2="21"/>
+                                <line x1="4" y1="4" x2="9" y2="9"/>
+                              </svg>
+                            </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Card Order</span>
                           </div>
                           <p className="text-[10.5px] text-slate-500 mb-3">The order in which cards will appear.</p>
@@ -1744,7 +1816,12 @@
                         {/* 4. Test Type */}
                         <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-emerald-500 text-sm">&#128269;</span>
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                            </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Test Type</span>
                           </div>
                           <p className="text-[10.5px] text-slate-500 mb-3">Which card to include in the game.</p>
@@ -1799,28 +1876,46 @@
                     <div className="bg-[#202025] rounded-2xl p-4 space-y-3.5 border border-white/5 text-xs">
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
-                          <span className="text-rose-400">&#10084;</span> Lives
+                          <svg className="w-3.5 h-3.5 fill-[#f04824] shrink-0" viewBox="0 0 24 24">
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                          </svg>
+                          <span>Lives</span>
                         </span>
                         <span className="font-bold text-white">{livesSetting}</span>
                       </div>
                       <div className="border-t border-white/5"></div>
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
-                          <span className="text-blue-400">&#9201;</span> Time per Card
+                          <svg className="w-3.5 h-3.5 text-blue-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                          </svg>
+                          <span>Time per Card</span>
                         </span>
                         <span className="font-bold text-white">{timeSetting}</span>
                       </div>
                       <div className="border-t border-white/5"></div>
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
-                          <span className="text-purple-400">&#128256;</span> Order
+                          <svg className="w-3.5 h-3.5 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="16 3 21 3 21 8"/>
+                            <line x1="4" y1="20" x2="21" y2="3"/>
+                            <polyline points="21 16 21 21 16 21"/>
+                            <line x1="15" y1="15" x2="21" y2="21"/>
+                            <line x1="4" y1="4" x2="9" y2="9"/>
+                          </svg>
+                          <span>Order</span>
                         </span>
                         <span className="font-bold text-white">{orderSetting}</span>
                       </div>
                       <div className="border-t border-white/5"></div>
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
-                          <span className="text-emerald-400">&#128269;</span> Test Type
+                          <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                          </svg>
+                          <span>Test Type</span>
                         </span>
                         <span className="font-bold text-white">{testTypeSetting}</span>
                       </div>
@@ -1970,11 +2065,16 @@
                       setIsAddMaterialOpen(false);
                       setLibrarySubView('flashcards');
                     }}
-                    className="border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 rounded-xl p-3 cursor-pointer transition-all"
+                    className="border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 rounded-xl p-3 cursor-pointer transition-all flex flex-col items-start"
                   >
-                    <div className="w-5 h-5 rounded bg-slate-800 mb-2 flex items-center justify-center text-white text-[10px]">🗂️</div>
-                    <h5 className="font-bold text-slate-900 text-xs leading-tight">Create Flashcards Manually</h5>
-                    <p className="text-[9.5px] text-slate-500 mt-1">Create your own Flashcards</p>
+                    <div className="w-7 h-7 rounded-lg bg-[#202024] mb-2 flex items-center justify-center text-white shrink-0">
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="5" width="14" height="15" rx="2" />
+                        <path d="M7 5V3a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2h-2" />
+                      </svg>
+                    </div>
+                    <h5 className="font-bold text-slate-900 text-xs leading-tight">Create Bombcards Manually</h5>
+                    <p className="text-[9.5px] text-slate-500 mt-1">Create your own Bombcards</p>
                   </div>
 
                   <div className="border border-slate-200 bg-slate-100/60 rounded-xl p-3 opacity-60 relative overflow-hidden flex flex-col items-center justify-center text-center">
@@ -1991,168 +2091,350 @@
           {/* ========================================================
               5. ACTIVE BOMB GAMEPLAY MODAL (FIGMA MATCH)
               ======================================================== */}
-          {isBombPlaying && (
-            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="bg-[#1e1e21] border border-white/10 rounded-[28px] max-w-[960px] w-full min-h-[580px] p-8 text-white relative shadow-2xl flex flex-col justify-between overflow-hidden">
-                
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#2a2a30] flex items-center justify-center p-1.5 shadow-md">
-                      <img src="csm-sidebar-logo.png" alt="Mascot" className="w-full h-full object-contain" />
-                    </div>
-                    <div>
+          {isBombPlaying && (() => {
+            const bombAccuracyPercent = bombTotalAttempts > 0 
+              ? Math.round((bombDefusedCount / bombTotalAttempts) * 100) 
+              : 0;
+
+            return (
+              <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="bg-[#1e1e21] border border-white/10 rounded-[28px] max-w-[960px] w-full min-h-[580px] p-8 text-white relative shadow-2xl flex flex-col justify-between overflow-hidden">
+                  
+                  {/* Header (Figma Match) */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#2a2a30] flex items-center justify-center p-1.5 shadow-md">
+                        <img src="csm-sidebar-logo.png" alt="Mascot" className="w-full h-full object-contain" />
+                      </div>
                       <span className="font-display font-bold text-base text-white block leading-tight">
                         Game Mode: {selectedBombDeck.code}
                       </span>
-                      {livesSetting !== '∞' && (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-xs">{'❤️'.repeat(Math.max(0, bombRemainingLives))}</span>
-                          <span className="text-[10px] text-zinc-400 font-medium">
-                            ({bombRemainingLives} {bombRemainingLives === 1 ? 'life' : 'lives'} left)
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {bombGameStatus === 'PLAYING' && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-zinc-400 font-semibold bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                            Card {bombCurrentQIndex + 1} of {(bombActiveCards.length > 0 ? bombActiveCards : (selectedBombDeck?.cards || [])).length || 1}
+                          </span>
+                          <span className="text-[11px] text-zinc-400 font-semibold bg-white/5 px-3 py-1 rounded-lg border border-white/5">
+                            Lives: <b className="text-rose-400">{livesSetting === '∞' ? '∞' : bombRemainingLives}</b>
                           </span>
                         </div>
                       )}
+                      <button
+                        onClick={() => setIsBombPlaying(false)}
+                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer text-lg"
+                      >
+                        &#10005;
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={() => setIsBombPlaying(false)}
-                    className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer text-lg"
-                  >
-                    &#10005;
-                  </button>
-                </div>
 
-                {/* Status Indicator if Won or Detonated */}
-                {bombGameStatus === 'DETONATED' && (
-                  <div className="py-12 text-center animate-bounce">
-                    <div className="text-6xl mb-3">&#128165;</div>
-                    <h2 className="font-display text-3xl font-black text-rose-500">BOOM! BOMB DETONATED</h2>
-                    <p className="text-sm text-zinc-400 mt-2 mb-6">Time ran out or all lives were lost.</p>
-                    <button
-                      onClick={handleStartBombMode}
-                      className="px-7 py-3 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                )}
-
-                {bombGameStatus === 'WON' && (
-                  <div className="py-12 text-center">
-                    <div className="text-6xl mb-3">&#127942;</div>
-                    <h2 className="font-display text-3xl font-black text-emerald-400">DEFUSED! YOU WIN</h2>
-                    <p className="text-sm text-zinc-400 mt-2 mb-6">You successfully cleared all bombcards in this set!</p>
-                    <button
-                      onClick={() => setIsBombPlaying(false)}
-                      className="px-7 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer"
-                    >
-                      Return to Study Desk
-                    </button>
-                  </div>
-                )}
-
-                {bombGameStatus === 'PLAYING' && (
-                  <div className="my-auto flex flex-col items-center">
-                    {/* Glowing Countdown Bomb */}
-                    <div className="relative flex items-center justify-center mb-6">
-                      {/* Golden ambient halo glow */}
-                      <div className="absolute w-28 h-28 bg-amber-500/30 rounded-full blur-2xl pointer-events-none"></div>
-                      
-                      {/* Spark flames */}
-                      <div className="absolute -top-4 right-0 text-amber-400 text-2xl animate-pulse">
-                        &#10024;
+                  {/* Status Indicator if Won or Detonated */}
+                  {bombGameStatus === 'DETONATED' && (
+                    <div className="py-8 text-center my-auto max-w-lg mx-auto w-full">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-500 shadow-[0_0_24px_rgba(244,63,94,0.3)]">
+                        <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="11" cy="13" r="8" />
+                          <path d="M14.35 4.65 16.3 2.7a2.41 2.41 0 0 1 3.4 0l1.6 1.6a2.4 2.4 0 0 1 0 3.4l-1.95 1.95" />
+                          <path d="m22 2-1.5 1.5" />
+                        </svg>
                       </div>
-                      
-                      {/* Bomb Body with countdown number */}
-                      <div className={`w-16 h-16 rounded-full bg-black border-2 border-zinc-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.45)] relative z-10 ${
-                        bombTimeRemaining <= 5 ? 'border-rose-500 animate-shake-danger' : ''
-                      }`}>
-                        <span className="font-display text-2xl font-black text-white">
-                          {bombTimeRemaining}
-                        </span>
-                      </div>
-                    </div>
+                      <h2 className="font-display text-2xl md:text-3xl font-black text-rose-500">BOOM! BOMB DETONATED</h2>
+                      <p className="text-xs md:text-sm text-zinc-400 mt-1 mb-5">Time ran out or all lives were lost.</p>
 
-                    {/* Question Box (Figma Match) */}
-                    <div className="bg-[#28282c] border border-white/5 rounded-2xl p-7 max-w-[640px] w-full text-center shadow-xl">
-                      <span className="text-[10.5px] font-extrabold text-zinc-400 uppercase tracking-wider block mb-2.5">
-                        {testTypeSetting === 'ID' ? 'TYPE THE EXACT TERM TO DEFUSE' : 'CHOOSE AN ANSWER'}
-                      </span>
-                      <h3 className="font-display text-lg md:text-xl font-bold text-white leading-relaxed mb-6">
-                        {(bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex])?.prompt || "What is main purpose of Information System"}
-                      </h3>
-
-                      {testTypeSetting === 'ID' ? (
-                        /* Mode B: Identification (Type-to-Defuse) */
-                        <form onSubmit={handleIdentificationSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-lg mx-auto">
-                          <input
-                            type="text"
-                            autoFocus
-                            value={bombIdInput}
-                            onChange={(e) => setBombIdInput(e.target.value)}
-                            placeholder="Type answer here..."
-                            className={`flex-1 bg-[#1c1c1f] border-2 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-all ${
-                              bombIsCorrect === true
-                                ? 'border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
-                                : bombIsCorrect === false
-                                ? 'border-rose-500 bg-rose-500/15 animate-shake-danger'
-                                : 'border-white/10 focus:border-[#f04824]'
-                            }`}
-                          />
-                          <button
-                            type="submit"
-                            disabled={!bombIdInput.trim()}
-                            className="px-6 py-3 bg-[#f04824] hover:bg-[#ff5a36] disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
-                          >
-                            Defuse &rarr;
-                          </button>
-                        </form>
-                      ) : (
-                        /* Mode A: MCQ (2x2 Grid) */
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                          {((bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex])?.options || [
-                            'A. To collect, process, store, and distribute information.',
-                            'B. To design computer hardware and components',
-                            'C. To create entertainment and video games',
-                            'D. To replace all human decision-making'
-                          ]).map((optionText, optIdx) => {
-                            const isSelected = bombSelectedOption === optIdx;
-                            const activeCard = bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex];
-                            const isCorrectAnswer = optIdx === (activeCard?.correctIndex ?? 0);
-                            
-                            let buttonStyles = 'bg-[#1c1c1f] border-white/10 text-zinc-300 hover:bg-[#25252a]';
-                            if (isSelected) {
-                              if (isCorrectAnswer) {
-                                buttonStyles = 'border-2 border-[#22c55e] bg-[#22c55e]/15 text-white shadow-[0_0_16px_rgba(34,197,94,0.35)]';
-                              } else {
-                                buttonStyles = 'border-2 border-rose-500 bg-rose-500/15 text-white';
-                              }
-                            }
-
-                            return (
-                              <button
-                                key={optIdx}
-                                onClick={() => handleAnswerChoice(optIdx)}
-                                className={`p-4 rounded-xl border text-left text-xs font-semibold leading-snug transition-all cursor-pointer ${buttonStyles}`}
-                              >
-                                {optionText}
-                              </button>
-                            );
-                          })}
+                      {/* Total Accuracy & Performance Metrics Card */}
+                      <div className="bg-[#28282c] border border-white/10 rounded-2xl p-5 w-full mx-auto mb-6 shadow-xl text-left">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-zinc-400 block">Total Accuracy</span>
+                            <span className="font-display text-3xl font-black text-white">
+                              {bombAccuracyPercent}%
+                            </span>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                            bombAccuracyPercent >= 80 
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : bombAccuracyPercent >= 50
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          }`}>
+                            {bombAccuracyPercent >= 80 ? 'Mastery' : bombAccuracyPercent >= 50 ? 'Proficient' : 'Needs Practice'}
+                          </span>
                         </div>
-                      )}
+
+                        {/* Accuracy Progress Bar */}
+                        <div className="w-full bg-[#1c1c1f] rounded-full h-3 border border-white/5 overflow-hidden mb-4">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              bombAccuracyPercent >= 80 
+                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]' 
+                                : bombAccuracyPercent >= 50 
+                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]' 
+                                : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
+                            }`}
+                            style={{ width: `${Math.max(5, bombAccuracyPercent)}%` }}
+                          />
+                        </div>
+
+                        {/* Sub metrics: Defused vs Mistakes */}
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 text-center">
+                          <div className="bg-[#1c1c1f] rounded-xl p-2.5 border border-white/5">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Cards Defused</span>
+                            <span className="text-base font-extrabold text-emerald-400">
+                              {bombDefusedCount} <span className="text-xs text-zinc-500 font-normal">/ {bombTotalAttempts}</span>
+                            </span>
+                          </div>
+                          <div className="bg-[#1c1c1f] rounded-xl p-2.5 border border-white/5">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Mistakes</span>
+                            <span className="text-base font-extrabold text-rose-400">
+                              {Math.max(0, bombTotalAttempts - bombDefusedCount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={handleStartBombMode}
+                          className="px-7 py-3 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all"
+                        >
+                          Try Again
+                        </button>
+                        <button
+                          onClick={() => setIsBombPlaying(false)}
+                          className="px-6 py-3 bg-[#28282c] hover:bg-[#323238] border border-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-all"
+                        >
+                          Return to Study Desk
+                        </button>
+                      </div>
                     </div>
+                  )}
 
-                  </div>
-                )}
+                  {bombGameStatus === 'WON' && (
+                    <div className="py-8 text-center my-auto max-w-lg mx-auto w-full">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[0_0_24px_rgba(52,211,153,0.3)]">
+                        <svg className="w-9 h-9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          <polyline points="9 12 11 14 15 10" />
+                        </svg>
+                      </div>
+                      <h2 className="font-display text-2xl md:text-3xl font-black text-emerald-400">DEFUSED! YOU WIN</h2>
+                      <p className="text-xs md:text-sm text-zinc-400 mt-1 mb-5">You successfully cleared all bombcards in this set!</p>
 
-                {/* Empty spacer for bottom balance */}
-                <div className="h-2"></div>
+                      {/* Total Accuracy & Performance Metrics Card */}
+                      <div className="bg-[#28282c] border border-white/10 rounded-2xl p-5 w-full mx-auto mb-6 shadow-xl text-left">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <span className="text-[10.5px] font-extrabold uppercase tracking-wider text-zinc-400 block">Total Accuracy</span>
+                            <span className="font-display text-3xl font-black text-white">
+                              {bombAccuracyPercent}%
+                            </span>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                            bombAccuracyPercent >= 80 
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : bombAccuracyPercent >= 50
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                          }`}>
+                            {bombAccuracyPercent >= 80 ? 'Mastery' : bombAccuracyPercent >= 50 ? 'Proficient' : 'Needs Practice'}
+                          </span>
+                        </div>
 
+                        {/* Accuracy Progress Bar */}
+                        <div className="w-full bg-[#1c1c1f] rounded-full h-3 border border-white/5 overflow-hidden mb-4">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${
+                              bombAccuracyPercent >= 80 
+                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]' 
+                                : bombAccuracyPercent >= 50 
+                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]' 
+                                : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
+                            }`}
+                            style={{ width: `${Math.max(5, bombAccuracyPercent)}%` }}
+                          />
+                        </div>
+
+                        {/* Sub metrics: Defused vs Mistakes */}
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5 text-center">
+                          <div className="bg-[#1c1c1f] rounded-xl p-2.5 border border-white/5">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Cards Defused</span>
+                            <span className="text-base font-extrabold text-emerald-400">
+                              {bombDefusedCount} <span className="text-xs text-zinc-500 font-normal">/ {bombTotalAttempts}</span>
+                            </span>
+                          </div>
+                          <div className="bg-[#1c1c1f] rounded-xl p-2.5 border border-white/5">
+                            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Mistakes</span>
+                            <span className="text-base font-extrabold text-rose-400">
+                              {Math.max(0, bombTotalAttempts - bombDefusedCount)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          onClick={() => setIsBombPlaying(false)}
+                          className="px-7 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg cursor-pointer transition-all"
+                        >
+                          Return to Study Desk
+                        </button>
+                        <button
+                          onClick={handleStartBombMode}
+                          className="px-6 py-3 bg-[#28282c] hover:bg-[#323238] border border-white/10 text-zinc-300 hover:text-white font-bold text-xs rounded-xl shadow cursor-pointer transition-all"
+                        >
+                          Play Again
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {bombGameStatus === 'PLAYING' && (
+                    <div className="my-auto flex flex-col items-center w-full">
+                      {/* Glowing Countdown Bomb */}
+                      <div className="relative flex items-center justify-center mb-6">
+                        {/* Golden ambient halo glow */}
+                        <div className="absolute w-28 h-28 bg-amber-500/30 rounded-full blur-2xl pointer-events-none"></div>
+                        
+                        {/* Spark flames (Figma Vector Match) */}
+                        <div className="absolute -top-3.5 right-1 text-amber-400 animate-pulse">
+                          <svg className="w-5 h-5 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]" viewBox="0 0 24 24">
+                            <polygon points="12,2 14.5,8.5 21,9.3 16,14 17.5,20.5 12,17 6.5,20.5 8,14 3,9.3 9.5,8.5" />
+                          </svg>
+                        </div>
+                        
+                        {/* Bomb Body with countdown number */}
+                        <div className={`w-16 h-16 rounded-full bg-black border-2 border-zinc-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.45)] relative z-10 ${
+                          bombTimeRemaining <= 5 ? 'border-rose-500 animate-shake-danger' : ''
+                        }`}>
+                          <span className="font-display text-2xl font-black text-white">
+                            {bombTimeRemaining}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Question Box (Figma Match) */}
+                      <div className="bg-[#28282c] border border-white/5 rounded-2xl p-7 max-w-[640px] w-full text-center shadow-xl">
+                        <span className="text-[10.5px] font-extrabold text-zinc-400 uppercase tracking-wider block mb-2.5">
+                          {testTypeSetting === 'ID' ? 'TYPE THE EXACT TERM TO DEFUSE' : 'CHOOSE AN ANSWER'}
+                        </span>
+                        <h3 className="font-display text-lg md:text-xl font-bold text-white leading-relaxed mb-6">
+                          {(bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex])?.prompt || "What is main purpose of Information System"}
+                        </h3>
+
+                        {testTypeSetting === 'ID' ? (
+                          /* Mode B: Identification (Type-to-Defuse) */
+                          <form onSubmit={handleIdentificationSubmit} className="flex flex-col sm:flex-row gap-2.5 max-w-lg mx-auto">
+                            <input
+                              type="text"
+                              autoFocus
+                              disabled={bombIsRevealingAnswer}
+                              value={bombIdInput}
+                              onChange={(e) => setBombIdInput(e.target.value)}
+                              placeholder="Type answer here..."
+                              className={`flex-1 bg-[#1c1c1f] border-2 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-all ${
+                                bombIsCorrect === true
+                                  ? 'border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
+                                  : bombIsCorrect === false
+                                  ? 'border-rose-500 bg-rose-500/15 animate-shake-danger'
+                                  : 'border-white/10 focus:border-[#f04824]'
+                              }`}
+                            />
+                            <button
+                              type="submit"
+                              disabled={!bombIdInput.trim() || bombIsRevealingAnswer}
+                              className="px-6 py-3 bg-[#f04824] hover:bg-[#ff5a36] disabled:opacity-40 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer"
+                            >
+                              Defuse &rarr;
+                            </button>
+                          </form>
+                        ) : (
+                          /* Mode A: MCQ (2x2 Grid) */
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                            {((bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex])?.options || [
+                              'A. To collect, process, store, and distribute information.',
+                              'B. To design computer hardware and components',
+                              'C. To create entertainment and video games',
+                              'D. To replace all human decision-making'
+                            ]).map((optionText, optIdx) => {
+                              const isSelected = bombSelectedOption === optIdx;
+                              const activeCard = bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex];
+                              const isCorrectAnswer = optIdx === (activeCard?.correctIndex ?? 0);
+                              
+                              let buttonStyles = 'bg-[#1c1c1f] border-white/10 text-zinc-300 hover:bg-[#25252a]';
+                              
+                              if (bombIsRevealingAnswer) {
+                                if (isCorrectAnswer) {
+                                  buttonStyles = 'border-2 border-[#22c55e] bg-[#22c55e]/25 text-white shadow-[0_0_18px_rgba(34,197,94,0.45)] font-bold';
+                                } else if (isSelected) {
+                                  buttonStyles = 'border-2 border-rose-500 bg-rose-500/20 text-white';
+                                } else {
+                                  buttonStyles = 'bg-[#1c1c1f]/50 border-white/5 text-zinc-500 opacity-50';
+                                }
+                              } else if (isSelected) {
+                                if (isCorrectAnswer) {
+                                  buttonStyles = 'border-2 border-[#22c55e] bg-[#22c55e]/15 text-white shadow-[0_0_16px_rgba(34,197,94,0.35)]';
+                                } else {
+                                  buttonStyles = 'border-2 border-rose-500 bg-rose-500/15 text-white';
+                                }
+                              }
+
+                              return (
+                                <button
+                                  key={optIdx}
+                                  disabled={bombSelectedOption !== null || bombIsRevealingAnswer}
+                                  onClick={() => handleAnswerChoice(optIdx)}
+                                  className={`p-4 rounded-xl border text-left text-xs font-semibold leading-snug transition-all cursor-pointer flex items-center justify-between ${buttonStyles}`}
+                                >
+                                  <span>{optionText}</span>
+                                  {bombIsRevealingAnswer && isCorrectAnswer && (
+                                    <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-[#22c55e]/30 text-[#22c55e] shrink-0 border border-[#22c55e]/40">
+                                      Correct
+                                    </span>
+                                  )}
+                                  {bombIsRevealingAnswer && isSelected && !isCorrectAnswer && (
+                                    <span className="ml-2 px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-rose-500/30 text-rose-400 shrink-0 border border-rose-500/40">
+                                      Your Choice
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Wrong Answer / Timeout Feedback Banner */}
+                        {bombFeedback && bombFeedback.isWrong && (
+                          <div className="mt-5 p-3.5 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center gap-3 text-center shadow-lg">
+                            <div className="w-6 h-6 rounded-full bg-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                              </svg>
+                            </div>
+                            <div className="text-xs text-left">
+                              <span className="font-bold text-rose-400 block">
+                                {bombFeedback.isTimeout ? "Time's up on this card!" : "Incorrect!"}
+                              </span>
+                              <span className="text-zinc-300">
+                                The correct answer is: <strong className="text-emerald-400 font-bold underline underline-offset-2">{bombFeedback.fullOptionText || bombFeedback.correctText}</strong>
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  )}
+
+                  {/* Empty spacer for bottom balance */}
+                  <div className="h-2"></div>
+
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       );
