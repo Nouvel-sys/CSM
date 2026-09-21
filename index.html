@@ -8,10 +8,10 @@
     (function () {
       try {
         if (!sessionStorage.getItem('csm_authenticated')) {
-          window.location.replace('login.html');
+          window.location.replace('login.php');
         }
       } catch (e) {
-        window.location.replace('login.html');
+        window.location.replace('login.php');
       }
     })();
   </script>
@@ -472,13 +472,34 @@
       const [selectedDeck, setSelectedDeck] = useState(INITIAL_DECKS[0]);
       const [searchQuery, setSearchQuery] = useState('');
       
-      // User identity
-      const userName = useMemo(() => {
+          // User identity synced with PHP session
+      const [userName, setUserName] = useState(() => {
         try {
           return localStorage.getItem('csm_user') || 'Nouvel';
         } catch (e) {
           return 'Nouvel';
         }
+      });
+
+      // Verify active PHP session on load and update user state
+      useEffect(() => {
+        fetch('auth/check_auth.php?format=json')
+          .then(res => res.json())
+          .then(data => {
+            if (data.authenticated && data.user && data.user.username) {
+              setUserName(data.user.username);
+              try {
+                localStorage.setItem('csm_user', data.user.username);
+                sessionStorage.setItem('csm_authenticated', 'true');
+              } catch (e) {}
+            } else {
+              try {
+                sessionStorage.removeItem('csm_authenticated');
+              } catch (e) {}
+              window.location.replace('login.php');
+            }
+          })
+          .catch(() => {});
       }, []);
 
       // Collapsible library sections
@@ -795,12 +816,15 @@
         setDecks(prev => prev.map(d => d.id === selectedDeck.id ? updatedDeck : d));
       };
 
-      const handleLogout = () => {
+      const handleLogout = async () => {
+        try {
+          await fetch('auth/logout.php?format=json', { method: 'POST' });
+        } catch (e) {}
         try {
           sessionStorage.removeItem('csm_authenticated');
           localStorage.removeItem('csm_user');
-        } catch (e) { }
-        window.location.replace('login.html');
+        } catch (e) {}
+        window.location.replace('login.php');
       };
 
       // Filtered decks for search

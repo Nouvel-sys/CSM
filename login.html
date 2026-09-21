@@ -452,23 +452,27 @@
           Master Your<br>Material
         </div>
         <p class="brand-desc">
-          Join thousand of students creating interactive reviewers and competing in high-stakes Bomb-Style study sessions.
+          Join thousand of students creating interactive reviewers and competing in high-stakes Bomb-Style study
+          sessions.
         </p>
         <div class="brand-pills">
           <div class="feature-pill">
-            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <span>Bomb Style Gameplay</span>
           </div>
           <div class="feature-pill">
-            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <span>Collaborative Reviews</span>
           </div>
           <div class="feature-pill">
-            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <span>Data Driven Insights</span>
@@ -486,10 +490,20 @@
     <div class="auth-panel">
       <h2 class="auth-heading" id="formTitle">Log in to your account</h2>
 
+      <!-- Inline Error Banner -->
+      <div id="authAlert" class="auth-alert">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span id="authAlertText">Error message here</span>
+      </div>
+
       <form id="authForm" onsubmit="handleSubmit(event)">
         <!-- Username Field -->
         <div class="form-group">
-          <label for="username">Username</label>
+          <label for="username" id="usernameLabel">Username</label>
           <div class="input-box">
             <input type="text" id="username" placeholder="costudymaxxlover123" required autocomplete="username">
           </div>
@@ -500,8 +514,10 @@
           <label for="password">Password</label>
           <div class="input-box">
             <input type="password" id="password" placeholder="••••••••••••" required autocomplete="current-password">
-            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('password', this)" aria-label="Toggle password visibility">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('password', this)"
+              aria-label="Toggle password visibility">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
@@ -514,8 +530,10 @@
           <label for="confirmPassword">Confirm Password</label>
           <div class="input-box">
             <input type="password" id="confirmPassword" placeholder="••••••••••••" autocomplete="new-password">
-            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('confirmPassword', this)" aria-label="Toggle confirm password visibility">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <button type="button" class="eye-btn" onclick="togglePasswordVisibility('confirmPassword', this)"
+              aria-label="Toggle confirm password visibility">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
@@ -546,7 +564,8 @@
   <div class="modal-overlay" id="successModal">
     <div class="success-modal">
       <div class="checkmark-circle">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+          stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
       </div>
@@ -559,13 +578,28 @@
 
   <script>
     let isRegisterMode = false;
+    let registeredUsername = '';
+
+    function showError(msg) {
+      const alert = document.getElementById('authAlert');
+      const text = document.getElementById('authAlertText');
+      text.textContent = msg;
+      alert.style.display = 'flex';
+    }
+
+    function clearError() {
+      const alert = document.getElementById('authAlert');
+      alert.style.display = 'none';
+    }
 
     function toggleAuthMode() {
+      clearError();
       isRegisterMode = !isRegisterMode;
       const formTitle = document.getElementById('formTitle');
       const submitBtn = document.getElementById('submitBtn');
       const confirmGroup = document.getElementById('confirmPasswordGroup');
       const rememberRow = document.getElementById('rememberRow');
+      const usernameLabel = document.getElementById('usernameLabel');
       const footerText = document.getElementById('footerText');
       const footerLink = document.getElementById('footerLink');
 
@@ -574,6 +608,7 @@
         submitBtn.textContent = 'Sign up';
         confirmGroup.style.display = 'block';
         rememberRow.style.display = 'none';
+        usernameLabel.textContent = 'Username';
         footerText.textContent = 'Already have an account?';
         footerLink.textContent = 'Login here.';
       } else {
@@ -581,6 +616,7 @@
         submitBtn.textContent = 'Sign in';
         confirmGroup.style.display = 'none';
         rememberRow.style.display = 'flex';
+        usernameLabel.textContent = 'Username';
         footerText.textContent = "Don't you have an account yet?";
         footerLink.textContent = 'Register here';
       }
@@ -609,28 +645,112 @@
       }
     }
 
-    function handleSubmit(e) {
+    async function handleSubmit(e) {
       e.preventDefault();
-      const username = document.getElementById('username').value.trim() || 'Nouvel';
+      clearError();
+
+      const usernameInput = document.getElementById('username');
+      const passwordInput = document.getElementById('password');
+      const confirmInput = document.getElementById('confirmPassword');
+      const rememberCheckbox = document.getElementById('rememberDevice');
+      const submitBtn = document.getElementById('submitBtn');
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value;
+      const confirmPassword = confirmInput ? confirmInput.value : '';
 
       if (isRegisterMode) {
-        // Show the Figma Registration Successful modal
-        document.getElementById('successModal').classList.add('active');
-      } else {
-        // Successful login
+        if (!username || username.length < 3) {
+          showError('Username must be at least 3 characters.');
+          return;
+        }
+        if (password.length < 6) {
+          showError('Password must be at least 6 characters long.');
+          return;
+        }
+        if (password !== confirmPassword) {
+          showError('Passwords do not match. Please verify.');
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating account...';
+
         try {
-          sessionStorage.setItem('csm_authenticated', 'true');
-          localStorage.setItem('csm_user', username);
-        } catch (err) {}
-        window.location.replace('/');
+          const res = await fetch('auth/register.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({ username, password, confirmPassword })
+          });
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            showError(data.error || 'Registration failed.');
+            return;
+          }
+
+          registeredUsername = username;
+          // Show the Figma Registration Successful modal
+          document.getElementById('successModal').classList.add('active');
+        } catch (err) {
+          showError('Unable to connect to authentication server.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign up';
+        }
+      } else {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
+
+        try {
+          const res = await fetch('auth/login.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+              username,
+              password,
+              rememberDevice: rememberCheckbox ? rememberCheckbox.checked : false
+            })
+          });
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            showError(data.error || 'Invalid credentials.');
+            return;
+          }
+
+          try {
+            sessionStorage.setItem('csm_authenticated', 'true');
+            if (data.user && data.user.username) {
+              localStorage.setItem('csm_user', data.user.username);
+            }
+          } catch (err) {}
+
+          window.location.replace('index.php');
+        } catch (err) {
+          showError('Unable to connect to authentication server.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign in';
+        }
       }
     }
 
     function handleDismissSuccessModal() {
       document.getElementById('successModal').classList.remove('active');
-      // Return to login mode
       if (isRegisterMode) {
         toggleAuthMode();
+        if (registeredUsername) {
+          document.getElementById('username').value = registeredUsername;
+          document.getElementById('password').value = '';
+          document.getElementById('password').focus();
+        }
       }
     }
   </script>
