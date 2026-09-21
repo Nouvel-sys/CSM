@@ -36,8 +36,14 @@
       theme: {
         extend: {
           fontFamily: {
+<<<<<<< HEAD
             sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             display: ['"Outfit"', 'sans-serif']
+=======
+            sans: ['Helvetica', 'Arial', 'sans-serif'],
+            display: ['Helvetica Rounded', 'Arial Rounded MT Bold', 'Helvetica', 'Arial', 'sans-serif'],
+            mono: ['Helvetica', 'Arial', 'sans-serif']
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
           },
           colors: {
             brand: {
@@ -82,6 +88,7 @@
       padding: 0;
     }
 
+<<<<<<< HEAD
     html, body {
       width: 100%;
       height: 100%;
@@ -91,6 +98,45 @@
     }
 
     /* Ambient Warm Glow Backdrop */
+=======
+    :root {
+      --font-helvetica: Helvetica, Arial, sans-serif;
+      --font-helvetica-rounded: 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+    }
+
+    /* Match the browser's 125% presentation consistently across every tab. */
+    html {
+      font-size: 100%;
+    }
+
+    body {
+      background-color: #e8ddd0;
+      font-family: var(--font-helvetica);
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    h1,
+    h2,
+    h3,
+    .font-display {
+      font-family: Helvetica, Arial, sans-serif;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font-family: inherit;
+    }
+
+    /* Ambient Warm Blurred Backdrop */
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
     .outer-glow-backdrop {
       position: fixed;
       inset: 0;
@@ -116,6 +162,1061 @@
     }
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 0, 0, 0.28);
+    }
+
+    /* Keep every tab on the same stable app-shell footprint. */
+    .app-shell {
+      width: 80% !important;
+      height: 77% !important;
+      flex: none !important;
+      min-width: 0;
+      min-height: 0;
+      margin: auto;
+      transform: scale(1.25);
+      transform-origin: center;
+      gap: 11px !important;
+    }
+
+    .app-shell > nav {
+      width: 78px !important;
+      min-width: 78px !important;
+    }
+
+    .app-shell > main,
+    .home-dashboard-content {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .home-chat-panel {
+      width: 306px;
+      background: #060b11;
+      color: #f8fafc;
+      border-left: 0;
+      border-radius: 21px;
+      box-shadow: 0 7px 18px rgba(0, 0, 0, 0.34);
+      overflow: hidden;
+      position: relative;
+      margin: 14px 14px 14px 0;
+    }
+
+    .home-chat-header {
+      min-height: 67px;
+      padding: 14px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(104, 122, 145, 0.18);
+      position: relative;
+      z-index: 1;
+    }
+
+    .home-chat-avatar {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      object-fit: contain;
+    }
+
+    .home-chat-heading {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.02;
+      flex: 1;
+    }
+
+    .home-chat-title {
+      color: #f8fafc;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .home-chat-powered {
+      margin-top: 4px;
+      color: #ff690d;
+      font-size: 9px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .home-chat-reset {
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      color: #8090a4;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: color 0.15s ease, transform 0.15s ease;
+    }
+
+    .home-chat-reset:hover {
+      color: #f8fafc;
+      transform: rotate(-25deg);
+    }
+
+    .home-chat-body {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background:
+        radial-gradient(circle at 59% 43%, rgba(233, 89, 3, 0.76) 0, rgba(181, 62, 0, 0.38) 13%, rgba(75, 31, 8, 0.18) 25%, transparent 47%),
+        radial-gradient(circle at 62% 45%, rgba(255, 117, 22, 0.17), transparent 31%),
+        #060b11;
+    }
+
+    .home-chat-body::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(6, 11, 17, 0.03) 0%, rgba(6, 11, 17, 0.1) 62%, rgba(6, 11, 17, 0.62) 100%);
+    }
+
+    .home-chat-footer {
+      position: relative;
+      z-index: 1;
+      padding: 10px 16px 14px;
+      background: #060b11;
+    }
+
+    .home-chat-footer-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #8895a8;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .home-chat-footer-label::after {
+      content: '';
+      height: 1px;
+      flex: 1;
+      background: rgba(133, 148, 169, 0.24);
+    }
+
+    .home-chat-quick-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .home-chat-quick-button {
+      width: 100%;
+      min-height: 22px;
+      padding: 0 12px 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border: 0;
+      border-radius: 999px;
+      color: #f5f7fa;
+      background: #18212d;
+      font: 500 10px/1 Helvetica, Arial, sans-serif;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+    }
+
+    .home-chat-quick-button:hover {
+      background: #222f3e;
+      transform: translateX(2px);
+    }
+
+    .home-chat-quick-button svg {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 13px;
+      color: #b4beca;
+    }
+
+    /* Reference-matched home dashboard content */
+    .home-dashboard-content {
+      padding: 24px 30px 22px !important;
+      color: #050505;
+    }
+
+    .home-dashboard-header {
+      margin-bottom: 21px;
+    }
+
+    .home-dashboard-eyebrow {
+      display: block;
+      color: #ff4a1f;
+      font-size: 15px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: 0.015em;
+    }
+
+    .home-dashboard-title {
+      margin-top: 5px;
+      color: #050505;
+      font: 700 31px/0.98 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.055em;
+    }
+
+    .home-dashboard-subtitle {
+      margin-top: 6px;
+      color: #435a7b;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .home-stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 19px;
+      margin-bottom: 23px;
+    }
+
+    .home-stat-card {
+      min-height: 123px;
+      padding: 24px 25px;
+      display: flex;
+      align-items: center;
+      gap: 17px;
+      border: 1px solid #b8cbe2;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-stat-card:hover,
+    .home-tool-card:hover,
+    .home-recent-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 7px rgba(0, 0, 0, 0.12);
+    }
+
+    .home-stat-card.cards-stat {
+      border-color: #ffad9d;
+    }
+
+    .home-stat-icon,
+    .home-tool-icon,
+    .home-activity-icon {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .home-stat-icon {
+      width: 43px;
+      height: 43px;
+      color: #3e6da9;
+      background: #c4d5ed;
+    }
+
+    .home-stat-card.cards-stat .home-stat-icon {
+      color: #ff522c;
+      background: #ffb4a4;
+    }
+
+    .home-stat-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .home-stat-copy {
+      min-width: 0;
+    }
+
+    .home-stat-label {
+      display: block;
+      color: #416da5;
+      font-size: 11px;
+      line-height: 1;
+      font-family: 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+      font-weight: 700;
+    }
+
+    .home-stat-card.cards-stat .home-stat-label {
+      color: #ff4b25;
+    }
+
+    .home-stat-value {
+      margin-top: 8px;
+      color: #050505;
+      font: 700 27px/0.95 'Helvetica Rounded', 'Arial Rounded MT Bold', Helvetica, Arial, sans-serif;
+      letter-spacing: -0.04em;
+    }
+
+    .home-stat-description {
+      display: block;
+      margin-top: 7px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.1;
+    }
+
+    .home-tools-section {
+      margin-bottom: 31px;
+    }
+
+    .home-tools-heading {
+      color: #050505;
+      font: 700 23px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.045em;
+    }
+
+    .home-tools-subtitle {
+      margin-top: 5px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .home-tools-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 230px);
+      gap: 16px;
+      margin-top: 17px;
+    }
+
+    .home-tool-card {
+      min-height: 181px;
+      padding: 16px 27px 17px;
+      border: 1px solid #b9b9b9;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-tool-icon {
+      width: 43px;
+      height: 43px;
+      color: #e9c735;
+      background: #fff0a7;
+    }
+
+    .home-tool-card.bomb-tool .home-tool-icon {
+      color: #ff651d;
+      background: #ffc08c;
+    }
+
+    .home-tool-icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .home-tool-title {
+      margin-top: 10px;
+      color: #050505;
+      font: 700 18px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.035em;
+    }
+
+    .home-tool-description {
+      margin-top: 8px;
+      min-height: 25px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.25;
+    }
+
+    .home-tool-button,
+    .home-activity-button {
+      border: 0;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      box-shadow: 0 3px 4px rgba(0, 0, 0, 0.2);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+
+    .home-tool-button:hover,
+    .home-activity-button:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+    }
+
+    .home-tool-button {
+      height: 34px;
+      margin-top: 11px;
+      padding: 0 15px 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 13px;
+      border-radius: 999px;
+      background: #f0cd37;
+    }
+
+    .home-tool-card.bomb-tool .home-tool-button {
+      background: #ff6816;
+    }
+
+    .home-tool-button svg,
+    .home-activity-button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .home-recent-card {
+      min-height: 136px;
+      padding: 14px 27px 15px;
+      border: 1px solid #b9b9b9;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.1);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .home-recent-heading {
+      color: #050505;
+      font: 700 16px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.025em;
+    }
+
+    .home-recent-subtitle {
+      margin-top: 6px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .home-recent-divider {
+      height: 1px;
+      margin-top: 11px;
+      background: rgba(121, 121, 121, 0.28);
+    }
+
+    .home-recent-row {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 17px;
+    }
+
+    .home-activity-icon {
+      width: 38px;
+      height: 38px;
+      color: #ff5531;
+      background: #ffb5a5;
+    }
+
+    .home-activity-icon svg {
+      width: 21px;
+      height: 21px;
+    }
+
+    .home-activity-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .home-activity-title {
+      color: #050505;
+      font-size: 12px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .home-activity-meta {
+      margin-top: 4px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .home-activity-button {
+      height: 34px;
+      padding: 0 13px 0 16px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      background: #ff4b25;
+    }
+
+    /* Every bold treatment uses the rounded Helvetica family. */
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    strong,
+    b,
+    [class~="font-semibold"],
+    [class~="font-bold"],
+    [class~="font-extrabold"],
+    [class~="font-black"] {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
+    .home-chat-title,
+    .home-chat-powered,
+    .home-dashboard-eyebrow,
+    .home-dashboard-title,
+    .home-stat-label,
+    .home-stat-value,
+    .home-tools-heading,
+    .home-tool-title,
+    .home-tool-button,
+    .home-recent-heading,
+    .home-activity-title,
+    .home-activity-button,
+    .game-view-eyebrow,
+    .game-view-title,
+    .game-section-title,
+    .game-deck-name,
+    .game-setting-name,
+    .game-summary-title,
+    .game-launch-button {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
+    /* Game Mode reference layout */
+    .game-view {
+      height: 100%;
+      padding: 23px 22px 22px;
+      overflow-y: auto;
+      background: #d9d9d9;
+      color: #070707;
+    }
+
+    .game-view-header {
+      margin-bottom: 23px;
+    }
+
+    .game-view-eyebrow {
+      display: block;
+      color: #ff4b25;
+      font-size: 11px;
+      line-height: 1;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+    }
+
+    .game-view-title {
+      margin-top: 6px;
+      color: #050505;
+      font: 700 27px/0.98 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.045em;
+    }
+
+    .game-view-subtitle {
+      margin-top: 7px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1.15;
+    }
+
+    .game-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 310px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .game-left-column {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      padding-top: 21px;
+    }
+
+    .game-section-card {
+      padding: 16px 15px 20px;
+      border: 1px solid #b8b8b8;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      box-shadow: 0 3px 3px rgba(0, 0, 0, 0.16);
+    }
+
+    .game-section-title {
+      color: #090909;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .game-section-subtitle {
+      margin-top: 5px;
+      color: #435a7b;
+      font-size: 11px;
+      line-height: 1;
+    }
+
+    .game-deck-selector {
+      min-height: 69px;
+      margin-top: 15px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      border: 1px solid #b8cee9;
+      border-radius: 18px;
+      background: #cdd8e7;
+    }
+
+    .game-deck-icon {
+      width: 49px;
+      height: 49px;
+      flex: 0 0 49px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #3f72b3;
+      background: #d9e4f4;
+    }
+
+    .game-deck-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .game-deck-copy {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .game-deck-name {
+      color: #080808;
+      font: 700 15px/1 Helvetica, Arial, sans-serif;
+    }
+
+    .game-deck-meta {
+      margin-top: 4px;
+      color: #435a7b;
+      font-size: 9px;
+      line-height: 1;
+    }
+
+    .game-deck-select-wrap {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    .game-deck-select {
+      width: 92px;
+      height: 31px;
+      appearance: none;
+      padding: 0 27px 0 14px;
+      border: 0;
+      border-radius: 999px;
+      color: #ffffff;
+      background: #4e78b0;
+      font-size: 9px;
+      font-weight: 800;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .game-deck-select-wrap svg {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      top: 9px;
+      right: 10px;
+      pointer-events: none;
+      color: #ffffff;
+    }
+
+    .game-settings-card {
+      padding: 16px 11px 19px;
+    }
+
+    .game-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 15px 12px;
+      margin-top: 15px;
+    }
+
+    .game-setting {
+      min-height: 70px;
+      padding: 10px 11px;
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      border: 1px solid #b8b8b8;
+      border-radius: 18px;
+    }
+
+    .game-setting-icon {
+      width: 31px;
+      height: 31px;
+      flex: 0 0 31px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .game-setting-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .game-setting.lives .game-setting-icon {
+      color: #ff4f2e;
+      background: #ffb0a0;
+    }
+
+    .game-setting.time .game-setting-icon {
+      color: #17739f;
+      background: #a8d6ea;
+    }
+
+    .game-setting.order .game-setting-icon {
+      color: #7734d0;
+      background: #c4a7e9;
+    }
+
+    .game-setting.type .game-setting-icon {
+      color: #229d53;
+      background: #a5e2b7;
+    }
+
+    .game-setting-content {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .game-setting-name {
+      color: #090909;
+      font: 700 14px/1 Helvetica, Arial, sans-serif;
+    }
+
+    .game-setting-help {
+      margin-top: 3px;
+      color: #435a7b;
+      font-size: 9px;
+      line-height: 1.05;
+      white-space: nowrap;
+    }
+
+    .game-options {
+      display: flex;
+      gap: 9px;
+      margin-top: 8px;
+    }
+
+    .game-option {
+      min-width: 34px;
+      height: 23px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 999px;
+      color: #111111;
+      background: #c9c9c9;
+      font-size: 8px;
+      font-weight: 800;
+      line-height: 1;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .game-option:hover {
+      filter: brightness(1.04);
+      transform: translateY(-1px);
+    }
+
+    .game-option.selected {
+      color: #ffffff;
+      background: #ff4b25;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.18);
+    }
+
+    .game-summary {
+      min-height: 414px;
+      padding: 26px 24px 23px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 67% 24%, rgba(168, 66, 5, 0.55) 0, rgba(123, 43, 2, 0.19) 18%, transparent 38%),
+        linear-gradient(160deg, #0c0c0c 0%, #11100f 52%, #131313 100%);
+      box-shadow: 0 3px 4px rgba(0, 0, 0, 0.32);
+      color: #ffffff;
+    }
+
+    .game-summary-title {
+      width: 150px;
+      position: relative;
+      z-index: 1;
+      color: #ffffff;
+      font: 700 29px/1.08 Helvetica, Arial, sans-serif;
+      letter-spacing: 0.01em;
+    }
+
+    .game-summary-title span {
+      display: block;
+    }
+
+    .game-summary-count {
+      position: relative;
+      z-index: 1;
+      margin-top: 5px;
+      color: #ffffff;
+      font-size: 9px;
+    }
+
+    .game-summary-mascot {
+      width: 101px;
+      height: 101px;
+      object-fit: contain;
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      z-index: 1;
+      filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.2));
+    }
+
+    .game-summary-rules {
+      margin-top: 25px;
+      padding: 17px 17px 15px;
+      position: relative;
+      z-index: 1;
+      border-radius: 13px;
+      background: #18212d;
+    }
+
+    .game-summary-rule {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .game-summary-rule:not(:last-child) {
+      border-bottom: 1px solid rgba(124, 143, 168, 0.28);
+    }
+
+    .game-summary-rule-icon {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 20px;
+      display: grid;
+      place-items: center;
+    }
+
+    .game-summary-rule-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .game-summary-rule.lives .game-summary-rule-icon { color: #ff4e2c; }
+    .game-summary-rule.time .game-summary-rule-icon { color: #1687b7; }
+    .game-summary-rule.order .game-summary-rule-icon { color: #8538e9; }
+    .game-summary-rule.type .game-summary-rule-icon { color: #53bf69; }
+
+    .game-summary-rule-label {
+      color: #83a6d6;
+      font-size: 9px;
+      font-weight: 700;
+      flex: 1;
+    }
+
+    .game-summary-rule-value {
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .game-launch-button {
+      width: 100%;
+      height: 38px;
+      margin-top: 18px;
+      position: relative;
+      z-index: 1;
+      border: 0;
+      border-radius: 11px;
+      color: #ffffff;
+      background: #ff4827;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.22);
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+
+    .game-launch-button:hover {
+      filter: brightness(1.06);
+      transform: translateY(-1px);
+    }
+
+    .game-launch-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .game-launch-button svg {
+      width: 15px;
+      height: 15px;
+      margin-left: 4px;
+      vertical-align: -3px;
+    }
+
+    @media (max-width: 900px) {
+      .game-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .game-summary {
+        min-height: 0;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .home-tools-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 767px) {
+      .app-shell {
+        width: 100% !important;
+        height: 100% !important;
+        transform: none;
+      }
+
+      .app-shell > nav {
+        width: 56px !important;
+        min-width: 56px !important;
+      }
+
+      .home-dashboard-content {
+        padding: 20px !important;
+      }
+    }
+
+    /* Pixel-match overrides for the Game Mode reference frame. */
+    body {
+      background-color: #e5e0da;
+    }
+
+    .outer-glow-backdrop {
+      background:
+        radial-gradient(ellipse 58% 92% at 100% 0%, rgba(245, 113, 27, 0.8) 0%, rgba(232, 139, 77, 0.35) 27%, transparent 67%),
+        radial-gradient(ellipse 58% 88% at 100% 100%, rgba(245, 113, 27, 0.78) 0%, rgba(232, 139, 77, 0.3) 29%, transparent 68%),
+        radial-gradient(ellipse 46% 100% at 0% 50%, rgba(224, 137, 78, 0.38) 0%, transparent 72%),
+        #e5e0da;
+      filter: blur(30px);
+    }
+
+    .app-shell > nav button.active {
+      background: #ff6b1a !important;
+      box-shadow: 0 0 15px rgba(255, 107, 26, 0.38) !important;
+    }
+
+    .app-shell > main {
+      background: #f2f0ec !important;
+    }
+
+    .game-view {
+      background: #f2f0ec;
+    }
+
+    .game-view-header {
+      margin-bottom: 2px;
+    }
+
+    .game-view-eyebrow,
+    .game-view-title,
+    .game-section-title,
+    .game-deck-name,
+    .game-setting-name,
+    .game-summary-title {
+      font-family: var(--font-helvetica-rounded) !important;
+    }
+
+    .game-view-eyebrow {
+      color: #ff6b1a;
+    }
+
+    .game-section-card,
+    .game-setting {
+      background: transparent;
+      border-color: #bdbdbd;
+    }
+
+    .game-section-card {
+      padding-bottom: 17px;
+    }
+
+    .game-settings-card {
+      padding-bottom: 12px;
+    }
+
+    .game-deck-selector {
+      background: #d4dfed;
+      border-color: #bfd4ef;
+    }
+
+    .game-deck-icon {
+      background: #dce7f5;
+    }
+
+    .game-deck-select,
+    .game-option.selected,
+    .game-launch-button {
+      background: #ff6b1a;
+    }
+
+    .game-deck-select {
+      background: #4f78ad;
+    }
+
+    .game-option {
+      background: #d5d5d5;
+    }
+
+    .game-summary {
+      background:
+        radial-gradient(circle at 68% 22%, rgba(170, 68, 4, 0.58) 0%, rgba(124, 44, 4, 0.2) 19%, transparent 39%),
+        #12141f;
+    }
+
+    .game-summary-rules {
+      background: #18212d;
+    }
+
+    .game-summary-rule:not(:last-child) {
+      border-bottom-color: rgba(124, 143, 168, 0.3);
+    }
+
+    .game-left-column {
+      padding-top: 21px;
+    }
+
+    @media (max-width: 767px) {
+      .game-left-column {
+        padding-top: 0;
+      }
+    }
+
+    /* Shared eased press interaction for every button. */
+    button {
+      transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+        background-color 180ms ease,
+        border-color 180ms ease,
+        color 180ms ease,
+        box-shadow 180ms ease !important;
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.98) !important;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -242,11 +1343,128 @@
       </svg>
     );
 
+<<<<<<< HEAD
     const IconPdfDoc = () => (
       <div className="w-10 h-11 rounded-lg bg-white border border-slate-300 shadow-sm flex flex-col items-center justify-center relative shrink-0">
         <svg className="w-5 h-6 text-slate-700" viewBox="0 0 24 28" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" />
           <path d="M15 1V8.5H23" />
+=======
+    const IconSearch = () => (
+      <svg className="w-4 h-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    );
+
+    const IconPlus = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    );
+
+    const IconEdit = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+    );
+
+    const IconShare = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+    );
+
+    const IconTrash = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+      </svg>
+    );
+
+    const IconArrowLeft = ({ className = "w-5 h-5" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+    );
+
+    const IconClose = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+
+    const IconChevronDown = ({ className = "w-3.5 h-3.5" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    );
+
+    const IconSpeaker = ({ muted }) => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        {muted ? (
+          <React.Fragment>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </React.Fragment>
+        ) : (
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        )}
+      </svg>
+    );
+
+    const IconPdf = () => (
+      <svg className="w-6 h-7 shrink-0" viewBox="0 0 24 28" fill="none">
+        <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M15 1V8.5H23" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
+        <text x="4" y="20" fontFamily="Helvetica, Arial, sans-serif" fontSize="7.5" fontWeight="900" fill="#222222" letterSpacing="-0.4">PDF</text>
+      </svg>
+    );
+
+    const IconFlame = () => (
+      <svg className="w-4 h-4 text-[#f04824]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1012 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z" />
+      </svg>
+    );
+
+    const IconUpload = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+    );
+
+    const IconSparkles = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+      </svg>
+    );
+
+    const IconCards = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="14" height="15" rx="2" />
+        <path d="M7 5V3a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2h-2" />
+      </svg>
+    );
+
+    const MiniBombIcon = ({ active }) => (
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${active
+        ? 'bg-[#2a1309] border border-[#f04824] shadow-[0_0_12px_rgba(240,72,36,0.4)] text-[#f04824]'
+        : 'bg-[#181818] border border-[#333333] text-[#444444]'
+        }`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="14" r="7" fill={active ? "#f04824" : "#242424"} stroke={active ? "#ff6b4a" : "#444444"} strokeWidth="1.5" />
+          <path d="M12 7V4" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
+          <path d="M9 4h6" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
         </svg>
         <span className="text-[7.5px] font-black text-slate-800 tracking-tighter absolute bottom-1">PDF</span>
       </div>
@@ -491,9 +1709,20 @@
 
       const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false);
 
+<<<<<<< HEAD
       // Flashcards study view state
       const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
       const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
+=======
+      // --- Game Mode Lobby State ---
+      const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
+      const [gameFormat, setGameFormat] = useState('MCQ'); // 'BOTH', 'MCQ', 'ID'
+      const [countdownSpeed, setCountdownSpeed] = useState(15); // 10, 15, 30
+      const [healthSetting, setHealthSetting] = useState(1); // 1, 2, 3
+      const [questionOrder, setQuestionOrder] = useState('SHUFFLE'); // 'SHUFFLE', 'CHRONO'
+      const [roomCodeInput, setRoomCodeInput] = useState('');
+      const [shareToast, setShareToast] = useState('');
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
 
       // Enter Bomb Mode settings
       const [selectedBombDeck, setSelectedBombDeck] = useState(INITIAL_DECKS[0]);
@@ -637,15 +1866,488 @@
         return decks.filter(d => d.code.toLowerCase().includes(q) || d.subject.toLowerCase().includes(q));
       }, [decks, searchQuery]);
 
+<<<<<<< HEAD
       const last7Decks = filteredDecks.filter(d => d.timeGroup === 'last7Days');
       const olderDecks = filteredDecks.filter(d => d.timeGroup !== 'last7Days');
 
       return (
         <div className="w-full max-w-[1360px] h-[92vh] max-h-[860px] flex gap-4 md:gap-5 items-stretch m-auto">
+=======
+      const recentDecks = useMemo(() => {
+        return visibleDecks.filter(d => d.section === 'recent' || d.id === 'deck-2');
+      }, [visibleDecks]);
+
+      const olderDecks = useMemo(() => {
+        return visibleDecks.filter(d => d.section === 'older' || (d.id !== 'deck-2' && d.section !== 'recent'));
+      }, [visibleDecks]);
+
+      // Total Selected BombCards in Game Mode
+      const selectedTotalCards = useMemo(() => {
+        return decks
+          .filter(d => selectedDeckIds.includes(d.id))
+          .reduce((acc, d) => acc + d.cards.length, 0);
+      }, [decks, selectedDeckIds]);
+
+      const activeGameDeck = decks.find(d => d.id === selectedDeckIds[0]) || decks[0];
+      const activeGameDeckCodeParts = (activeGameDeck?.code || 'ITE 292 B1').split(' ');
+
+      // Notification Toast Helper
+      const triggerToast = (msg) => {
+        setShareToast(msg);
+        setTimeout(() => setShareToast(''), 3000);
+      };
+
+      // ========================================================
+      // 5. LIBRARY WORKSHOP ACTIONS (Pure Authoring & Editing)
+      // ========================================================
+      // Add Material Popup Actions (VAIA Hierarchy + CSM Design Premise)
+      const handleOpenAddMaterialPopup = (deck, e) => {
+        if (e) e.stopPropagation();
+        setTargetDeckForAddMaterial(deck);
+        setIsAddMaterialPopupOpen(true);
+      };
+
+      const handleAddMaterialDirectUpload = (filesToUpload) => {
+        const files = Array.from(filesToUpload || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (files.length === 0) {
+          triggerToast('Please upload PDF files');
+          return;
+        }
+        const target = targetDeckForAddMaterial || currentSelectedDeck;
+        if (!target) return;
+
+        const newDocs = files.map(file => ({
+          id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          title: file.name
+        }));
+
+        setDecks(prev => prev.map(d => {
+          if (d.id === target.id) {
+            return {
+              ...d,
+              documents: [...(d.documents || []), ...newDocs],
+              lastModified: 'Just now'
+            };
+          }
+          return d;
+        }));
+
+        triggerToast(`Uploaded ${files.length} document${files.length > 1 ? 's' : ''} to ${target.code || target.title}`);
+        setIsAddMaterialPopupOpen(false);
+        if (addMaterialFileInputRef.current) addMaterialFileInputRef.current.value = '';
+      };
+
+      const handleChooseManualCreation = () => {
+        const target = targetDeckForAddMaterial || currentSelectedDeck;
+        setIsAddMaterialPopupOpen(false);
+        handleOpenEditDeck(target);
+      };
+      const handleOpenCreateDeck = () => {
+        setEditingDeck(null);
+        setEditorCode('ITE ' + Math.floor(100 + Math.random() * 900));
+        setEditorTitle('');
+        setEditorSubject('Information Technology');
+        setEditorCards([]);
+        resetNewQForm();
+        setIsDeckEditorOpen(true);
+      };
+
+      const handleOpenEditDeck = (deck, e) => {
+        if (e) e.stopPropagation();
+        setEditingDeck(deck);
+        setEditorCode(deck.code || '');
+        setEditorTitle(deck.title || '');
+        setEditorSubject(deck.subject || '');
+        setEditorCards([...(deck.cards || [])]);
+        setEditorDocuments([...(deck.documents || [])]);
+        resetNewQForm();
+        setIsDeckEditorOpen(true);
+      };
+
+      const handlePdfUpload = (e) => {
+        const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (files.length === 0) return;
+        const newDocs = files.map(file => ({
+          id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          title: file.name
+        }));
+        setEditorDocuments(prev => [...prev, ...newDocs]);
+        triggerToast(`Imported ${files.length} PDF file${files.length > 1 ? 's' : ''}`);
+        if (pdfInputRef.current) pdfInputRef.current.value = '';
+      };
+
+      const handleRemoveDocFromEditor = (docId) => {
+        setEditorDocuments(prev => prev.filter(d => d.id !== docId));
+      };
+
+      const handleDeleteDeck = (deckId, e) => {
+        if (e) e.stopPropagation();
+        if (window.confirm('Delete this reviewer? This action cannot be undone.')) {
+          setDecks(prev => prev.filter(d => d.id !== deckId));
+          setSelectedDeckIds(prev => prev.filter(id => id !== deckId));
+          if (selectedDeckForFolderView && selectedDeckForFolderView.id === deckId) {
+            setSelectedDeckForFolderView(null);
+          }
+          triggerToast('Reviewer deleted');
+        }
+      };
+
+      const handleShareDeck = (deck, e) => {
+        if (e) e.stopPropagation();
+        const code = `${deck.code.replace(/\s+/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        navigator.clipboard?.writeText(code);
+        triggerToast(`Share code copied to clipboard: ${code}`);
+      };
+
+      const resetNewQForm = () => {
+        setNewQPrompt('');
+        setNewQHint('');
+        setNewQOptions(['', '', '', '']);
+        setNewQCorrectIndex(0);
+        setNewQAnswer('');
+        setNewQAlternates('');
+      };
+
+      const handleAddQuestionToEditor = (e) => {
+        e.preventDefault();
+        if (!newQPrompt.trim()) return;
+
+        let cardObj = {
+          id: 'card-' + Date.now(),
+          type: newQType,
+          prompt: newQPrompt.trim(),
+          hint: newQHint.trim() || (newQType === 'MULTIPLE_CHOICE' ? 'Knowledge Check' : 'Identification')
+        };
+
+        if (newQType === 'MULTIPLE_CHOICE') {
+          const filledOptions = newQOptions.map((opt, i) => opt.trim() || `Option ${i + 1}`);
+          cardObj.options = filledOptions;
+          cardObj.correctIndex = newQCorrectIndex;
+          cardObj.correctAnswer = filledOptions[newQCorrectIndex];
+        } else {
+          cardObj.correctAnswer = newQAnswer.trim() || 'Answer';
+          cardObj.alternates = newQAlternates.trim() || cardObj.correctAnswer.toLowerCase();
+        }
+
+        setEditorCards(prev => [...prev, cardObj]);
+        resetNewQForm();
+        triggerToast('BombCard appended to deck list');
+      };
+
+      const handleRemoveCardFromEditor = (cardId) => {
+        setEditorCards(prev => prev.filter(c => c.id !== cardId));
+      };
+
+      const handleSaveDeck = () => {
+        if (editingDeck) {
+          // Update existing deck's cards and documents (subject code and subject name are not edited here)
+          setDecks(prev => prev.map(d => {
+            if (d.id === editingDeck.id) {
+              return {
+                ...d,
+                cards: editorCards,
+                documents: editorDocuments,
+                lastModified: 'Just now'
+              };
+            }
+            return d;
+          }));
+          triggerToast(`Saved materials for "${editingDeck.code || editingDeck.title}"`);
+        } else {
+          // Create fresh fallback
+          const newDeck = {
+            id: 'deck-' + Date.now(),
+            code: editorCode || 'NEW DECK',
+            title: editorTitle || 'New Reviewer',
+            subject: editorSubject || 'Information Technology',
+            owner: 'Gavin Dave',
+            lastModified: 'Just now',
+            category: 'Midterms',
+            cards: editorCards,
+            documents: editorDocuments
+          };
+          setDecks(prev => [newDeck, ...prev]);
+          triggerToast(`Created new reviewer materials`);
+        }
+
+        setIsDeckEditorOpen(false);
+      };
+
+      // ========================================================
+      // 6. GAME MODE LAUNCH & ARENA ENGINE
+      // ========================================================
+      const toggleSelectDeck = (deckId) => {
+        setSelectedDeckIds(prev => {
+          if (prev.includes(deckId)) {
+            if (prev.length === 1) return prev; // Keep at least one
+            return prev.filter(id => id !== deckId);
+          } else {
+            return [...prev, deckId];
+          }
+        });
+      };
+
+      const handleLaunchArena = () => {
+        // Collect cards from selected decks
+        let combinedCards = [];
+        decks.forEach(d => {
+          if (selectedDeckIds.includes(d.id)) {
+            combinedCards.push(...d.cards);
+          }
+        });
+
+        if (combinedCards.length === 0) {
+          alert('Selected reviewers do not have any BombCards yet. Add cards in Reviewer Library first.');
+          return;
+        }
+
+        // Apply format filter
+        if (gameFormat === 'MCQ') {
+          combinedCards = combinedCards.filter(c => c.type === 'MULTIPLE_CHOICE');
+        } else if (gameFormat === 'ID') {
+          combinedCards = combinedCards.filter(c => c.type === 'IDENTIFICATION');
+        }
+
+        if (combinedCards.length === 0) {
+          alert('No cards match the selected Game Format filter.');
+          return;
+        }
+
+        // Apply ordering
+        if (questionOrder === 'SHUFFLE') {
+          combinedCards = [...combinedCards].sort(() => Math.random() - 0.5);
+        }
+
+        setArenaDeckQueue(combinedCards);
+        setArenaQIndex(0);
+        setArenaLives(healthSetting);
+        setArenaScore(0);
+        setArenaStreak(0);
+        setArenaMaxStreak(0);
+        setArenaStatus('PLAYING');
+        setArenaSelectedChoice(null);
+        setArenaIdInput('');
+        setArenaIsAnswering(false);
+        setArenaHistory([]);
+
+        setActiveTab('arena');
+      };
+
+      // Start countdown timer when in arena
+      useEffect(() => {
+        if (activeTab !== 'arena' || arenaStatus !== 'PLAYING') {
+          if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+          return;
+        }
+
+        setArenaTimeRemaining(countdownSpeed);
+
+        if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+        arenaTimerRef.current = setInterval(() => {
+          setArenaTimeRemaining(prev => {
+            if (prev <= 0.1) {
+              clearInterval(arenaTimerRef.current);
+              handleTimeout();
+              return 0;
+            }
+            // Tick sound in danger zone (< 5s)
+            if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
+              sound.tick();
+            }
+            return Math.max(0, prev - 0.1);
+          });
+        }, 100);
+
+        return () => {
+          if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+        };
+      }, [activeTab, arenaQIndex, arenaStatus, countdownSpeed]);
+
+      // Focus text input on identification questions
+      useEffect(() => {
+        if (activeTab === 'arena' && arenaStatus === 'PLAYING') {
+          const currentQ = arenaDeckQueue[arenaQIndex];
+          if (currentQ && currentQ.type === 'IDENTIFICATION' && idInputRef.current) {
+            idInputRef.current.focus();
+          }
+        }
+      }, [activeTab, arenaQIndex, arenaStatus, arenaDeckQueue]);
+
+      const handleTimeout = () => {
+        sound.wrong();
+        sound.detonation();
+        const currentQ = arenaDeckQueue[arenaQIndex];
+
+        setArenaHistory(prev => [
+          ...prev,
+          {
+            prompt: currentQ.prompt,
+            format: currentQ.type,
+            userAns: '(Timed Out)',
+            correctAns: currentQ.correctAnswer,
+            isRight: false
+          }
+        ]);
+
+        const nextLives = arenaLives - 1;
+        setArenaLives(nextLives);
+        setArenaStreak(0);
+
+        if (nextLives <= 0) {
+          setArenaStatus('DETONATED');
+        } else {
+          setTimeout(() => {
+            advanceQuestion();
+          }, 600);
+        }
+      };
+
+      const handleAnswerMCQ = (choiceIdx) => {
+        if (arenaIsAnswering || arenaStatus !== 'PLAYING') return;
+        setArenaIsAnswering(true);
+        setArenaSelectedChoice(choiceIdx);
+
+        const currentQ = arenaDeckQueue[arenaQIndex];
+        const isRight = (choiceIdx === currentQ.correctIndex);
+
+        if (isRight) {
+          sound.correct();
+          const newStreak = arenaStreak + 1;
+          setArenaStreak(newStreak);
+          if (newStreak > arenaMaxStreak) setArenaMaxStreak(newStreak);
+          setArenaScore(s => s + 500 + newStreak * 50);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: currentQ.options[choiceIdx],
+              correctAns: currentQ.correctAnswer,
+              isRight: true
+            }
+          ]);
+
+          setTimeout(() => {
+            advanceQuestion();
+          }, 500);
+        } else {
+          sound.wrong();
+          const nextLives = arenaLives - 1;
+          setArenaLives(nextLives);
+          setArenaStreak(0);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: currentQ.options[choiceIdx],
+              correctAns: currentQ.correctAnswer,
+              isRight: false
+            }
+          ]);
+
+          setTimeout(() => {
+            if (nextLives <= 0) {
+              sound.detonation();
+              setArenaStatus('DETONATED');
+            } else {
+              advanceQuestion();
+            }
+          }, 700);
+        }
+      };
+
+      const handleAnswerID = (e) => {
+        if (e) e.preventDefault();
+        if (arenaIsAnswering || arenaStatus !== 'PLAYING' || !arenaIdInput.trim()) return;
+
+        setArenaIsAnswering(true);
+        const currentQ = arenaDeckQueue[arenaQIndex];
+        const cleanInput = arenaIdInput.trim().toLowerCase();
+
+        let isRight = false;
+        if (cleanInput === currentQ.correctAnswer.trim().toLowerCase()) {
+          isRight = true;
+        } else if (currentQ.alternates) {
+          const list = currentQ.alternates.split(',').map(s => s.trim().toLowerCase());
+          if (list.includes(cleanInput)) isRight = true;
+        }
+
+        if (isRight) {
+          sound.correct();
+          const newStreak = arenaStreak + 1;
+          setArenaStreak(newStreak);
+          if (newStreak > arenaMaxStreak) setArenaMaxStreak(newStreak);
+          setArenaScore(s => s + 500 + newStreak * 50);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: arenaIdInput.trim(),
+              correctAns: currentQ.correctAnswer,
+              isRight: true
+            }
+          ]);
+
+          setTimeout(() => {
+            advanceQuestion();
+          }, 500);
+        } else {
+          sound.wrong();
+          const nextLives = arenaLives - 1;
+          setArenaLives(nextLives);
+          setArenaStreak(0);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: arenaIdInput.trim(),
+              correctAns: currentQ.correctAnswer,
+              isRight: false
+            }
+          ]);
+
+          setTimeout(() => {
+            if (nextLives <= 0) {
+              sound.detonation();
+              setArenaStatus('DETONATED');
+            } else {
+              advanceQuestion();
+            }
+          }, 700);
+        }
+      };
+
+      const advanceQuestion = () => {
+        setArenaIsAnswering(false);
+        setArenaSelectedChoice(null);
+        setArenaIdInput('');
+
+        if (arenaQIndex + 1 < arenaDeckQueue.length) {
+          setArenaQIndex(i => i + 1);
+        } else {
+          setArenaStatus('DEFUSED');
+        }
+      };
+
+      const activeArenaQ = arenaDeckQueue[arenaQIndex];
+      const isArenaDanger = arenaTimeRemaining <= 5.0 && arenaStatus === 'PLAYING';
+      const fusePercent = Math.max(0, Math.min(100, (arenaTimeRemaining / countdownSpeed) * 100));
+
+      return (
+        <div className="app-shell w-full h-full flex gap-3 md:gap-4 items-stretch overflow-hidden">
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
 
           {/* ========================================================
               1. SLEEK DARK ROUNDED SIDEBAR (FIGMA MATCH)
               ======================================================== */}
+<<<<<<< HEAD
           <aside className="w-16 md:w-[72px] bg-[#18181a] border border-[#27272b] rounded-[32px] py-6 flex flex-col items-center justify-between shrink-0 shadow-2xl">
             
             {/* Top Mascot Icon */}
@@ -654,6 +2356,61 @@
               className="w-11 h-11 rounded-full bg-[#242428] flex items-center justify-center p-1.5 cursor-pointer hover:scale-105 transition-transform shadow-md"
             >
               <img src="csm-sidebar-logo.png" alt="CSM Mascot" className="w-full h-full object-contain" />
+=======
+          <nav className="w-14 min-w-[56px] bg-[#181818] rounded-[24px] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20">
+            {/* Top Logo */}
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="w-10 h-10 flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+                onClick={() => setActiveTab('home')}
+                title="Co-StudyMaxx Home"
+              >
+                <img
+                  src="csm-sidebar-logo.png"
+                  alt="Co-StudyMaxx Logo"
+                  className="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                />
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex flex-col items-center gap-2 mt-2">
+                {/* 1. Home Dashboard */}
+                <button
+                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('home'); }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'home'
+                    ? 'bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  title="Home Dashboard"
+                >
+                  <IconHome />
+                </button>
+
+                {/* 2. Reviewer Library (Authoring & Management) */}
+                <button
+                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'library'
+                    ? 'bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  title="Reviewer Library (Authoring & Management)"
+                >
+                  <IconLibrary />
+                </button>
+
+                {/* 3. Game Mode Section (Launch Lobby) */}
+                <button
+                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('game'); }}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'game' || activeTab === 'arena'
+                    ? 'bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  title="Game Mode (Countdown Arena Lobby)"
+                >
+                  <IconCards className="w-6 h-6" />
+                </button>
+              </div>
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
             </div>
 
             {/* Middle Nav Items */}
@@ -727,6 +2484,7 @@
                 VIEW A: OVERVIEW / DASHBOARD (HOME)
                 ==================================================== */}
             {activeTab === 'home' && (
+<<<<<<< HEAD
               <div className="w-full h-full flex gap-6 overflow-hidden">
                 
                 {/* Left Overview Column */}
@@ -775,8 +2533,56 @@
                         </div>
                       </div>
 
+=======
+              <div className="flex h-full overflow-hidden">
+
+                {/* LEFT COLUMN: Dashboard Content */}
+                <div className="home-dashboard-content flex-1 overflow-y-auto custom-scroll">
+
+                  {/* Header */}
+                  <div className="home-dashboard-header">
+                    <span className="home-dashboard-eyebrow">OVERVIEW</span>
+                    <h1 className="home-dashboard-title">Welcome Back, Nouvel!</h1>
+                    <p className="home-dashboard-subtitle">Your personalized study headquarters and review metrics.</p>
+                  </div>
+
+                  {/* Statistic Cards Row */}
+                  <div className="home-stat-grid">
+                    <div
+                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      className="home-stat-card"
+                    >
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL REVIEWERS</span>
+                        <span className="home-stat-value">{totalReviewers} Decks</span>
+                        <span className="home-stat-description">Pure management &amp; Authoring.</span>
+                      </span>
+                    </div>
+                    <div
+                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      className="home-stat-card cards-stat"
+                    >
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                          <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL BOMBCARDS</span>
+                        <span className="home-stat-value">{totalBombCards} Cards</span>
+                        <span className="home-stat-description">Across all study sets.</span>
+                      </span>
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
                     </div>
 
+<<<<<<< HEAD
                     {/* Your Study Tools */}
                     <div className="mb-6">
                       <h2 className="font-display text-lg font-black text-slate-900">Your Study Tools</h2>
@@ -807,6 +2613,78 @@
                             Open Library &rarr;
                           </button>
                         </div>
+=======
+                  {/* Study Tools */}
+                  <section className="home-tools-section">
+                    <h2 className="home-tools-heading">Your Study Tools</h2>
+                    <p className="home-tools-subtitle">Everything you need to create , study, improve.</p>
+                    <div className="home-tools-grid">
+                      <article className="home-tool-card" onClick={() => setActiveTab('library')}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">Reviewer Library</h3>
+                        <p className="home-tool-description">Create, edit, and manage<br />your reviewers and PDF materials.</p>
+                        <button className="home-tool-button" type="button" onClick={() => setActiveTab('library')}>
+                          <span>Open Library</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
+
+                      <article className="home-tool-card bomb-tool" onClick={() => setActiveTab('game')}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                            <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">BombStyle Mode</h3>
+                        <p className="home-tool-description">Customize game mode<br />and play.</p>
+                        <button className="home-tool-button" type="button" onClick={() => setActiveTab('game')}>
+                          <span>Enter BS Mode</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
+                    </div>
+                  </section>
+
+                  {/* Recent Activity */}
+                  <section className="home-recent-card">
+                    <h2 className="home-recent-heading">Recent Activity</h2>
+                    <p className="home-recent-subtitle">Pick up where you left off.</p>
+                    <div className="home-recent-divider" />
+                    <div className="home-recent-row">
+                      <span className="home-activity-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M7 3h7l4 4v14H7z" />
+                          <path d="M14 3v5h4M10 12h5M10 15h5M10 18h3" />
+                        </svg>
+                      </span>
+                      <span className="home-activity-copy">
+                        <span className="home-activity-title">ITE 292 B1</span>
+                        <span className="home-activity-meta">Last studied 2 hours ago · 3 cards</span>
+                      </span>
+                      <button className="home-activity-button" type="button" onClick={() => setActiveTab('library')}>
+                        <span>Continue</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 12h15" />
+                          <path d="m13 6 6 6-6 6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </section>
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
 
                         {/* Tool 2: Game Mode */}
                         <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
@@ -830,16 +2708,85 @@
                           </button>
                         </div>
 
+<<<<<<< HEAD
                       </div>
+=======
+                {/* RIGHT COLUMN: Study Assistant Panel */}
+                <div className="home-chat-panel flex flex-col shrink-0 hidden md:flex">
+
+                  {/* Assistant Header */}
+                  <div className="home-chat-header">
+                    <img src="csm-sidebar-logo.png" alt="Co-StudyMaxx Chat Bot" className="home-chat-avatar" />
+                    <div className="home-chat-heading">
+                      <h3 className="home-chat-title">MAXX</h3>
+                      <span className="home-chat-powered">Powered by Co-StudyMaxx</span>
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
                     </div>
+                    <button className="home-chat-reset" type="button" aria-label="Restart chat" title="Restart chat">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 11a8 8 0 0 0-14.8-4L3 9" />
+                        <path d="M3 4v5h5" />
+                        <path d="M4 13a8 8 0 0 0 14.8 4L21 15" />
+                      </svg>
+                    </button>
                   </div>
 
+<<<<<<< HEAD
                   {/* Recent Activity */}
                   <div>
                     <h2 className="font-display text-sm font-black text-slate-900">Recent Activity</h2>
                     <p className="text-[11px] text-slate-500 mb-2">Pick up where you left off.</p>
                     
                     <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+=======
+                  {/* Chat / Conversation Area */}
+                  <div className="home-chat-body flex-1 overflow-y-auto custom-scroll" aria-label="Chat conversation area"></div>
+
+                  {/* Quick Questions Footer */}
+                  <div className="home-chat-footer">
+                    <span className="home-chat-footer-label">Quick Questions</span>
+                    <div className="home-chat-quick-list">
+                      {['What should I review today?', 'Show my weakest topics', 'How does Bomb Mode Work?', 'How do I share my reviewer?'].map((question) => (
+                        <button key={question} className="home-chat-quick-button" type="button">
+                          <span>{question}</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m9 5 7 7-7 7" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW B: REVIEWER LIBRARY (Pure Creation & Management)
+                ======================================================== */}
+            {activeTab === 'library' && (
+              <div className="p-6 md:p-8 overflow-y-auto h-full custom-scroll flex flex-col">
+
+                {/* Header Block */}
+                <div>
+                  <span className="text-[11px] font-extrabold tracking-wider text-[#f04824] uppercase block">YOUR STUDY DESK</span>
+                  <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">Reviewer Library</h1>
+                  <p className="text-xs text-slate-400 mt-1">Pick up what you left off or build a fresh set.</p>
+                </div>
+
+                {/* Thin horizontal divider line across the container */}
+                <div className="border-b border-slate-200/90 my-5" />
+
+                {/* Sub-view: Either Folder Detail View or Main Deck Grid */}
+                {selectedDeckForFolderView && currentSelectedDeck ? (
+                  /* ==========================================
+                     SUB-VIEW: DECK / FOLDER DETAIL VIEW (Source of Truth Reference)
+                     ========================================== */
+                  <div className="flex-1 flex flex-col animate-fadeIn">
+                    {/* Navigation Bar: Back Arrow + Deck Name (left) & + Add Material (right) */}
+                    <div className="flex items-center justify-between mb-5">
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
                           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -863,8 +2810,417 @@
                         Continue &rarr;
                       </button>
                     </div>
+<<<<<<< HEAD
                   </div>
 
+=======
+
+                    {/* Section 1: Bombcards */}
+                    <div className="mb-7">
+                      <div className="flex items-center justify-between mb-3.5">
+                        <h3 className="text-base font-bold text-[#f04824]">Bombcards</h3>
+                        {currentSelectedDeck.cards && currentSelectedDeck.cards.length > 3 ? (
+                          <button
+                            onClick={() => setShowAllBombcards(prev => !prev)}
+                            className="text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                          >
+                            {showAllBombcards ? 'show less' : 'show more'}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400/80 select-none">show more</span>
+                        )}
+                      </div>
+
+                      {(!currentSelectedDeck.cards || currentSelectedDeck.cards.length === 0) ? (
+                        <div className="p-8 text-center bg-white/60 rounded-[26px] border border-dashed border-slate-300 text-xs text-slate-400">
+                          No BombCards inside this folder yet. Click "+ Add Material" above to create questions.
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {visibleCards.map((card, idx) => (
+                            <div
+                              key={card.id || idx}
+                              className="bg-white rounded-[26px] p-5 border border-slate-200/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)] flex flex-col justify-between min-h-[170px] hover:shadow-md hover:border-slate-300 transition-all group"
+                            >
+                              <div>
+                                <span className="text-xs font-bold text-[#f04824] block mb-2">
+                                  {currentSelectedDeck.code || currentSelectedDeck.title} M{idx + 1}
+                                </span>
+                                <p className="text-sm font-bold text-slate-900 leading-snug line-clamp-3">
+                                  {card.prompt}
+                                </p>
+                              </div>
+
+                              <div className="mt-4">
+                                <div className="text-right mb-2">
+                                  <span className="text-xs md:text-sm font-bold text-slate-800">
+                                    {card.correctAnswer}
+                                  </span>
+                                </div>
+
+                                <div className="border-t border-slate-200/80 my-1.5" />
+
+                                <div className="flex items-center justify-end pt-0.5">
+                                  <button
+                                    onClick={() => handleOpenEditDeck(currentSelectedDeck)}
+                                    className="text-slate-400 hover:text-slate-700 text-xs font-black tracking-widest px-1 py-0.5 rounded hover:bg-slate-100 transition-colors"
+                                    title="Card options"
+                                  >
+                                    ...
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2: Documents */}
+                    <div>
+                      <h3 className="text-base font-bold text-[#f04824] mb-2">Documents</h3>
+                      <div className="flex flex-col">
+                        {(!currentSelectedDeck.documents || currentSelectedDeck.documents.length === 0) ? (
+                          <div className="py-6 text-xs text-slate-400 italic">
+                            No documents attached to this reviewer.
+                          </div>
+                        ) : (
+                          currentSelectedDeck.documents.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="py-3.5 flex items-center justify-between border-b border-slate-200/90 hover:bg-black/[0.02] px-2 rounded-lg transition-colors group"
+                            >
+                              <div className="flex items-center gap-3.5 min-w-0">
+                                <IconPdf />
+                                <span className="text-sm font-bold text-slate-900 truncate">
+                                  {doc.title}
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => triggerToast(`Opening "${doc.title}"...`)}
+                                className="text-slate-400 hover:text-slate-700 font-black tracking-widest text-sm px-2 py-1 rounded hover:bg-slate-200/50 transition-colors"
+                                title="Document options"
+                              >
+                                ...
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ==========================================
+                     MAIN DECK GRID VIEW (Matching User Reference)
+                     ========================================== */
+                  <div className="flex-1 flex flex-col animate-fadeIn relative pb-20">
+                    {/* Search Bar (Rounded capsule matching screenshot) */}
+                    <div className="relative w-full max-w-md mb-8">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <IconSearch />
+                      </div>
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search by title"
+                        className="w-full h-10 pl-10 pr-4 bg-[#e5e7eb]/80 border-none rounded-full text-xs font-medium text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-[#f04824]/30 transition-all"
+                      />
+                    </div>
+
+                    {/* Section 1: Last 7 days */}
+                    <div className="mb-8">
+                      <div
+                        onClick={() => setCollapseRecent(!collapseRecent)}
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none mb-3.5 hover:text-slate-900"
+                      >
+                        <span className={`transform transition-transform ${collapseRecent ? '-rotate-90' : ''}`}>
+                          <IconChevronDown />
+                        </span>
+                        <span>Last 7 days</span>
+                      </div>
+
+                      {!collapseRecent && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {recentDecks.map(deck => (
+                            <div
+                              key={deck.id}
+                              onClick={() => handleSelectDeckForDetail(deck)}
+                              className="bg-[#f4f5f7]/60 hover:bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group select-none relative"
+                            >
+                              <div>
+                                {/* Top row: Title + Pen & Trash Actions */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="text-sm font-black text-slate-900 group-hover:text-[#f04824] transition-colors leading-tight">
+                                    {deck.code || deck.title}
+                                  </h3>
+                                  <div className="flex items-center gap-1 shrink-0 text-slate-600">
+                                    <button
+                                      onClick={(e) => handleOpenEditFolderInfo(deck, e)}
+                                      className="p-1 rounded hover:bg-slate-200/70 hover:text-slate-900 transition-colors"
+                                      title="Edit Folder Name & Description"
+                                    >
+                                      <IconEdit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleDeleteFolder(deck.id, e)}
+                                      className="p-1 rounded hover:bg-red-50 hover:text-red-600 transition-colors"
+                                      title="Delete Folder"
+                                    >
+                                      <IconTrash className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Description / Subject */}
+                                <p className="text-[11px] font-medium text-slate-500 mt-1 line-clamp-1">
+                                  {deck.subject || 'Information Technology'}
+                                </p>
+
+                                {/* Note / Card Count */}
+                                <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                                  {deck.documents?.length > 0 ? `${deck.documents.length} Note${deck.documents.length > 1 ? 's' : ''}` : `${deck.cards?.length || 1} Note`}
+                                </p>
+                              </div>
+
+                              {/* Divider */}
+                              <div className="border-t border-slate-200/80 my-3" />
+
+                              {/* Bottom Row: By You badge */}
+                              <div className="flex items-center">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400 border border-slate-200/90 rounded-lg px-2 py-0.5 bg-white/70">
+                                  <IconUser className="w-3 h-3 text-slate-400" />
+                                  <span>By you</span>
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2: Longer than a week */}
+                    <div className="mb-8">
+                      <div
+                        onClick={() => setCollapseOlder(!collapseOlder)}
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none mb-3.5 hover:text-slate-900"
+                      >
+                        <span className={`transform transition-transform ${collapseOlder ? '-rotate-90' : ''}`}>
+                          <IconChevronDown />
+                        </span>
+                        <span>Longer than a week</span>
+                      </div>
+
+                      {!collapseOlder && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {olderDecks.map(deck => (
+                            <div
+                              key={deck.id}
+                              onClick={() => handleSelectDeckForDetail(deck)}
+                              className="bg-[#f4f5f7]/60 hover:bg-white border border-slate-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group select-none relative"
+                            >
+                              <div>
+                                {/* Top row: Title + Pen & Trash Actions */}
+                                <div className="flex items-start justify-between gap-2">
+                                  <h3 className="text-sm font-black text-slate-900 group-hover:text-[#f04824] transition-colors leading-tight">
+                                    {deck.code || deck.title}
+                                  </h3>
+                                  <div className="flex items-center gap-1 shrink-0 text-slate-600">
+                                    <button
+                                      onClick={(e) => handleOpenEditFolderInfo(deck, e)}
+                                      className="p-1 rounded hover:bg-slate-200/70 hover:text-slate-900 transition-colors"
+                                      title="Edit Folder Name & Description"
+                                    >
+                                      <IconEdit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={(e) => handleDeleteFolder(deck.id, e)}
+                                      className="p-1 rounded hover:bg-red-50 hover:text-red-600 transition-colors"
+                                      title="Delete Folder"
+                                    >
+                                      <IconTrash className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Description / Subject */}
+                                <p className="text-[11px] font-medium text-slate-500 mt-1 line-clamp-1">
+                                  {deck.subject || 'Information Technology'}
+                                </p>
+
+                                {/* Note / Card Count */}
+                                <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                                  {deck.documents?.length > 0 ? `${deck.documents.length} Note${deck.documents.length > 1 ? 's' : ''}` : `${deck.cards?.length || 1} Note`}
+                                </p>
+                              </div>
+
+                              {/* Divider */}
+                              <div className="border-t border-slate-200/80 my-3" />
+
+                              {/* Bottom Row: By You badge */}
+                              <div className="flex items-center">
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400 border border-slate-200/90 rounded-lg px-2 py-0.5 bg-white/70">
+                                  <IconUser className="w-3 h-3 text-slate-400" />
+                                  <span>By you</span>
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Floating Action Button (FAB) Bottom Right */}
+                    <button
+                      onClick={handleOpenCreateFolderInfo}
+                      className="fixed bottom-8 right-8 w-14 h-14 bg-[#f04824] hover:bg-[#e03e1b] active:scale-95 text-white rounded-full flex items-center justify-center shadow-xl shadow-[#f04824]/40 transition-all z-30"
+                      title="Create New Folder"
+                    >
+                      <IconPlus className="w-6 h-6 stroke-[2.5]" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW C: GAME MODE SECTION (Lobby & Launch Configuration)
+                ======================================================== */}
+            {activeTab === 'game' && (
+              <div className="game-view custom-scroll">
+                <header className="game-view-header">
+                  <span className="game-view-eyebrow">YOUR STUDY DESK</span>
+                  <h1 className="game-view-title">Enter Bomb Mode</h1>
+                  <p className="game-view-subtitle">Pick a deck, customize your game rules, and start playing.</p>
+                </header>
+
+                <div className="game-layout">
+                  <div className="game-left-column">
+                    <section className="game-section-card">
+                      <h2 className="game-section-title">Select a BombCard Deck</h2>
+                      <p className="game-section-subtitle">Choose one deck from your library to play.</p>
+
+                      <div className="game-deck-selector">
+                        <span className="game-deck-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                          </svg>
+                        </span>
+                        <span className="game-deck-copy">
+                          <span className="game-deck-name">{activeGameDeck?.code || activeGameDeck?.title || 'No deck selected'}</span>
+                          <span className="game-deck-meta">{activeGameDeck?.cards?.length || 0} Bombcards&nbsp; Last studied 2h ago.</span>
+                        </span>
+                        <span className="game-deck-select-wrap">
+                          <select
+                            className="game-deck-select"
+                            value={activeGameDeck?.id || ''}
+                            onChange={(e) => setSelectedDeckIds([e.target.value])}
+                            aria-label="Change deck"
+                          >
+                            {decks.map(deck => <option key={deck.id} value={deck.id}>{deck.code}</option>)}
+                          </select>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </span>
+                      </div>
+                    </section>
+
+                    <section className="game-section-card game-settings-card">
+                      <h2 className="game-section-title">Game Settings</h2>
+                      <p className="game-section-subtitle">Customize how you want to play.</p>
+
+                      <div className="game-settings-grid">
+                        <div className="game-setting lives">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Lives</h3>
+                            <p className="game-setting-help">How many mistakes before the game ends.</p>
+                            <div className="game-options">
+                              {[1, 2, 3].map(value => <button key={value} type="button" className={`game-option ${healthSetting === value ? 'selected' : ''}`} onClick={() => setHealthSetting(value)}>{value}</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting time">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Time per Card</h3>
+                            <p className="game-setting-help">Time you have to answer each card.</p>
+                            <div className="game-options">
+                              {[15, 30, 45].map(value => <button key={value} type="button" className={`game-option ${countdownSpeed === value ? 'selected' : ''}`} onClick={() => setCountdownSpeed(value)}>{value}s</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting order">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Card Order</h3>
+                            <p className="game-setting-help">The order in which cards will appear.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${questionOrder === 'SHUFFLE' ? 'selected' : ''}`} onClick={() => setQuestionOrder('SHUFFLE')}>Randomized</button>
+                              <button type="button" className={`game-option ${questionOrder === 'CHRONO' ? 'selected' : ''}`} onClick={() => setQuestionOrder('CHRONO')}>Sequential</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting type">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Test Type</h3>
+                            <p className="game-setting-help">Which card type to include in the game.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${gameFormat === 'MCQ' ? 'selected' : ''}`} onClick={() => setGameFormat('MCQ')}>MCQ</button>
+                              <button type="button" className={`game-option ${gameFormat === 'ID' ? 'selected' : ''}`} onClick={() => setGameFormat('ID')}>ID</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <aside className="game-summary">
+                    <h2 className="game-summary-title">
+                      <span>{activeGameDeckCodeParts.slice(0, -1).join(' ')}</span>
+                      <span>{activeGameDeckCodeParts[activeGameDeckCodeParts.length - 1]}</span>
+                    </h2>
+                    <p className="game-summary-count">{selectedTotalCards} BombCards</p>
+                    <img className="game-summary-mascot" src="csm-sidebar-logo.png" alt="Co-StudyMaxx bomb mascot" />
+
+                    <div className="game-summary-rules">
+                      <div className="game-summary-rule lives">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg></span>
+                        <span className="game-summary-rule-label">Lives</span><span className="game-summary-rule-value">{healthSetting}</span>
+                      </div>
+                      <div className="game-summary-rule time">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg></span>
+                        <span className="game-summary-rule-label">Time per Card</span><span className="game-summary-rule-value">{countdownSpeed}s</span>
+                      </div>
+                      <div className="game-summary-rule order">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg></span>
+                        <span className="game-summary-rule-label">Order</span><span className="game-summary-rule-value">{questionOrder === 'SHUFFLE' ? 'Randomized' : 'Sequential'}</span>
+                      </div>
+                      <div className="game-summary-rule type">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg></span>
+                        <span className="game-summary-rule-label">Test Type</span><span className="game-summary-rule-value">{gameFormat === 'MCQ' ? 'MCQ' : gameFormat === 'ID' ? 'ID' : 'All Cards'}</span>
+                      </div>
+                    </div>
+
+                    <button className="game-launch-button" type="button" onClick={handleLaunchArena} disabled={selectedTotalCards === 0}>
+                      Start Bomb Mode <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+                    </button>
+                  </aside>
+>>>>>>> 61b184199083ac763a64f84744d682adb490ef38
                 </div>
 
                 {/* Right Maxx Panel (FIGMA MATCH) */}
