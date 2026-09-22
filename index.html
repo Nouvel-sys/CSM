@@ -577,46 +577,74 @@
         });
       };
 
-      // Maxx AI chat prompt responses & interactive conversation
-      const [maxxMessage, setMaxxMessageLegacy] = useState(null);
+      // Maxx fixed study questions (purely fixed questions, no free chat, no emojis)
+      const MAXX_FIXED_QUESTIONS = [
+        {
+          id: 'q_review',
+          label: 'What should I review today?',
+          q: 'What should I review today?',
+          answer: 'Based on your review schedule, drill ITE 292 B1 (Information Systems). You have unreviewed flashcards from Module 1 waiting.'
+        },
+        {
+          id: 'q_weakest',
+          label: 'Show my weakest topics',
+          q: 'Show my weakest topics',
+          answer: 'Your weakest topic is SDLC Architectural Tiers in ITE 292 B1 (67% accuracy). Practicing this in Bomb Mode will help improve your retention.'
+        },
+        {
+          id: 'q_bomb',
+          label: 'How does Bomb Mode work?',
+          q: 'How does Bomb Mode work?',
+          answer: 'In Bomb Mode, flashcards act as live fuses. Answer each question before the countdown reaches zero to defuse the card without losing lives.'
+        },
+        {
+          id: 'q_share',
+          label: 'How do I share a reviewer?',
+          q: 'How do I share or export my reviewer?',
+          answer: 'Open any deck in your Reviewer Library, then click the options menu to copy the direct share link or export study materials.'
+        },
+        {
+          id: 'q_streak',
+          label: 'Check study streak & stats',
+          q: 'Check my study streak and stats',
+          answer: 'You are currently on a 3-day study streak with 88% overall accuracy. Complete 5 more cards today to maintain your progress.'
+        },
+        {
+          id: 'q_create',
+          label: 'How to create a new deck?',
+          q: 'How do I create a new reviewer deck?',
+          answer: 'Click the "+ New Reviewer" button in the library header to author new flashcards and attach notes.'
+        },
+        {
+          id: 'q_recall',
+          label: 'Active recall study tips',
+          q: 'What are tips for active recall?',
+          answer: 'Try to mentally retrieve the answer before checking options. Frequent short testing intervals produce significantly higher retention than passive rereading.'
+        },
+        {
+          id: 'q_timer',
+          label: 'Bomb Mode timer settings',
+          q: 'How do I customize Bomb Mode timer and lives?',
+          answer: 'Before starting a Bomb session, use the setup screen to customize your countdown duration (15s, 30s, 45s) and your available lives (1, 3, or unlimited).'
+        }
+      ];
+
       const [maxxMessages, setMaxxMessages] = useState([
         {
           id: 'welcome',
           sender: 'maxx',
-          text: `Hey ${userName || 'there'}! 👋 I'm Maxx, your study copilot. Pick a quick prompt below or ask me anything about your decks, weak spots, or Bomb Mode!`
+          text: `Hello ${userName || 'there'}, I'm Maxx, your study copilot. Select any topic below to view guided answers.`
         }
       ]);
-      const [maxxInput, setMaxxInput] = useState('');
       const maxxChatBottomRef = useRef(null);
 
-      const handleAskMaxx = (questionText) => {
-        const q = (questionText || maxxInput).trim();
-        if (!q) return;
-
-        const userMsg = { id: 'u-' + Date.now(), sender: 'user', text: q };
+      const handleAskFixedQuestion = (item) => {
+        const userMsg = { id: 'u-' + Date.now(), sender: 'user', text: item.q };
         setMaxxMessages(prev => [...prev, userMsg]);
-        setMaxxInput('');
-
-        // Provide contextual AI responses
-        let reply = '';
-        const lower = q.toLowerCase();
-        if (lower.includes('review today') || lower.includes('what should i')) {
-          reply = `Based on your schedule, I recommend drilling ITE 292 B1 (Information Systems) — you have unreviewed cards from Module 1 waiting!`;
-        } else if (lower.includes('weakest') || lower.includes('weak')) {
-          reply = `Your weakest topic is SDLC Architectural Tiers in ITE 292 B1 (67% accuracy). Drilling it in Bomb Mode will quickly boost your retention!`;
-        } else if (lower.includes('bomb mode') || lower.includes('bomb') || lower.includes('how does bomb')) {
-          reply = `In Bomb Mode, flashcards act as live fuses! Select the correct answer before the countdown reaches zero to defuse the card without losing lives.`;
-        } else if (lower.includes('share') || lower.includes('export')) {
-          reply = `Open any deck in your Reviewer Library and click the deck options to copy the share link or export materials!`;
-        } else if (lower.includes('streak') || lower.includes('level') || lower.includes('profile')) {
-          reply = `You are currently on a 3-day study streak with 88% overall accuracy! Review 5 more cards today to keep the streak going 🔥`;
-        } else {
-          reply = `Focus on active recall and testing retrieval! Try a quick 5-card Bomb Mode session to lock in your memory.`;
-        }
 
         setTimeout(() => {
-          setMaxxMessages(prev => [...prev, { id: 'm-' + Date.now(), sender: 'maxx', text: reply }]);
-        }, 250);
+          setMaxxMessages(prev => [...prev, { id: 'm-' + Date.now(), sender: 'maxx', text: item.answer }]);
+        }, 200);
       };
 
       const setMaxxMessage = (msg) => {
@@ -625,11 +653,15 @@
             {
               id: 'welcome-' + Date.now(),
               sender: 'maxx',
-              text: `Chat reset! 👋 How can I help you study today?`
+              text: `Chat reset. Select any topic below to view guided answers.`
             }
           ]);
         } else {
-          handleAskMaxx(msg);
+          setMaxxMessages(prev => [
+            ...prev,
+            { id: 'u-' + Date.now(), sender: 'user', text: msg },
+            { id: 'm-' + (Date.now() + 1), sender: 'maxx', text: `Here is your profile information: ${msg}` }
+          ]);
         }
       };
 
@@ -1046,19 +1078,6 @@
                         Your personalized study headquarters and review metrics.
                       </p>
                     </div>
-
-                    <div className="hidden sm:flex items-center gap-2.5">
-                      <button
-                        onClick={() => setIsCreateDeckOpen(true)}
-                        className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                      >
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="12" y1="5" x2="12" y2="19"></line>
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        New Deck
-                      </button>
-                    </div>
                   </div>
 
                   {/* 4 Crisp Stat Cards */}
@@ -1108,7 +1127,7 @@
                         </div>
                       </div>
                       <div>
-                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">3 Days 🔥</div>
+                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">3 Days</div>
                         <div className="text-[11px] text-emerald-600 font-semibold mt-0.5 truncate">Active today!</div>
                       </div>
                     </div>
@@ -1266,10 +1285,15 @@
                                 setSelectedBombDeck(d);
                                 setActiveTab('game');
                               }}
-                              className="hidden sm:flex px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#f04824] font-bold text-xs rounded-full border border-orange-200/60 transition-colors cursor-pointer"
+                              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#f04824] font-bold text-xs rounded-full border border-orange-200/60 transition-colors cursor-pointer"
                               title="Drill in Bomb Mode"
                             >
-                              💣 Drill
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="13" r="8" />
+                                <path d="m17 7 3-3" />
+                                <path d="M19 10.5c1-.5 2-.5 3-1" />
+                              </svg>
+                              <span>Drill</span>
                             </button>
                             <button
                               onClick={(e) => {
@@ -1349,55 +1373,29 @@
                     <div ref={maxxChatBottomRef} />
                   </div>
 
-                  {/* Quick Questions & Interactive Chat Input */}
-                  <div className="relative z-10 pt-2 border-t border-white/5">
-                    <span className="text-[9px] font-extrabold text-zinc-500 tracking-wider uppercase block mb-1.5">
-                      QUICK PROMPTS
-                    </span>
-                    <div className="grid grid-cols-2 gap-1.5 mb-2.5">
-                      {[
-                        { label: '🎯 What to review?', q: 'What should i review today?' },
-                        { label: '⚠️ Weakest topics', q: 'Show my weakest topics' },
-                        { label: '💣 Bomb Mode rules', q: 'How does Bomb Mode Work?' },
-                        { label: '🔗 Share deck', q: 'How do i share my reviewer?' }
-                      ].map((item, idx) => (
+                  {/* Fixed Questions Prompt Selector (Purely fixed, no free chat) */}
+                  <div className="relative z-10 pt-2.5 border-t border-white/5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[9.5px] font-extrabold text-zinc-400 tracking-wider uppercase">
+                        FIXED QUESTIONS
+                      </span>
+                      <span className="text-[9px] text-zinc-500 font-semibold">Select to ask</span>
+                    </div>
+
+                    <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                      {MAXX_FIXED_QUESTIONS.map((item) => (
                         <button
-                          key={idx}
-                          onClick={() => handleAskMaxx(item.q)}
-                          className="py-1.5 px-2 bg-[#202227] hover:bg-[#2c2f37] hover:border-[#f04824]/40 border border-white/5 rounded-xl text-left text-[10.5px] text-zinc-300 font-medium truncate transition-all cursor-pointer"
-                          title={item.q}
+                          key={item.id}
+                          onClick={() => handleAskFixedQuestion(item)}
+                          className="w-full py-2 px-3 bg-[#202227] hover:bg-[#2c2f37] hover:border-[#f04824]/50 border border-white/5 rounded-xl text-left text-[11px] text-zinc-200 font-medium flex items-center justify-between group transition-all cursor-pointer"
                         >
-                          {item.label}
+                          <span className="truncate pr-2">{item.label}</span>
+                          <svg className="w-3.5 h-3.5 text-zinc-500 group-hover:text-[#f04824] group-hover:translate-x-0.5 transition-all shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
                         </button>
                       ))}
                     </div>
-
-                    {/* Interactive Input Form */}
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleAskMaxx();
-                      }}
-                      className="relative flex items-center"
-                    >
-                      <input
-                        type="text"
-                        value={maxxInput}
-                        onChange={(e) => setMaxxInput(e.target.value)}
-                        placeholder="Ask Maxx anything..."
-                        className="w-full h-9 pl-3.5 pr-9 bg-[#202026] border border-white/10 focus:border-[#f04824] rounded-full text-xs text-white placeholder-zinc-500 outline-none transition-all"
-                      />
-                      <button
-                        type="submit"
-                        disabled={!maxxInput.trim()}
-                        className="absolute right-1.5 w-6 h-6 rounded-full bg-[#f04824] disabled:opacity-30 disabled:bg-zinc-700 text-white flex items-center justify-center transition-all cursor-pointer"
-                      >
-                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="22" y1="2" x2="11" y2="13" />
-                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                        </svg>
-                      </button>
-                    </form>
                   </div>
 
                 </div>
@@ -1929,7 +1927,11 @@
                                     }`}
                                 >
                                   <span>{d.code}</span>
-                                  {selectedBombDeck.id === d.id && <span>✓</span>}
+                                  {selectedBombDeck.id === d.id && (
+                                    <svg className="w-3.5 h-3.5 text-[#f04824]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                  )}
                                 </button>
                               ))}
                             </div>
