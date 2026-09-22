@@ -4,17 +4,6 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script>
-    (function () {
-      try {
-        if (!sessionStorage.getItem('csm_authenticated')) {
-          window.location.replace('login.php');
-        }
-      } catch (e) {
-        window.location.replace('login.php');
-      }
-    })();
-  </script>
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
@@ -76,13 +65,16 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
 
-    html, body {
+    html,
+    body {
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -108,13 +100,16 @@
       width: 6px;
       height: 6px;
     }
+
     ::-webkit-scrollbar-track {
       background: transparent;
     }
+
     ::-webkit-scrollbar-thumb {
       background: rgba(0, 0, 0, 0.15);
       border-radius: 9999px;
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(0, 0, 0, 0.28);
     }
@@ -123,7 +118,8 @@
 
 <body>
   <div class="outer-glow-backdrop"></div>
-  <div id="root" class="relative z-10 w-full h-screen p-3 md:p-5 flex items-center justify-center overflow-hidden"></div>
+  <div id="root" class="relative z-10 w-full h-screen p-3 md:p-5 flex items-center justify-center overflow-hidden">
+  </div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
@@ -467,12 +463,12 @@
       const [activeTab, setActiveTab] = useState('home');
       // Sub-views inside library: 'list' | 'detail' | 'flashcards'
       const [librarySubView, setLibrarySubView] = useState('list');
-      
+
       const [decks, setDecks] = useState(INITIAL_DECKS);
       const [selectedDeck, setSelectedDeck] = useState(INITIAL_DECKS[0]);
       const [searchQuery, setSearchQuery] = useState('');
-      
-          // User identity synced with PHP session
+
+      // User identity synced with PHP session
       const [userName, setUserName] = useState(() => {
         try {
           return localStorage.getItem('csm_user') || 'Nouvel';
@@ -491,15 +487,15 @@
               try {
                 localStorage.setItem('csm_user', data.user.username);
                 sessionStorage.setItem('csm_authenticated', 'true');
-              } catch (e) {}
+              } catch (e) { }
             } else {
               try {
                 sessionStorage.removeItem('csm_authenticated');
-              } catch (e) {}
+              } catch (e) { }
               window.location.replace('login.php');
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       }, []);
 
       // Collapsible library sections
@@ -555,7 +551,7 @@
           // Clean options of existing letter prefixes if present
           const cleanOpts = opts.map(o => (typeof o === 'string' ? o.replace(/^[A-D]\.\s*/i, '').trim() : String(o)));
           const correctText = (card.answerText || cleanOpts[card.correctIndex ?? 0] || cleanOpts[0]).trim();
-          
+
           const tagged = cleanOpts.map((text, idx) => ({
             text,
             isCorrect: idx === (card.correctIndex ?? 0) || text.toLowerCase() === correctText.toLowerCase()
@@ -581,8 +577,67 @@
         });
       };
 
-      // Maxx AI chat prompt responses
-      const [maxxMessage, setMaxxMessage] = useState(null);
+      // Maxx AI chat prompt responses & interactive conversation
+      const [maxxMessage, setMaxxMessageLegacy] = useState(null);
+      const [maxxMessages, setMaxxMessages] = useState([
+        {
+          id: 'welcome',
+          sender: 'maxx',
+          text: `Hey ${userName || 'there'}! 👋 I'm Maxx, your study copilot. Pick a quick prompt below or ask me anything about your decks, weak spots, or Bomb Mode!`
+        }
+      ]);
+      const [maxxInput, setMaxxInput] = useState('');
+      const maxxChatBottomRef = useRef(null);
+
+      const handleAskMaxx = (questionText) => {
+        const q = (questionText || maxxInput).trim();
+        if (!q) return;
+
+        const userMsg = { id: 'u-' + Date.now(), sender: 'user', text: q };
+        setMaxxMessages(prev => [...prev, userMsg]);
+        setMaxxInput('');
+
+        // Provide contextual AI responses
+        let reply = '';
+        const lower = q.toLowerCase();
+        if (lower.includes('review today') || lower.includes('what should i')) {
+          reply = `Based on your schedule, I recommend drilling ITE 292 B1 (Information Systems) — you have unreviewed cards from Module 1 waiting!`;
+        } else if (lower.includes('weakest') || lower.includes('weak')) {
+          reply = `Your weakest topic is SDLC Architectural Tiers in ITE 292 B1 (67% accuracy). Drilling it in Bomb Mode will quickly boost your retention!`;
+        } else if (lower.includes('bomb mode') || lower.includes('bomb') || lower.includes('how does bomb')) {
+          reply = `In Bomb Mode, flashcards act as live fuses! Select the correct answer before the countdown reaches zero to defuse the card without losing lives.`;
+        } else if (lower.includes('share') || lower.includes('export')) {
+          reply = `Open any deck in your Reviewer Library and click the deck options to copy the share link or export materials!`;
+        } else if (lower.includes('streak') || lower.includes('level') || lower.includes('profile')) {
+          reply = `You are currently on a 3-day study streak with 88% overall accuracy! Review 5 more cards today to keep the streak going 🔥`;
+        } else {
+          reply = `Focus on active recall and testing retrieval! Try a quick 5-card Bomb Mode session to lock in your memory.`;
+        }
+
+        setTimeout(() => {
+          setMaxxMessages(prev => [...prev, { id: 'm-' + Date.now(), sender: 'maxx', text: reply }]);
+        }, 250);
+      };
+
+      const setMaxxMessage = (msg) => {
+        if (!msg) {
+          setMaxxMessages([
+            {
+              id: 'welcome-' + Date.now(),
+              sender: 'maxx',
+              text: `Chat reset! 👋 How can I help you study today?`
+            }
+          ]);
+        } else {
+          handleAskMaxx(msg);
+        }
+      };
+
+      useEffect(() => {
+        if (maxxChatBottomRef.current) {
+          maxxChatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [maxxMessages]);
 
       // Totals
       const totalDecks = decks.length;
@@ -742,7 +797,7 @@
         const rawTarget = currentCard?.answerText || (currentCard?.options?.[currentCard?.correctIndex ?? 0] || '');
         const target = rawTarget.replace(/^[A-D]\.\s*/i, '').trim().toLowerCase();
         const input = bombIdInput.trim().toLowerCase();
-        
+
         // Exact match or contains key phrase
         const isRight = input === target || (target.length > 3 && target.includes(input)) || (input.length > 3 && input.includes(target));
 
@@ -870,11 +925,11 @@
       const handleLogout = async () => {
         try {
           await fetch('auth/logout.php?format=json', { method: 'POST' });
-        } catch (e) {}
+        } catch (e) { }
         try {
           sessionStorage.removeItem('csm_authenticated');
           localStorage.removeItem('csm_user');
-        } catch (e) {}
+        } catch (e) { }
         window.location.replace('login.php');
       };
 
@@ -895,9 +950,9 @@
               1. SLEEK DARK ROUNDED SIDEBAR (FIGMA MATCH)
               ======================================================== */}
           <aside className="w-16 md:w-[72px] bg-[#18181a] border border-[#27272b] rounded-[32px] py-6 flex flex-col items-center justify-between shrink-0 shadow-2xl">
-            
+
             {/* Top Mascot Icon */}
-            <div 
+            <div
               onClick={() => { setActiveTab('home'); setLibrarySubView('list'); }}
               className="w-11 h-11 rounded-full bg-[#242428] flex items-center justify-center p-1.5 cursor-pointer hover:scale-105 transition-transform shadow-md"
             >
@@ -909,11 +964,10 @@
               {/* Home */}
               <button
                 onClick={() => { setActiveTab('home'); setLibrarySubView('list'); }}
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                  activeTab === 'home' 
-                    ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105' 
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'home'
+                  ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
                 title="Overview"
               >
                 <IconHome />
@@ -922,11 +976,10 @@
               {/* Reviewer Library */}
               <button
                 onClick={() => { setActiveTab('library'); setLibrarySubView('list'); }}
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                  activeTab === 'library' 
-                    ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105' 
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'library'
+                  ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
                 title="Reviewer Library"
               >
                 <IconLibrary />
@@ -935,11 +988,10 @@
               {/* Game Mode */}
               <button
                 onClick={() => { setActiveTab('game'); setLibrarySubView('list'); }}
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
-                  activeTab === 'game' 
-                    ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105' 
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
+                className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${activeTab === 'game'
+                  ? 'bg-[#f04824] text-white shadow-lg shadow-[#f04824]/40 scale-105'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                  }`}
                 title="Enter Bomb Mode"
               >
                 <IconCards />
@@ -948,14 +1000,14 @@
 
             {/* Bottom Nav Items */}
             <div className="flex flex-col items-center gap-2">
-              <button 
+              <button
                 onClick={() => setMaxxMessage(`User profile: ${userName}. You are currently at Level 4 with 1,240 mastery points!`)}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
                 title="Profile"
               >
                 <IconUser />
               </button>
-              <button 
+              <button
                 onClick={handleLogout}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                 title="Log Out"
@@ -969,73 +1021,138 @@
           {/* ========================================================
               2. MAIN CANVAS CONTAINER
               ======================================================== */}
-          <main className={`flex-1 ${activeTab === 'library' && librarySubView === 'flashcards' ? 'bg-[#1e1e21]' : 'bg-[#dedee2]'} rounded-[32px] p-6 md:p-8 flex overflow-hidden shadow-2xl relative transition-colors`}>
-            
+          <main className={`flex-1 ${activeTab === 'library' && librarySubView === 'flashcards' ? 'bg-[#1e1e21]' : 'bg-[#f0f0f4]'} rounded-[32px] p-6 md:p-7 flex overflow-hidden shadow-2xl relative transition-colors`}>
+
             {/* ====================================================
                 VIEW A: OVERVIEW / DASHBOARD (HOME)
                 ==================================================== */}
             {activeTab === 'home' && (
               <div className="w-full h-full flex gap-6 overflow-hidden">
-                
+
                 {/* Left Overview Column */}
-                <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-2">
-                  <div>
-                    {/* Header */}
-                    <div className="mb-6">
-                      <span className="text-[11px] font-extrabold text-[#f04824] tracking-wider uppercase">OVERVIEW</span>
-                      <h1 className="font-display text-3xl font-black text-slate-900 tracking-tight mt-0.5">
+                <div className="flex-1 flex flex-col gap-5 overflow-y-auto pr-2">
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-extrabold text-[#f04824] tracking-wider uppercase">OVERVIEW</span>
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#f04824] animate-pulse"></span>
+                      </div>
+                      <h1 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight mt-0.5">
                         Welcome Back, {userName}!
                       </h1>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 mt-0.5">
                         Your personalized study headquarters and review metrics.
                       </p>
                     </div>
 
-                    {/* 2 Stat Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
-                      
-                      {/* Total Reviewers Card */}
-                      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
-                          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className="hidden sm:flex items-center gap-2.5">
+                      <button
+                        onClick={() => setIsCreateDeckOpen(true)}
+                        className="px-4 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-full flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        New Deck
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4 Crisp Stat Cards */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+
+                    {/* Total Reviewers Card */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-extrabold text-blue-600 tracking-wider uppercase">REVIEWERS</span>
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
                           </svg>
                         </div>
-                        <div>
-                          <div className="text-[10px] font-extrabold text-blue-600 tracking-wider uppercase">TOTAL REVIEWERS</div>
-                          <div className="font-display text-2xl font-black text-slate-900">{totalDecks} Decks</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Pure management & Authoring.</div>
-                        </div>
                       </div>
+                      <div>
+                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">{totalDecks} Decks</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">Study modules</div>
+                      </div>
+                    </div>
 
-                      {/* Total BombCards Card */}
-                      <div className="bg-white/80 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
-                        <div className="w-12 h-12 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center shrink-0">
-                          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Total BombCards Card */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-extrabold text-[#f04824] tracking-wider uppercase">BOMBCARDS</span>
+                        <div className="w-8 h-8 rounded-lg bg-orange-50 text-[#f04824] flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="7" y="5" width="13" height="15" rx="2" transform="rotate(8 13.5 12.5)" />
                             <rect x="4" y="5" width="13" height="15" rx="2" transform="rotate(-6 10.5 12.5)" />
                           </svg>
                         </div>
-                        <div>
-                          <div className="text-[10px] font-extrabold text-[#f04824] tracking-wider uppercase">TOTAL BOMBCARDS</div>
-                          <div className="font-display text-2xl font-black text-slate-900">7 Cards</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Across all study sets.</div>
-                        </div>
                       </div>
-
+                      <div>
+                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">{totalCards} Cards</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">Drill questions</div>
+                      </div>
                     </div>
 
-                    {/* Your Study Tools */}
-                    <div className="mb-6">
-                      <h2 className="font-display text-lg font-black text-slate-900">Your Study Tools</h2>
-                      <p className="text-xs text-slate-500 mb-3">Everything you need to create , study, improve.</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
-                        {/* Tool 1: Reviewer Library */}
-                        <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-                          <div>
-                            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center mb-3">
+                    {/* Streak Card */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-extrabold text-amber-500 tracking-wider uppercase">STREAK</span>
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.5 2C10.5 4.5 9 7.5 9 10.5c0 1 .2 1.9.5 2.7C8.6 12.4 8 11.2 8 10c0-1.5.5-3 1.5-4.5C6.5 7.5 5 10.5 5 14c0 4.4 3.6 8 8 8s8-3.6 8-8c0-5-4.5-9-8.5-12z" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">3 Days 🔥</div>
+                        <div className="text-[11px] text-emerald-600 font-semibold mt-0.5 truncate">Active today!</div>
+                      </div>
+                    </div>
+
+                    {/* Mastery Card */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-4 flex flex-col justify-between shadow-sm hover:shadow transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-extrabold text-emerald-600 tracking-wider uppercase">MASTERY</span>
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <circle cx="12" cy="12" r="6" />
+                            <circle cx="12" cy="2" />
+                          </svg>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-display text-2xl font-black text-slate-900 leading-tight">88%</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5 truncate">Accuracy rate</div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Your Study Tools */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div>
+                        <h2 className="font-display text-base font-black text-slate-900">Your Study Tools</h2>
+                        <p className="text-xs text-slate-500">Everything you need to create, study, and master topics.</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                      {/* Tool 1: Reviewer Library */}
+                      <div
+                        onClick={() => { setActiveTab('library'); setLibrarySubView('list'); }}
+                        className="group bg-white/95 hover:bg-white border border-slate-200/90 hover:border-amber-300/80 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-400/5 rounded-full blur-2xl group-hover:bg-amber-400/10 transition-all pointer-events-none"></div>
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                 <rect x="3" y="3" width="7" height="7" rx="1" />
                                 <rect x="14" y="3" width="7" height="7" rx="1" />
@@ -1043,100 +1160,161 @@
                                 <rect x="3" y="14" width="7" height="7" rx="1" />
                               </svg>
                             </div>
-                            <h3 className="font-display font-bold text-slate-900 text-sm">Reviewer Library</h3>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                              Create, edit, and manage your reviewers and PDF materials.
-                            </p>
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60">STUDY DESK</span>
                           </div>
+                          <h3 className="font-display font-black text-slate-900 text-base group-hover:text-amber-600 transition-colors">Reviewer Library</h3>
+                          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                            Create, edit, and organize reviewers, author flashcards, and attach PDF lecture materials.
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-slate-400">{totalDecks} Decks ready</span>
                           <button
-                            onClick={() => { setActiveTab('library'); setLibrarySubView('list'); }}
-                            className="mt-4 px-5 py-2 bg-[#ebb042] hover:bg-[#dfa435] text-white font-bold text-xs rounded-full flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer w-fit"
+                            onClick={(e) => { e.stopPropagation(); setActiveTab('library'); setLibrarySubView('list'); }}
+                            className="px-4 py-1.5 bg-slate-900 group-hover:bg-[#ebb042] text-white font-bold text-xs rounded-full flex items-center gap-1.5 shadow-sm transition-all"
                           >
                             Open Library &rarr;
                           </button>
                         </div>
+                      </div>
 
-                        {/* Tool 2: Game Mode */}
-                        <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-5 flex flex-col justify-between shadow-sm">
-                          <div>
-                            <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center mb-3">
+                      {/* Tool 2: Game Mode */}
+                      <div
+                        onClick={() => { setActiveTab('game'); }}
+                        className="group bg-white/95 hover:bg-white border border-slate-200/90 hover:border-[#f04824]/40 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden"
+                      >
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-[#f04824]/5 rounded-full blur-2xl group-hover:bg-[#f04824]/10 transition-all pointer-events-none"></div>
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="w-10 h-10 rounded-xl bg-orange-50 group-hover:bg-orange-100 text-[#f04824] flex items-center justify-center transition-colors">
                               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                                 <rect x="3" y="5" width="14" height="15" rx="2" />
                                 <path d="M7 5V3a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2h-2" />
                               </svg>
                             </div>
-                            <h3 className="font-display font-bold text-slate-900 text-sm">Game Mode</h3>
-                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                              Customize game mode and play.
-                            </p>
+                            <span className="text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-orange-50 text-[#f04824] border border-orange-200/60">ARENA DRILLS</span>
                           </div>
+                          <h3 className="font-display font-black text-slate-900 text-base group-hover:text-[#f04824] transition-colors">Bomb Mode Game</h3>
+                          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                            Race against live explosive fuses! Customize countdown timers and survival lives to test recall.
+                          </p>
+                        </div>
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-slate-400">Timed Arena</span>
                           <button
-                            onClick={() => { setActiveTab('game'); }}
-                            className="mt-4 px-5 py-2 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-full flex items-center justify-center gap-1 shadow-md shadow-[#f04824]/30 transition-all cursor-pointer w-fit"
+                            onClick={(e) => { e.stopPropagation(); setActiveTab('game'); }}
+                            className="px-4 py-1.5 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-full flex items-center gap-1.5 shadow-md shadow-[#f04824]/30 transition-all"
                           >
-                            Enter Game Mode &rarr;
+                            Enter Bomb Mode &rarr;
                           </button>
                         </div>
-
                       </div>
+
                     </div>
                   </div>
 
-                  {/* Recent Activity */}
+                  {/* Recent Activity Section */}
                   <div>
-                    <h2 className="font-display text-sm font-black text-slate-900">Recent Activity</h2>
-                    <p className="text-[11px] text-slate-500 mb-2">Pick up where you left off.</p>
-                    
-                    <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-4 flex items-center justify-between shadow-sm">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                            <polyline points="14 2 14 8 20 8" />
-                          </svg>
-                        </div>
-                        <div>
-                          <div className="font-display font-bold text-slate-900 text-xs">ITE 292 B1</div>
-                          <div className="text-[10.5px] text-slate-400">Last studied 2 hours ago • 3 cards</div>
-                        </div>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div>
+                        <h2 className="font-display text-sm font-black text-slate-900">Recent Activity</h2>
+                        <p className="text-[11px] text-slate-500">Pick up where you left off.</p>
                       </div>
                       <button
-                        onClick={() => {
-                          setSelectedDeck(decks[0]);
-                          setActiveTab('library');
-                          setLibrarySubView('detail');
-                        }}
-                        className="px-5 py-1.5 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-full shadow-md transition-all cursor-pointer"
+                        onClick={() => { setActiveTab('library'); setLibrarySubView('list'); }}
+                        className="text-xs font-bold text-[#f04824] hover:underline flex items-center gap-1 cursor-pointer"
                       >
-                        Continue &rarr;
+                        View All Reviewers &rarr;
                       </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {decks.slice(0, 3).map((d) => (
+                        <div
+                          key={d.id}
+                          onClick={() => {
+                            setSelectedDeck(d);
+                            setActiveTab('library');
+                            setLibrarySubView('detail');
+                          }}
+                          className="bg-white/95 hover:bg-white border border-slate-200/80 hover:border-slate-300 rounded-2xl p-3.5 flex items-center justify-between shadow-sm hover:shadow transition-all cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                              </svg>
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-display font-bold text-slate-900 text-xs truncate">{d.code}</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold truncate max-w-[140px]">{d.subject}</span>
+                              </div>
+                              <div className="text-[10.5px] text-slate-400 mt-0.5 flex items-center gap-2">
+                                <span>{d.lastStudied || 'Recently accessed'}</span>
+                                <span>•</span>
+                                <span>{d.cards ? d.cards.length : 0} cards</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBombDeck(d);
+                                setActiveTab('game');
+                              }}
+                              className="hidden sm:flex px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#f04824] font-bold text-xs rounded-full border border-orange-200/60 transition-colors cursor-pointer"
+                              title="Drill in Bomb Mode"
+                            >
+                              💣 Drill
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedDeck(d);
+                                setActiveTab('library');
+                                setLibrarySubView('detail');
+                              }}
+                              className="px-4 py-1.5 bg-[#f04824] hover:bg-[#ff5a36] text-white font-bold text-xs rounded-full shadow-sm transition-all cursor-pointer"
+                            >
+                              Continue &rarr;
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                 </div>
 
-                {/* Right Maxx Panel (FIGMA MATCH) */}
-                <div className="w-72 bg-[#161618] border border-[#28282c] rounded-[28px] p-6 text-white flex flex-col justify-between shrink-0 shadow-xl relative overflow-hidden">
-                  
-                  {/* Subtle ambient internal orange glow */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-[#f04824]/20 rounded-full blur-3xl pointer-events-none"></div>
+                {/* Right Maxx Panel (Interactive Study Copilot) */}
+                <div className="w-80 bg-[#151518] border border-[#27272b] rounded-[28px] p-5 text-white flex flex-col justify-between shrink-0 shadow-2xl relative overflow-hidden">
 
-                  <div className="relative z-10">
-                    {/* Header */}
-                    <div className="flex items-center justify-between mb-4">
+                  {/* Subtle ambient internal orange glow */}
+                  <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 bg-[#f04824]/15 rounded-full blur-3xl pointer-events-none"></div>
+
+                  {/* Header */}
+                  <div className="relative z-10 pb-3 border-b border-white/5">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-full bg-[#242428] flex items-center justify-center p-1.5 shadow-md">
+                        <div className="w-9 h-9 rounded-full bg-[#242428] flex items-center justify-center p-1.5 shadow-md ring-1 ring-white/10">
                           <img src="csm-sidebar-logo.png" alt="Maxx" className="w-full h-full object-contain" />
                         </div>
                         <div>
-                          <h3 className="font-display font-bold text-sm text-white leading-none">Maxx</h3>
-                          <span className="text-[10.5px] text-[#f04824] font-semibold">Powered by Co-StudyMaxx</span>
+                          <div className="flex items-center gap-1.5">
+                            <h3 className="font-display font-bold text-sm text-white leading-none">Maxx</h3>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          </div>
+                          <span className="text-[10px] text-[#f04824] font-semibold">Study Copilot • Online</span>
                         </div>
                       </div>
-                      <button 
+                      <button
                         onClick={() => setMaxxMessage(null)}
-                        className="text-zinc-500 hover:text-white transition-colors cursor-pointer" 
-                        title="Reset"
+                        className="p-1.5 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                        title="Reset Chat"
                       >
                         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <polyline points="23 4 23 10 17 10" />
@@ -1144,37 +1322,82 @@
                         </svg>
                       </button>
                     </div>
-
-                    {/* Copilot response only if active */}
-                    {maxxMessage && (
-                      <div className="bg-[#212126]/90 backdrop-blur-sm border border-white/10 rounded-2xl p-4 text-xs text-zinc-200 leading-relaxed animate-[modalPop_0.2s_ease-out] shadow-lg">
-                        <p>{maxxMessage}</p>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Quick Questions */}
-                  <div className="relative z-10 mt-6">
-                    <span className="text-[9.5px] font-extrabold text-zinc-500 tracking-wider uppercase block mb-2.5">
-                      QUICK QUESTIONS
+                  {/* Chat Message Stream */}
+                  <div className="relative z-10 flex-1 overflow-y-auto my-3 space-y-2.5 pr-1 text-xs scrollbar-thin">
+                    {maxxMessages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+                      >
+                        <div
+                          className={`max-w-[90%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${msg.sender === 'user'
+                            ? 'bg-[#f04824] text-white rounded-br-xs shadow-md shadow-[#f04824]/20'
+                            : 'bg-[#202025]/90 border border-white/10 text-zinc-200 rounded-bl-xs shadow-sm backdrop-blur-sm'
+                            }`}
+                        >
+                          {msg.sender === 'maxx' && (
+                            <div className="flex items-center gap-1.5 mb-1 text-[10px] font-bold text-[#f04824] uppercase tracking-wider">
+                              <span>MAXX</span>
+                            </div>
+                          )}
+                          <p className="whitespace-pre-line">{msg.text}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={maxxChatBottomRef} />
+                  </div>
+
+                  {/* Quick Questions & Interactive Chat Input */}
+                  <div className="relative z-10 pt-2 border-t border-white/5">
+                    <span className="text-[9px] font-extrabold text-zinc-500 tracking-wider uppercase block mb-1.5">
+                      QUICK PROMPTS
                     </span>
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-1.5 mb-2.5">
                       {[
-                        { q: 'What should i review today?', a: 'Based on your schedule, I recommend drilling ITE 292 B1 (Information Systems) — you have 3 unreviewed cards from Module 1!' },
-                        { q: 'Show my weakest topics', a: 'Your weakest area is SDLC Architectural Tiers in ITE 292 B1 (67% accuracy). Reviewing it now will boost your retention!' },
-                        { q: 'How does Bomb Mode Work?', a: 'In Bomb Mode, questions act as live fuses! Select the right answer before the countdown reaches zero to defuse the card.' },
-                        { q: 'How do i share my reviewer?', a: 'Click the 3 dots on any deck card in your Reviewer Library, or copy your deck share code to invite classmates!' }
+                        { label: '🎯 What to review?', q: 'What should i review today?' },
+                        { label: '⚠️ Weakest topics', q: 'Show my weakest topics' },
+                        { label: '💣 Bomb Mode rules', q: 'How does Bomb Mode Work?' },
+                        { label: '🔗 Share deck', q: 'How do i share my reviewer?' }
                       ].map((item, idx) => (
                         <button
                           key={idx}
-                          onClick={() => setMaxxMessage(item.a)}
-                          className="w-full py-2.5 px-3.5 bg-[#202227] hover:bg-[#282b33] border border-white/5 rounded-xl text-left text-xs text-zinc-300 flex items-center justify-between transition-colors cursor-pointer group"
+                          onClick={() => handleAskMaxx(item.q)}
+                          className="py-1.5 px-2 bg-[#202227] hover:bg-[#2c2f37] hover:border-[#f04824]/40 border border-white/5 rounded-xl text-left text-[10.5px] text-zinc-300 font-medium truncate transition-all cursor-pointer"
+                          title={item.q}
                         >
-                          <span className="truncate pr-2">{item.q}</span>
-                          <span className="text-zinc-500 group-hover:text-white transition-transform group-hover:translate-x-0.5">&rsaquo;</span>
+                          {item.label}
                         </button>
                       ))}
                     </div>
+
+                    {/* Interactive Input Form */}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleAskMaxx();
+                      }}
+                      className="relative flex items-center"
+                    >
+                      <input
+                        type="text"
+                        value={maxxInput}
+                        onChange={(e) => setMaxxInput(e.target.value)}
+                        placeholder="Ask Maxx anything..."
+                        className="w-full h-9 pl-3.5 pr-9 bg-[#202026] border border-white/10 focus:border-[#f04824] rounded-full text-xs text-white placeholder-zinc-500 outline-none transition-all"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!maxxInput.trim()}
+                        className="absolute right-1.5 w-6 h-6 rounded-full bg-[#f04824] disabled:opacity-30 disabled:bg-zinc-700 text-white flex items-center justify-center transition-all cursor-pointer"
+                      >
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="22" y1="2" x2="11" y2="13" />
+                          <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                        </svg>
+                      </button>
+                    </form>
                   </div>
 
                 </div>
@@ -1187,7 +1410,7 @@
                 ==================================================== */}
             {activeTab === 'library' && librarySubView === 'list' && (
               <div className="w-full h-full flex flex-col justify-between overflow-hidden relative">
-                
+
                 <div className="overflow-y-auto pr-2 pb-16">
                   {/* Title Bar */}
                   <div className="mb-4">
@@ -1222,7 +1445,7 @@
                       className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-3 cursor-pointer select-none"
                     >
                       <svg className={`w-3 h-3 text-slate-500 transition-transform ${expandLast7 ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
+                        <polyline points="9 18 15 12 9 6" />
                       </svg>
                       <span>Last 7 days</span>
                     </button>
@@ -1241,7 +1464,7 @@
                             <div>
                               <div className="flex items-start justify-between">
                                 <h3 className="font-display font-bold text-slate-900 text-sm">{deck.code}</h3>
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); alert(`Settings for ${deck.code}`); }}
                                   className="text-slate-400 hover:text-slate-800 p-1 -mt-1 -mr-1"
                                 >
@@ -1271,7 +1494,7 @@
                       className="flex items-center gap-1.5 text-xs font-bold text-slate-800 mb-3 cursor-pointer select-none"
                     >
                       <svg className={`w-3 h-3 text-slate-500 transition-transform ${expandOlder ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6"/>
+                        <polyline points="9 18 15 12 9 6" />
                       </svg>
                       <span>Longer than a week</span>
                     </button>
@@ -1290,7 +1513,7 @@
                             <div>
                               <div className="flex items-start justify-between">
                                 <h3 className="font-display font-bold text-slate-900 text-sm">{deck.code}</h3>
-                                <button 
+                                <button
                                   onClick={(e) => { e.stopPropagation(); alert(`Settings for ${deck.code}`); }}
                                   className="text-slate-400 hover:text-slate-800 p-1 -mt-1 -mr-1"
                                 >
@@ -1332,7 +1555,7 @@
                 ==================================================== */}
             {activeTab === 'library' && librarySubView === 'detail' && selectedDeck && (
               <div className="w-full h-full flex flex-col justify-between overflow-y-auto pr-2">
-                
+
                 <div>
                   {/* Top Bar */}
                   <div className="mb-3">
@@ -1416,7 +1639,7 @@
                   {/* Documents Section (FIGMA MATCH: Clean list with divider lines) */}
                   <div>
                     <h3 className="font-display font-bold text-xs text-[#f04824] tracking-wider mb-2">Documents</h3>
-                    
+
                     <div className="border-t border-slate-300/80">
                       {(selectedDeck.documents?.length ? selectedDeck.documents : [
                         { id: 'doc-1', title: 'ITE 292 B1 M1' },
@@ -1449,7 +1672,7 @@
                 ==================================================== */}
             {activeTab === 'library' && librarySubView === 'flashcards' && selectedDeck && (
               <div className="w-full h-full flex flex-col justify-between overflow-hidden text-white">
-                
+
                 {/* Header Bar */}
                 <div className="flex items-center justify-between mb-5 shrink-0">
                   <div className="flex items-center gap-3">
@@ -1475,7 +1698,7 @@
 
                 {/* Main 2-Column Split Area */}
                 <div className="flex-1 flex gap-6 overflow-hidden items-stretch">
-                  
+
                   {/* Left Column: + New flashcards & Stack of cards */}
                   <div className="w-72 md:w-80 flex flex-col shrink-0 overflow-hidden">
                     {/* + New flashcards Button */}
@@ -1497,9 +1720,8 @@
                           <div
                             key={card.id || idx}
                             onClick={() => setActiveFlashcardIndex(idx)}
-                            className={`bg-[#2c2c31] hover:bg-[#34343a] rounded-2xl p-4 border transition-all cursor-pointer ${
-                              isActive ? 'border-zinc-500 shadow-lg ring-1 ring-zinc-500/50' : 'border-white/5 hover:border-white/10'
-                            }`}
+                            className={`bg-[#2c2c31] hover:bg-[#34343a] rounded-2xl p-4 border transition-all cursor-pointer ${isActive ? 'border-zinc-500 shadow-lg ring-1 ring-zinc-500/50' : 'border-white/5 hover:border-white/10'
+                              }`}
                           >
                             {/* Top row: Subject Title & + Add tags */}
                             <div className="flex items-center justify-between mb-2">
@@ -1546,7 +1768,7 @@
 
                   {/* Right Column: Flashcard Editor Card (Vaia style) */}
                   <div className="flex-1 bg-[#29292e] border border-white/5 rounded-2xl p-6 md:p-8 flex flex-col justify-start shadow-xl relative overflow-y-auto">
-                    
+
                     {/* Top action row inside editor card */}
                     <div className="flex items-center justify-between mb-4">
                       <button
@@ -1562,7 +1784,7 @@
                         <span>+ Add tags</span>
                       </button>
 
-                      <button 
+                      <button
                         type="button"
                         onClick={() => {
                           if (confirm("Delete this flashcard?")) {
@@ -1651,10 +1873,10 @@
                 ==================================================== */}
             {activeTab === 'game' && (
               <div className="w-full h-full flex gap-6 overflow-hidden">
-                
+
                 {/* Left Rules Column */}
                 <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-2">
-                  
+
                   <div>
                     {/* Header */}
                     <div className="mb-5">
@@ -1671,7 +1893,7 @@
                     <div className="bg-white/80 border border-slate-200/80 rounded-2xl p-5 mb-5 shadow-sm">
                       <h3 className="font-display font-bold text-slate-900 text-xs">Select a BombCard Deck</h3>
                       <p className="text-[11px] text-slate-500 mb-3">Choose one deck from your library to play.</p>
-                      
+
                       <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-3.5 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
@@ -1703,9 +1925,8 @@
                                     setSelectedBombDeck(d);
                                     setIsChangeDeckDropdownOpen(false);
                                   }}
-                                  className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-100 cursor-pointer ${
-                                    selectedBombDeck.id === d.id ? 'text-[#f04824] bg-orange-50/50' : 'text-slate-700'
-                                  }`}
+                                  className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-100 cursor-pointer ${selectedBombDeck.id === d.id ? 'text-[#f04824] bg-orange-50/50' : 'text-slate-700'
+                                    }`}
                                 >
                                   <span>{d.code}</span>
                                   {selectedBombDeck.id === d.id && <span>✓</span>}
@@ -1723,13 +1944,13 @@
                       <p className="text-[11px] text-slate-500 mb-4">Customize how you want to play.</p>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        
+
                         {/* 1. Lives */}
                         <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/60">
                           <div className="flex items-center gap-2 mb-1">
                             <div className="w-6 h-6 rounded-full bg-rose-100 flex items-center justify-center text-[#f04824] shrink-0">
                               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                               </svg>
                             </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Lives</span>
@@ -1740,11 +1961,10 @@
                               <button
                                 key={val}
                                 onClick={() => setLivesSetting(val)}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                  livesSetting === val
-                                    ? 'bg-[#f04824] text-white shadow-sm'
-                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${livesSetting === val
+                                  ? 'bg-[#f04824] text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
                                 {val}
                               </button>
@@ -1757,8 +1977,8 @@
                           <div className="flex items-center gap-2 mb-1">
                             <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 shrink-0">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10"/>
-                                <polyline points="12 6 12 12 16 14"/>
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
                               </svg>
                             </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Time per Card</span>
@@ -1769,11 +1989,10 @@
                               <button
                                 key={val}
                                 onClick={() => setTimeSetting(val)}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                  timeSetting === val
-                                    ? 'bg-[#f04824] text-white shadow-sm'
-                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${timeSetting === val
+                                  ? 'bg-[#f04824] text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
                                 {val}
                               </button>
@@ -1786,11 +2005,11 @@
                           <div className="flex items-center gap-2 mb-1">
                             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-500 shrink-0">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="16 3 21 3 21 8"/>
-                                <line x1="4" y1="20" x2="21" y2="3"/>
-                                <polyline points="21 16 21 21 16 21"/>
-                                <line x1="15" y1="15" x2="21" y2="21"/>
-                                <line x1="4" y1="4" x2="9" y2="9"/>
+                                <polyline points="16 3 21 3 21 8" />
+                                <line x1="4" y1="20" x2="21" y2="3" />
+                                <polyline points="21 16 21 21 16 21" />
+                                <line x1="15" y1="15" x2="21" y2="21" />
+                                <line x1="4" y1="4" x2="9" y2="9" />
                               </svg>
                             </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Card Order</span>
@@ -1801,11 +2020,10 @@
                               <button
                                 key={val}
                                 onClick={() => setOrderSetting(val)}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                  orderSetting === val
-                                    ? 'bg-[#f04824] text-white shadow-sm'
-                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${orderSetting === val
+                                  ? 'bg-[#f04824] text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
                                 {val}
                               </button>
@@ -1818,8 +2036,8 @@
                           <div className="flex items-center gap-2 mb-1">
                             <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 shrink-0">
                               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="8"/>
-                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                <circle cx="11" cy="11" r="8" />
+                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
                               </svg>
                             </div>
                             <span className="font-display font-bold text-slate-900 text-xs">Test Type</span>
@@ -1830,11 +2048,10 @@
                               <button
                                 key={val}
                                 onClick={() => setTestTypeSetting(val)}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                                  testTypeSetting === val
-                                    ? 'bg-[#f04824] text-white shadow-sm'
-                                    : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${testTypeSetting === val
+                                  ? 'bg-[#f04824] text-white shadow-sm'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
                                 {val}
                               </button>
@@ -1851,7 +2068,7 @@
 
                 {/* Right Dark Widget Summary (FIGMA MATCH) */}
                 <div className="w-80 bg-[#161618] border border-[#28282c] rounded-[28px] p-6 text-white flex flex-col justify-between shrink-0 shadow-xl relative overflow-hidden">
-                  
+
                   {/* Subtle ambient orange glow */}
                   <div className="absolute top-1/4 right-1/4 w-44 h-44 bg-[#f04824]/20 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -1877,7 +2094,7 @@
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <svg className="w-3.5 h-3.5 fill-[#f04824] shrink-0" viewBox="0 0 24 24">
-                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                           </svg>
                           <span>Lives</span>
                         </span>
@@ -1887,8 +2104,8 @@
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <svg className="w-3.5 h-3.5 text-blue-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10"/>
-                            <polyline points="12 6 12 12 16 14"/>
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
                           </svg>
                           <span>Time per Card</span>
                         </span>
@@ -1898,11 +2115,11 @@
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <svg className="w-3.5 h-3.5 text-purple-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="16 3 21 3 21 8"/>
-                            <line x1="4" y1="20" x2="21" y2="3"/>
-                            <polyline points="21 16 21 21 16 21"/>
-                            <line x1="15" y1="15" x2="21" y2="21"/>
-                            <line x1="4" y1="4" x2="9" y2="9"/>
+                            <polyline points="16 3 21 3 21 8" />
+                            <line x1="4" y1="20" x2="21" y2="3" />
+                            <polyline points="21 16 21 21 16 21" />
+                            <line x1="15" y1="15" x2="21" y2="21" />
+                            <line x1="4" y1="4" x2="9" y2="9" />
                           </svg>
                           <span>Order</span>
                         </span>
@@ -1912,8 +2129,8 @@
                       <div className="flex items-center justify-between text-zinc-300">
                         <span className="flex items-center gap-2 text-zinc-400">
                           <svg className="w-3.5 h-3.5 text-emerald-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="11" cy="11" r="8"/>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
                           </svg>
                           <span>Test Type</span>
                         </span>
@@ -2000,7 +2217,7 @@
           {isAddMaterialOpen && selectedDeck && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative">
-                
+
                 {/* Header */}
                 <div className="flex items-start justify-between mb-5">
                   <div>
@@ -2060,7 +2277,7 @@
 
                 {/* Two Option Cards */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div 
+                  <div
                     onClick={() => {
                       setIsAddMaterialOpen(false);
                       setLibrarySubView('flashcards');
@@ -2092,14 +2309,14 @@
               5. ACTIVE BOMB GAMEPLAY MODAL (FIGMA MATCH)
               ======================================================== */}
           {isBombPlaying && (() => {
-            const bombAccuracyPercent = bombTotalAttempts > 0 
-              ? Math.round((bombDefusedCount / bombTotalAttempts) * 100) 
+            const bombAccuracyPercent = bombTotalAttempts > 0
+              ? Math.round((bombDefusedCount / bombTotalAttempts) * 100)
               : 0;
 
             return (
               <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
                 <div className="bg-[#1e1e21] border border-white/10 rounded-[28px] max-w-[960px] w-full min-h-[580px] p-8 text-white relative shadow-2xl flex flex-col justify-between overflow-hidden">
-                  
+
                   {/* Header (Figma Match) */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -2152,13 +2369,12 @@
                               {bombAccuracyPercent}%
                             </span>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                            bombAccuracyPercent >= 80 
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                              : bombAccuracyPercent >= 50
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${bombAccuracyPercent >= 80
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            : bombAccuracyPercent >= 50
                               ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
                               : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                          }`}>
+                            }`}>
                             {bombAccuracyPercent >= 80 ? 'Mastery' : bombAccuracyPercent >= 50 ? 'Proficient' : 'Needs Practice'}
                           </span>
                         </div>
@@ -2166,13 +2382,12 @@
                         {/* Accuracy Progress Bar */}
                         <div className="w-full bg-[#1c1c1f] rounded-full h-3 border border-white/5 overflow-hidden mb-4">
                           <div
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              bombAccuracyPercent >= 80 
-                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]' 
-                                : bombAccuracyPercent >= 50 
-                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]' 
+                            className={`h-full rounded-full transition-all duration-700 ${bombAccuracyPercent >= 80
+                              ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                              : bombAccuracyPercent >= 50
+                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                                 : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
-                            }`}
+                              }`}
                             style={{ width: `${Math.max(5, bombAccuracyPercent)}%` }}
                           />
                         </div>
@@ -2231,13 +2446,12 @@
                               {bombAccuracyPercent}%
                             </span>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                            bombAccuracyPercent >= 80 
-                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                              : bombAccuracyPercent >= 50
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold border ${bombAccuracyPercent >= 80
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            : bombAccuracyPercent >= 50
                               ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
                               : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                          }`}>
+                            }`}>
                             {bombAccuracyPercent >= 80 ? 'Mastery' : bombAccuracyPercent >= 50 ? 'Proficient' : 'Needs Practice'}
                           </span>
                         </div>
@@ -2245,13 +2459,12 @@
                         {/* Accuracy Progress Bar */}
                         <div className="w-full bg-[#1c1c1f] rounded-full h-3 border border-white/5 overflow-hidden mb-4">
                           <div
-                            className={`h-full rounded-full transition-all duration-700 ${
-                              bombAccuracyPercent >= 80 
-                                ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]' 
-                                : bombAccuracyPercent >= 50 
-                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]' 
+                            className={`h-full rounded-full transition-all duration-700 ${bombAccuracyPercent >= 80
+                              ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                              : bombAccuracyPercent >= 50
+                                ? 'bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)]'
                                 : 'bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
-                            }`}
+                              }`}
                             style={{ width: `${Math.max(5, bombAccuracyPercent)}%` }}
                           />
                         </div>
@@ -2296,18 +2509,17 @@
                       <div className="relative flex items-center justify-center mb-6">
                         {/* Golden ambient halo glow */}
                         <div className="absolute w-28 h-28 bg-amber-500/30 rounded-full blur-2xl pointer-events-none"></div>
-                        
+
                         {/* Spark flames (Figma Vector Match) */}
                         <div className="absolute -top-3.5 right-1 text-amber-400 animate-pulse">
                           <svg className="w-5 h-5 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.9)]" viewBox="0 0 24 24">
                             <polygon points="12,2 14.5,8.5 21,9.3 16,14 17.5,20.5 12,17 6.5,20.5 8,14 3,9.3 9.5,8.5" />
                           </svg>
                         </div>
-                        
+
                         {/* Bomb Body with countdown number */}
-                        <div className={`w-16 h-16 rounded-full bg-black border-2 border-zinc-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.45)] relative z-10 ${
-                          bombTimeRemaining <= 5 ? 'border-rose-500 animate-shake-danger' : ''
-                        }`}>
+                        <div className={`w-16 h-16 rounded-full bg-black border-2 border-zinc-700 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.45)] relative z-10 ${bombTimeRemaining <= 5 ? 'border-rose-500 animate-shake-danger' : ''
+                          }`}>
                           <span className="font-display text-2xl font-black text-white">
                             {bombTimeRemaining}
                           </span>
@@ -2333,13 +2545,12 @@
                               value={bombIdInput}
                               onChange={(e) => setBombIdInput(e.target.value)}
                               placeholder="Type answer here..."
-                              className={`flex-1 bg-[#1c1c1f] border-2 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-all ${
-                                bombIsCorrect === true
-                                  ? 'border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
-                                  : bombIsCorrect === false
+                              className={`flex-1 bg-[#1c1c1f] border-2 rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-all ${bombIsCorrect === true
+                                ? 'border-[#22c55e] bg-[#22c55e]/15 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
+                                : bombIsCorrect === false
                                   ? 'border-rose-500 bg-rose-500/15 animate-shake-danger'
                                   : 'border-white/10 focus:border-[#f04824]'
-                              }`}
+                                }`}
                             />
                             <button
                               type="submit"
@@ -2361,9 +2572,9 @@
                               const isSelected = bombSelectedOption === optIdx;
                               const activeCard = bombActiveCards[bombCurrentQIndex] || selectedBombDeck.cards?.[bombCurrentQIndex];
                               const isCorrectAnswer = optIdx === (activeCard?.correctIndex ?? 0);
-                              
+
                               let buttonStyles = 'bg-[#1c1c1f] border-white/10 text-zinc-300 hover:bg-[#25252a]';
-                              
+
                               if (bombIsRevealingAnswer) {
                                 if (isCorrectAnswer) {
                                   buttonStyles = 'border-2 border-[#22c55e] bg-[#22c55e]/25 text-white shadow-[0_0_18px_rgba(34,197,94,0.45)] font-bold';
