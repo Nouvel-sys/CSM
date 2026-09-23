@@ -1995,44 +1995,110 @@
       display: none;
     }
 
-    .csm-sidebar-toggle {
-      position: absolute;
-      top: 73px;
-      right: 8px;
-      z-index: 40;
-      width: 32px;
-      height: 32px;
-      display: grid;
-      place-items: center;
-      padding: 0;
-      border: 0;
-      border-radius: 50%;
-      color: #c1ccd9;
-      background: #202833;
-      box-shadow: 0 5px 14px rgba(0, 0, 0, .22);
-      cursor: pointer;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .18s ease, transform .22s ease, color .18s ease, background .18s ease;
-    }
-
-    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-toggle {
+    /* Sidebar Categories & Dividers */
+    .csm-sidebar-category {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #59677b;
+      padding: 10px 14px 4px;
+      width: 100%;
+      text-align: left;
       display: none;
+      user-select: none;
     }
 
-    .app-shell>nav.sidebar-expanded .csm-sidebar-toggle {
-      opacity: 1;
-      pointer-events: auto;
+    .app-shell>nav.sidebar-expanded .csm-sidebar-category {
+      display: block !important;
     }
 
-    .csm-sidebar-toggle:hover {
-      color: #fff;
-      background: var(--csm-accent);
+    .csm-sidebar-divider {
+      width: 24px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 6px auto;
+      display: block;
     }
 
-    .csm-sidebar-toggle svg {
-      width: 17px;
-      height: 17px;
+    .app-shell>nav.sidebar-expanded .csm-sidebar-divider {
+      display: none !important;
+    }
+
+    /* Topbar Profile & Account Dropdown */
+    .csm-profile-wrap {
+      position: relative;
+    }
+
+    .csm-account-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 230px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06);
+      padding: 6px;
+      z-index: 95;
+    }
+
+    .csm-account-dropdown-user {
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid #f1f5f9;
+      margin-bottom: 4px;
+    }
+
+    .csm-account-dropdown-user p {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+
+    .csm-account-dropdown-user span {
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 500;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .csm-account-dropdown-item {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 700;
+      color: #334155;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+
+    .csm-account-dropdown-item:hover {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+
+    .csm-account-dropdown-item.danger {
+      color: #ef4444;
+    }
+
+    .csm-account-dropdown-item.danger:hover {
+      background: #fef2f2;
+      color: #dc2626;
+    }
+
+    .csm-account-dropdown-divider {
+      height: 1px;
+      background: #f1f5f9;
+      margin: 4px 0;
     }
 
     /* Collapsed Nav Tooltips */
@@ -2121,15 +2187,6 @@
       white-space: nowrap;
     }
 
-    .app-shell>nav.sidebar-expanded .csm-sidebar-toggle {
-      top: 26px;
-      right: 12px;
-      transform: rotate(180deg);
-    }
-
-    .app-shell>nav.sidebar-expanded .csm-sidebar-toggle::after {
-      display: none;
-    }
 
     /* Nested Library Sub-navigation */
     .csm-sidebar-subnav {
@@ -6337,6 +6394,7 @@
       const [activeTab, setActiveTab] = useState(['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account'].includes(requestedScreen) ? requestedScreen : 'home');
       const [sidebarExpanded, setSidebarExpanded] = useState(false);
       const [notificationsOpen, setNotificationsOpen] = useState(false);
+      const [accountMenuOpen, setAccountMenuOpen] = useState(false);
       const [notifications, setNotifications] = useState([]);
       const [changeConfirmation, setChangeConfirmation] = useState(null);
       const defaultProfile = { displayName: 'Gavin Dave', username: 'gavin_dave', avatar: 'ember', nameChangedAt: null };
@@ -6535,6 +6593,9 @@
           }
           if (!event.target.closest('.csm-material-actions')) {
             setOpenMaterialMenuId(null);
+          }
+          if (!event.target.closest('.csm-profile-wrap')) {
+            setAccountMenuOpen(false);
           }
         };
         document.addEventListener('mousedown', closeDeckMenuOnOutsideClick);
@@ -7573,8 +7634,11 @@
                 <span className="csm-sidebar-wordmark">Co-StudyMaxx</span>
               </div>
 
-              {/* Navigation Tabs */}
-              <div className="flex flex-col items-center gap-2 mt-2">
+              {/* Navigation Tabs (MAIN Category) */}
+              <div className="flex flex-col items-center gap-2 mt-2 w-full">
+                <span className="csm-sidebar-category">MAIN</span>
+                <span className="csm-sidebar-divider" />
+
                 {/* 1. Home Dashboard */}
                 <button
                   onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('home'); }}
@@ -7656,39 +7720,42 @@
                   <IconCards className="w-6 h-6" />
                   <span className="csm-sidebar-label">Arena</span>
                 </button>
+
+                {/* ACCOUNT Category — placed below Arena */}
+                <span className="csm-sidebar-category" style={{marginTop: '8px'}}>ACCOUNT</span>
+                <span className="csm-sidebar-divider" />
+
+                {/* Profile Settings */}
+                <button
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'account' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+                  title="Account Profile"
+                  data-tooltip="Profile Settings"
+                  onClick={handleOpenAccount}
+                >
+                  <IconUser />
+                  <span className="csm-sidebar-label">Profile</span>
+                </button>
               </div>
             </div>
 
-            <button
-              type="button"
-              className="csm-sidebar-toggle"
-              data-tooltip={sidebarExpanded ? 'Collapse sidebar' : 'Open sidebar'}
-              onClick={() => setSidebarExpanded(value => !value)}
-              aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Open sidebar'}
-              title={sidebarExpanded ? 'Collapse sidebar' : 'Open sidebar'}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" /><path d="m14 8 4 4-4 4" /></svg>
-            </button>
-
-            {/* Bottom Actions */}
-            <div className="flex flex-col items-center gap-2">
+            {/* Sidebar Collapse/Expand Toggle — bottom of nav */}
+            <div className="flex flex-col items-center gap-2 w-full">
               <button
-                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'account' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
-                title="Account Profile"
-                data-tooltip="Profile Settings"
-                onClick={handleOpenAccount}
+                type="button"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                data-tooltip={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                onClick={() => setSidebarExpanded(v => !v)}
               >
-                <IconUser />
-                <span className="csm-sidebar-label">Profile</span>
-              </button>
-              <button
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-white/5 transition-colors"
-                title="Logout"
-                data-tooltip="Sign out"
-                onClick={() => { window.location.href = 'login.html'; }}
-              >
-                <IconLogout />
-                <span className="csm-sidebar-label">Sign out</span>
+                <svg className={`w-4 h-4 transition-transform duration-200 ${sidebarExpanded ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <path d="M9 3v18" />
+                  <path d="m15 9-3 3 3 3" />
+                </svg>
+                <span className="csm-sidebar-label">
+                  {sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                </span>
               </button>
             </div>
           </nav>
@@ -7750,11 +7817,50 @@
                       </div>
                     )}
                   </div>
-                  <button className="csm-profile" type="button" aria-label="Open profile" onClick={handleOpenAccount}>
-                    <span className="csm-profile-avatar" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span>
-                    <span className="csm-profile-copy"><strong>{displayName}</strong><small>@{profile.username || defaultProfile.username}</small></span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                  </button>
+                  <div className="csm-profile-wrap relative">
+                    <button
+                      className="csm-profile cursor-pointer"
+                      type="button"
+                      aria-label="Open profile menu"
+                      aria-expanded={accountMenuOpen}
+                      onClick={() => setAccountMenuOpen(v => !v)}
+                    >
+                      <span className="csm-profile-avatar" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span>
+                      <span className="csm-profile-copy"><strong>{displayName}</strong><small>@{profile.username || defaultProfile.username}</small></span>
+                      <svg className={`transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    {accountMenuOpen && (
+                      <div className="csm-account-dropdown animate-fadeIn" role="menu">
+                        <div className="csm-account-dropdown-user">
+                          <p>{displayName}</p>
+                          <span>@{profile.username || defaultProfile.username}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="csm-account-dropdown-item"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            handleOpenAccount();
+                          }}
+                        >
+                          <IconUser />
+                          <span>Profile Settings</span>
+                        </button>
+                        <div className="csm-account-dropdown-divider" />
+                        <button
+                          type="button"
+                          className="csm-account-dropdown-item danger"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            window.location.href = 'login.html';
+                          }}
+                        >
+                          <IconLogout />
+                          <span>Sign out</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </header>
             )}
