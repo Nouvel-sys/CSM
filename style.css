@@ -1467,7 +1467,7 @@
       min-width: 76px !important;
       padding: 22px 13px !important;
       align-items: center !important;
-      background: #141922 !important;
+      background: #0E0E0E !important;
       box-shadow: 8px 0 24px rgba(19, 28, 42, .08) !important;
     }
     .app-shell > nav > div:first-child, .app-shell > nav > div:last-child { width: 100% !important; align-items: center !important; }

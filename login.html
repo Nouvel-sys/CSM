@@ -396,6 +396,13 @@
 
     function showSuccess(titleText, copyText, buttonText, action) {
       successAction = action;
+      if (action === 'workspace') {
+        showLoading('You’re signed in.', 'Loading your workspace…');
+        window.setTimeout(() => {
+          window.location.href = 'index.html?screen=home';
+        }, 450);
+        return;
+      }
       document.getElementById('success-title').textContent = titleText;
       document.getElementById('success-copy').textContent = copyText;
       document.getElementById('continue-button').innerHTML = `${buttonText} ${arrowSvg}`;

@@ -552,15 +552,11 @@ function App() {
   // --- Bombstyle Arena State Controller ---
       const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'gameplay' | 'results' | 'review_missed'
       const [bombstyleDeckId, setBombstyleDeckId] = useState('deck-2');
-      const [bombstyleCardCount, setBombstyleCardCount] = useState(10); // 10, 20, 30, 'all'
       const [bombstyleDifficulty, setBombstyleDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
-      const [bombstyleTimePerCard, setBombstyleTimePerCard] = useState(20); // 10, 20, 30
-      const [bombstyleTotalFuses, setBombstyleTotalFuses] = useState(3); // 2, 3, 5
       const [bombstyleQueue, setBombstyleQueue] = useState([]);
       const [bombstyleIndex, setBombstyleIndex] = useState(0);
       const [bombstyleRevealed, setBombstyleRevealed] = useState(false);
-      const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(20);
-      const [bombstyleFusesRemaining, setBombstyleFusesRemaining] = useState(3);
+      const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(45);
       const [bombstyleStreak, setBombstyleStreak] = useState(0);
       const [bombstyleMaxStreak, setBombstyleMaxStreak] = useState(0);
       const [bombstyleCorrectCount, setBombstyleCorrectCount] = useState(0);
@@ -569,6 +565,8 @@ function App() {
       const [bombstyleStartTime, setBombstyleStartTime] = useState(null);
       const [bombstyleDurationSeconds, setBombstyleDurationSeconds] = useState(0);
       const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
+      const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
+      const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
       const [shareToast, setShareToast] = useState('');
       const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
       const [soundMuted, setSoundMuted] = useState(false);
@@ -1029,6 +1027,15 @@ function App() {
     chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
   }, [chatMessages, chatTyping]);
 
+      useEffect(() => {
+        if (!bombstyleExitModalOpen) return;
+        const handleExitModalKeyDown = (event) => {
+          if (event.key === 'Escape') setBombstyleExitModalOpen(false);
+        };
+        document.addEventListener('keydown', handleExitModalKeyDown);
+        return () => document.removeEventListener('keydown', handleExitModalKeyDown);
+      }, [bombstyleExitModalOpen]);
+
   const requestDeleteConfirmation = ({ title, message, confirmLabel = 'Delete', action }) => {
     setDeleteConfirmation({ title, message, confirmLabel, action });
   };
@@ -1268,6 +1275,7 @@ function App() {
       // 6. BOMBSTYLE ARENA GAME ENGINE
       // ========================================================
       const bombstyleTimerRef = useRef(null);
+      const bombstyleAnswerSubmittedRef = useRef(false);
 
       const bombstyleActiveDeck = useMemo(() => {
         return decks.find(d => d.id === bombstyleDeckId) || decks[0];
@@ -1278,8 +1286,14 @@ function App() {
       }, [bombstyleActiveDeck]);
 
       const activeBombstyleCard = bombstyleQueue[bombstyleIndex] || null;
+      const BOMBSTYLE_DIFFICULTIES = {
+        easy: { label: 'Easy', seconds: 60, timeLabel: '1 minute' },
+        normal: { label: 'Normal', seconds: 45, timeLabel: '45 seconds' },
+        hard: { label: 'Hard', seconds: 30, timeLabel: '30 seconds' }
+      };
+      const selectedBombstyleDifficulty = BOMBSTYLE_DIFFICULTIES[bombstyleDifficulty] || BOMBSTYLE_DIFFICULTIES.normal;
       const isBombDanger = bombstyleTimeRemaining <= 5.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
-      const bombFusePercent = Math.max(0, Math.min(100, (bombstyleTimeRemaining / (bombstyleTimePerCard || 20)) * 100));
+      const bombTimerPercent = Math.max(0, Math.min(100, (bombstyleTimeRemaining / (selectedBombstyleDifficulty.seconds || 45)) * 100));
 
       const handleSelectBombstyleDeck = (deckId) => {
         setBombstyleDeckId(deckId);
@@ -1287,17 +1301,7 @@ function App() {
       };
 
       const handleSetDifficulty = (diff) => {
-        setBombstyleDifficulty(diff);
-        if (diff === 'easy') {
-          setBombstyleTimePerCard(30);
-          setBombstyleTotalFuses(3);
-        } else if (diff === 'normal') {
-          setBombstyleTimePerCard(20);
-          setBombstyleTotalFuses(3);
-        } else if (diff === 'hard') {
-          setBombstyleTimePerCard(10);
-          setBombstyleTotalFuses(2);
-        }
+        if (BOMBSTYLE_DIFFICULTIES[diff]) setBombstyleDifficulty(diff);
       };
 
       const handleStartBombstyle = (customCardQueue = null) => {
@@ -1312,17 +1316,11 @@ function App() {
         // Shuffle cards for a true recall test
         cardsToUse = [...cardsToUse].sort(() => Math.random() - 0.5);
 
-        // Cap count if not custom queue
-        if (!customCardQueue && bombstyleCardCount !== 'all') {
-          const cap = Math.min(Number(bombstyleCardCount), cardsToUse.length);
-          cardsToUse = cardsToUse.slice(0, cap);
-        }
-
         setBombstyleQueue(cardsToUse);
         setBombstyleIndex(0);
         setBombstyleRevealed(false);
-        setBombstyleTimeRemaining(bombstyleTimePerCard);
-        setBombstyleFusesRemaining(bombstyleTotalFuses);
+        bombstyleAnswerSubmittedRef.current = false;
+        setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
         setBombstyleStreak(0);
         setBombstyleMaxStreak(0);
         setBombstyleCorrectCount(0);
@@ -1344,7 +1342,7 @@ function App() {
 
       // Countdown Timer for Bombstyle
       useEffect(() => {
-        if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleFeedback) {
+        if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleFeedback || bombstyleExitModalOpen) {
           if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
           return;
         }
@@ -1368,7 +1366,7 @@ function App() {
         return () => {
           if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
         };
-      }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleTimePerCard]);
+      }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds]);
 
       const handleBombstyleReveal = () => {
         if (bombstyleRevealed || bombstyleFeedback) return;
@@ -1376,11 +1374,13 @@ function App() {
       };
 
       const handleBombstyleDecision = (knewIt) => {
-        if (bombstyleFeedback || !activeBombstyleCard) return;
+        if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+        bombstyleAnswerSubmittedRef.current = true;
 
         if (knewIt) {
           sound.correct();
           setBombstyleFeedback('defused');
+          setBombstyleTimeRemaining(prev => +(prev + 8).toFixed(1));
           const nextStreak = bombstyleStreak + 1;
           setBombstyleStreak(nextStreak);
           if (nextStreak > bombstyleMaxStreak) setBombstyleMaxStreak(nextStreak);
@@ -1402,8 +1402,8 @@ function App() {
           sound.wrong();
           sound.detonation();
           setBombstyleFeedback('exploded');
-          const nextFuses = bombstyleFusesRemaining - 1;
-          setBombstyleFusesRemaining(nextFuses);
+          const nextTime = Math.max(0, +(bombstyleTimeRemaining - 5).toFixed(1));
+          setBombstyleTimeRemaining(nextTime);
           setBombstyleStreak(0);
           setBombstyleHistory(prev => [
             ...prev,
@@ -1417,7 +1417,7 @@ function App() {
           setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
 
           setTimeout(() => {
-            if (nextFuses <= 0) {
+            if (nextTime <= 0) {
               finishBombstyleSession();
             } else {
               advanceBombstyleCard();
@@ -1427,13 +1427,13 @@ function App() {
       };
 
       const handleBombstyleTimeout = () => {
-        if (bombstyleFeedback || !activeBombstyleCard) return;
+        if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+        bombstyleAnswerSubmittedRef.current = true;
         sound.wrong();
         sound.detonation();
         setBombstyleFeedback('exploded');
         setBombstyleRevealed(true);
-        const nextFuses = bombstyleFusesRemaining - 1;
-        setBombstyleFusesRemaining(nextFuses);
+        setBombstyleTimeRemaining(0);
         setBombstyleStreak(0);
         setBombstyleHistory(prev => [
           ...prev,
@@ -1447,20 +1447,16 @@ function App() {
         setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
 
         setTimeout(() => {
-          if (nextFuses <= 0) {
-            finishBombstyleSession();
-          } else {
-            advanceBombstyleCard();
-          }
+          finishBombstyleSession();
         }, 800);
       };
 
       const advanceBombstyleCard = () => {
         setBombstyleFeedback(null);
         setBombstyleRevealed(false);
+        bombstyleAnswerSubmittedRef.current = false;
         if (bombstyleIndex + 1 < bombstyleQueue.length) {
           setBombstyleIndex(i => i + 1);
-          setBombstyleTimeRemaining(bombstyleTimePerCard);
         } else {
           finishBombstyleSession();
         }
@@ -2873,7 +2869,10 @@ function App() {
 
                       <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
                         <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
-                          🔥
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M12 21a6 6 0 0 0 6-6c0-2.1-1.1-4.1-3.2-6.1.1 1.8-.7 3-1.8 3.9.2-3.6-1.8-6.2-4.3-8.8.2 3.3-2.7 5.4-2.7 9A6 6 0 0 0 12 21Z" />
+                            <path d="M12 17.5a2.5 2.5 0 0 0 2.5-2.5c0-.6-.2-1.2-.6-1.7-.2.8-.7 1.3-1.3 1.7-.1-1.1-.7-1.9-1.5-2.6.1 1.1-.8 1.8-.8 2.9a2.5 2.5 0 0 0 1.7 2.2Z" />
+                          </svg>
                         </div>
                         <div>
                           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Best Streak</span>
@@ -2937,143 +2936,103 @@ function App() {
 
                 {/* PHASE 2: SESSION CONFIGURATION */}
                 {bombstylePhase === 'configure' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div className="csm-arena-config-card">
-                      <header style={{ marginBottom: '22px' }}>
-                        <span className="csm-kicker">SESSION CONFIGURATION</span>
-                        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#090d14', margin: '4px 0 6px', letterSpacing: '-0.02em' }}>Configure Bombstyle</h2>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Dial in your challenge rules before the timer lights up.</p>
-                      </header>
+                  <div className="csm-bombstyle-config">
+                    <header className="csm-bombstyle-config-head">
+                      <span className="csm-kicker">SESSION SETUP</span>
+                      <h1>Build your challenge.</h1>
+                      <p>Your deck. Your pace. A little pressure.</p>
+                    </header>
 
-                      {/* Selected Deck Summary */}
-                      <div className="csm-arena-deck-summary-box">
-                        <div>
-                          <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 800, display: 'block' }}>SELECTED DECK</span>
-                          <span style={{ fontSize: '17px', fontWeight: 800, color: '#090d14' }}>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}</span>
-                          <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>{bombstyleAvailableCards.length} Bombcards available in this deck</span>
+                    <div className="csm-bombstyle-config-layout">
+                      <section className="csm-bombstyle-settings-card" aria-labelledby="bombstyle-difficulty-title">
+                        <div className="csm-bombstyle-selected-deck">
+                          <span className="csm-bombstyle-deck-icon"><IconCards className="w-7 h-7" /></span>
+                          <div className="csm-bombstyle-deck-copy">
+                            <span>Selected Deck</span>
+                            <strong>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title || 'Your deck'}</strong>
+                            <small>{bombstyleAvailableCards.length} Bombcards available</small>
+                          </div>
+                          <button type="button" className="csm-bombstyle-change-deck" onClick={() => setBombstylePhase('select_deck')}>
+                            Change deck
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          className="csm-secondary-button"
-                          onClick={() => setBombstylePhase('select_deck')}
-                        >
-                          Change Deck
-                        </button>
-                      </div>
 
-                      {/* Setting: Number of Cards */}
-                      <div className="csm-arena-setting-row">
-                        <label className="csm-arena-setting-label">Number of Bombcards</label>
-                        <p className="csm-arena-setting-desc">How many cards to recall in this run.</p>
-                        <div className="csm-arena-pill-group">
-                          {[10, 20, 30].map(cnt => {
-                            const isAvailable = bombstyleAvailableCards.length >= cnt;
+                        <div className="csm-bombstyle-difficulty-heading">
+                          <span className="csm-bombstyle-step">01</span>
+                          <div>
+                            <h2 id="bombstyle-difficulty-title">Pick your difficulty</h2>
+                            <p>Choose your starting time. The countdown runs for the whole round.</p>
+                          </div>
+                        </div>
+
+                        <div className="csm-bombstyle-difficulty-grid" role="radiogroup" aria-label="Difficulty">
+                          {Object.entries(BOMBSTYLE_DIFFICULTIES).map(([key, difficulty]) => {
+                            const isSelected = bombstyleDifficulty === key;
                             return (
                               <button
-                                key={cnt}
+                                key={key}
                                 type="button"
-                                disabled={!isAvailable}
-                                className={`csm-arena-pill-btn ${bombstyleCardCount === cnt ? 'is-active' : ''} ${!isAvailable ? 'is-disabled' : ''}`}
-                                onClick={() => setBombstyleCardCount(cnt)}
+                                role="radio"
+                                aria-checked={isSelected}
+                                className={`csm-bombstyle-difficulty-card ${isSelected ? 'is-selected' : ''}`}
+                                onClick={() => handleSetDifficulty(key)}
                               >
-                                {cnt} Cards
+                                <span className="csm-bombstyle-difficulty-icon" aria-hidden="true">
+                                  {key === 'easy' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4C11 4 5 7 5 14c0 3 2 5 5 5 7 0 10-6 10-15Z"/><path d="M4 21c3-5 6-8 11-11"/></svg>}
+                                  {key === 'normal' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="M19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z"/></svg>}
+                                  {key === 'hard' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>}
+                                </span>
+                                <strong>{difficulty.label}</strong>
+                                <span>{difficulty.timeLabel}</span>
+                                {isSelected && <span className="csm-bombstyle-selected-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg></span>}
                               </button>
                             );
                           })}
-                          <button
-                            type="button"
-                            className={`csm-arena-pill-btn ${bombstyleCardCount === 'all' ? 'is-active' : ''}`}
-                            onClick={() => setBombstyleCardCount('all')}
-                          >
-                            All ({bombstyleAvailableCards.length})
-                          </button>
                         </div>
-                      </div>
 
-                      {/* Setting: Difficulty Preset */}
-                      <div className="csm-arena-setting-row">
-                        <label className="csm-arena-setting-label">Difficulty</label>
-                        <p className="csm-arena-setting-desc">Sets default time pressure and mistake tolerances.</p>
-                        <div className="csm-arena-pill-group">
-                          <button
-                            type="button"
-                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'easy' ? 'is-active' : ''}`}
-                            onClick={() => handleSetDifficulty('easy')}
-                          >
-                            Easy (30s &bull; 3 Fuses)
-                          </button>
-                          <button
-                            type="button"
-                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'normal' ? 'is-active' : ''}`}
-                            onClick={() => handleSetDifficulty('normal')}
-                          >
-                            Normal (20s &bull; 3 Fuses)
-                          </button>
-                          <button
-                            type="button"
-                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'hard' ? 'is-active' : ''}`}
-                            onClick={() => handleSetDifficulty('hard')}
-                          >
-                            Hard (10s &bull; 2 Fuses)
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Setting: Time per Bombcard */}
-                      <div className="csm-arena-setting-row">
-                        <label className="csm-arena-setting-label">Time per Bombcard</label>
-                        <p className="csm-arena-setting-desc">Recall countdown before the bomb detonates.</p>
-                        <div className="csm-arena-pill-group">
-                          {[10, 20, 30].map(seconds => (
-                            <button
-                              key={seconds}
-                              type="button"
-                              className={`csm-arena-pill-btn ${bombstyleTimePerCard === seconds ? 'is-active' : ''}`}
-                              onClick={() => setBombstyleTimePerCard(seconds)}
-                            >
-                              {seconds} Seconds
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Setting: Fuses (Lives) */}
-                      <div className="csm-arena-setting-row">
-                        <label className="csm-arena-setting-label">Fuses (Allowed Mistakes)</label>
-                        <p className="csm-arena-setting-desc">Each forgotten card or timeout burns a fuse.</p>
-                        <div className="csm-arena-pill-group">
-                          {[2, 3, 5].map(fuses => (
-                            <button
-                              key={fuses}
-                              type="button"
-                              className={`csm-arena-pill-btn ${bombstyleTotalFuses === fuses ? 'is-active' : ''}`}
-                              onClick={() => setBombstyleTotalFuses(fuses)}
-                            >
-                              {fuses} Fuses
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Action buttons */}
-                      <div className="csm-arena-actions-row">
                         <button
                           type="button"
-                          className="csm-arena-secondary-btn"
-                          onClick={() => setBombstylePhase('select_deck')}
+                          className="csm-bombstyle-timer-toggle"
+                          aria-expanded={bombstyleTimerHelpOpen}
+                          aria-controls="bombstyle-timer-explanation"
+                          onClick={() => setBombstyleTimerHelpOpen(open => !open)}
                         >
-                          Cancel
+                          <span className="csm-bombstyle-info-icon" aria-hidden="true">i</span>
+                          <span>How the timer works</span>
+                          <svg className="csm-bombstyle-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                         </button>
-                        <button
-                          type="button"
-                          className="csm-arena-primary-btn"
-                          disabled={bombstyleAvailableCards.length === 0}
-                          onClick={() => handleStartBombstyle()}
-                        >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9 4h6"/></svg>
-                          START BOMBSTYLE
+
+                        <div id="bombstyle-timer-explanation" className={`csm-bombstyle-timer-explanation ${bombstyleTimerHelpOpen ? 'is-open' : ''}`} aria-hidden={!bombstyleTimerHelpOpen}>
+                          <div className="csm-bombstyle-explanation-inner">
+                            <h3>Keep your bomb ticking</h3>
+                            <p>Correct answers add 8 seconds to your remaining time. Wrong answers subtract 5 seconds.</p>
+                            <div className="csm-bombstyle-timer-effects">
+                              <div><span className="csm-bombstyle-effect-icon is-correct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></span><span><small>Correct answer</small><strong>+8 seconds</strong></span></div>
+                              <div><span className="csm-bombstyle-effect-icon is-wrong"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg></span><span><small>Wrong answer</small><strong>&minus;5 seconds</strong></span></div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="csm-bombstyle-one-timer">One timer for the entire round.</p>
+                      </section>
+
+                      <aside className="csm-bombstyle-summary-card" aria-labelledby="bombstyle-summary-title">
+                        <div className="csm-bombstyle-illustration">
+                          <img src="csm-mascot.png" alt="Friendly bomb mascot" />
+                        </div>
+                        <h2 id="bombstyle-summary-title">Ready when you are.</h2>
+                        <p className="csm-bombstyle-summary-subtitle">Here&rsquo;s your game plan.</p>
+                        <div className="csm-bombstyle-summary-list">
+                          <div><span className="csm-bombstyle-summary-icon"><IconSparkles /></span><span>Difficulty</span><strong>{selectedBombstyleDifficulty.label}</strong></div>
+                          <div><span className="csm-bombstyle-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" /></svg></span><span>Starting time</span><strong>{selectedBombstyleDifficulty.timeLabel}</strong></div>
+                          <div><span className="csm-bombstyle-summary-icon is-positive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 8v8M8 12h8" /></svg></span><span>Correct answer</span><strong>+8 seconds</strong></div>
+                          <div><span className="csm-bombstyle-summary-icon is-negative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 12h8" /></svg></span><span>Wrong answer</span><strong>&minus;5 seconds</strong></div>
+                        </div>
+                        <button type="button" className="csm-bombstyle-start-button" disabled={bombstyleAvailableCards.length === 0} onClick={() => handleStartBombstyle()}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 8 6-8 6V6Z" /></svg>
+                          Start Bombstyle
                         </button>
-                      </div>
+                        <button type="button" className="csm-bombstyle-cancel-button" onClick={() => setBombstylePhase('select_deck')}>Cancel</button>
+                      </aside>
                     </div>
                   </div>
                 )}
@@ -3090,11 +3049,7 @@ function App() {
                           className="csm-secondary-button"
                           style={{ height: '34px', width: '34px', padding: 0 }}
                           title="Exit Run to Arena Hub"
-                          onClick={() => {
-                            if (window.confirm('Exit current Bombstyle session?')) {
-                              setBombstylePhase('select_deck');
-                            }
-                          }}
+                          onClick={() => setBombstyleExitModalOpen(true)}
                         >
                           <IconArrowLeft />
                         </button>
@@ -3113,7 +3068,7 @@ function App() {
                         </span>
                       </div>
 
-                      {/* Right: Sound, Streak & Fuses */}
+                      {/* Right: Sound & Streak */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                           type="button"
@@ -3130,12 +3085,6 @@ function App() {
                           🔥 STREAK ×{bombstyleStreak}
                         </div>
 
-                        {/* Fuses Tray */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`${bombstyleFusesRemaining} of ${bombstyleTotalFuses} fuses remaining`}>
-                          {Array.from({ length: bombstyleTotalFuses }).map((_, i) => (
-                            <MiniBombIcon key={i} active={bombstyleFusesRemaining > i} />
-                          ))}
-                        </div>
                       </div>
                     </header>
 
@@ -3245,15 +3194,15 @@ function App() {
                         </svg>
                       </div>
 
-                      {/* Timer & Fuse Progress Bar */}
+                      {/* Session Timer Progress Bar */}
                       <div className="csm-arena-timer-box">
                         <div className={`csm-arena-timer-text ${isBombDanger ? 'danger' : ''}`}>
                           {bombstyleTimeRemaining.toFixed(1)}s
                         </div>
-                        <div className="csm-arena-fuse-bar">
+                        <div className="csm-arena-timer-bar">
                           <div
-                            className={`csm-arena-fuse-fill ${isBombDanger ? 'danger' : ''}`}
-                            style={{ width: `${bombFusePercent}%` }}
+                            className={`csm-arena-timer-fill ${isBombDanger ? 'danger' : ''}`}
+                            style={{ width: `${bombTimerPercent}%` }}
                           />
                         </div>
                       </div>
@@ -3327,8 +3276,8 @@ function App() {
                 {bombstylePhase === 'results' && (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <div className="csm-arena-results-card">
-                      <div className={`csm-arena-results-icon ${bombstyleFusesRemaining > 0 ? 'complete' : 'detonated'}`}>
-                        {bombstyleFusesRemaining > 0 ? (
+                      <div className={`csm-arena-results-icon ${bombstyleTimeRemaining > 0 ? 'complete' : 'detonated'}`}>
+                        {bombstyleTimeRemaining > 0 ? (
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         ) : (
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9 4h6"/></svg>
@@ -3336,12 +3285,12 @@ function App() {
                       </div>
 
                       <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#090d14', margin: '0' }}>
-                        {bombstyleFusesRemaining > 0 ? 'BOMBSTYLE COMPLETE' : 'SESSION DETONATED'}
+                        {bombstyleTimeRemaining > 0 ? 'BOMBSTYLE COMPLETE' : 'SESSION DETONATED'}
                       </h2>
                       <p style={{ fontSize: '13px', color: '#64748b', margin: '8px auto 0', maxWidth: '480px' }}>
-                        {bombstyleFusesRemaining > 0
+                        {bombstyleTimeRemaining > 0
                           ? 'Outstanding recall! You defused the cards and beat the countdown.'
-                          : 'Your fuses ran out under pressure. Review your missed cards below to lock in the concepts.'}
+                          : 'The countdown reached zero under pressure. Review your missed cards below to lock in the concepts.'}
                       </p>
 
                       {/* Stats Grid */}
@@ -3490,6 +3439,33 @@ function App() {
               </div>
             )}
 </main>
+
+      {bombstyleExitModalOpen && (
+        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={() => setBombstyleExitModalOpen(false)}>
+          <div className="csm-bombstyle-exit-modal" role="dialog" aria-modal="true" aria-labelledby="bombstyle-exit-title" aria-describedby="bombstyle-exit-description" onClick={(event) => event.stopPropagation()}>
+            <div className="csm-bombstyle-exit-icon" aria-hidden="true"><IconArrowLeft /></div>
+            <span className="csm-kicker">LEAVE SESSION?</span>
+            <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
+            <p id="bombstyle-exit-description">Are you sure you want to exit this session? Your current progress will be lost.</p>
+            <div className="csm-bombstyle-exit-actions">
+              <button type="button" className="csm-secondary-button" autoFocus onClick={() => setBombstyleExitModalOpen(false)}>Cancel</button>
+              <button
+                type="button"
+                className="csm-danger-button"
+                onClick={() => {
+                  setBombstyleExitModalOpen(false);
+                  setBombstyleFeedback(null);
+                  setBombstyleRevealed(false);
+                  bombstyleAnswerSubmittedRef.current = false;
+                  setBombstylePhase('select_deck');
+                }}
+              >
+                Exit session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {folderInfoModalOpen && (
         <div className="csm-modal-backdrop" role="presentation" onClick={() => setFolderInfoModalOpen(false)}>
