@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Co-StudyMaxx — Study reviewers, made to stick</title>
+  <meta name="description" content="Create private study reviewers, practice what you missed, and turn every deck into a focused countdown quiz.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const IconArrowRight = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="4" y1="12" x2="19" y2="12" />
+        <polyline points="13 6 19 12 13 18" />
+      </svg>
+    );
+    const IconArrowUp = ({ className = "w-3.5 h-3.5" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="12" y1="19" x2="12" y2="5" />
+        <polyline points="6 11 12 5 18 11" />
+      </svg>
+    );
+    const IconClose = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+    const IconLibrary = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    );
+    const IconFlame = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1012 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z" /></svg>
+    );
+    const IconShare = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></svg>
+    );
+
+    const CollegeCapIcon = () => (
+      <svg className="csm-college-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="m3 9 9-5 9 5-9 5-9-5Z" />
+        <path d="M6 11.2V16c2.8 2 9.2 2 12 0v-4.8" />
+        <path d="M21 9v6" />
+        <circle cx="21" cy="16.2" r="1" fill="currentColor" stroke="none" />
+      </svg>
+    );
+    function LandingPage({ onAuthenticated = () => {} }) {
+      const [activeDemo, setActiveDemo] = useState(0);
+      const [openFaq, setOpenFaq] = useState(0);
+      const initialAuthMode = null;
+      const [authMode, setAuthMode] = useState(['signin', 'register'].includes(initialAuthMode) ? initialAuthMode : null);
+      const [authError, setAuthError] = useState('');
+      const [authBusy, setAuthBusy] = useState(false);
+      const [showPassword, setShowPassword] = useState(false);
+      const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+      const onEnter = () => openAuth('register');
+      const openAuth = (mode) => {
+        window.location.href = `login.html?mode=${mode}`;
+      };
+      const closeAuth = () => {
+        if (authBusy) return;
+        setAuthMode(null);
+        setAuthError('');
+      };
+      useEffect(() => {
+        const handleEscape = (event) => {
+          if (event.key === 'Escape') closeAuth();
+        };
+        if (authMode) {
+          document.body.classList.add('csm-auth-open');
+          window.addEventListener('keydown', handleEscape);
+        }
+        return () => {
+          document.body.classList.remove('csm-auth-open');
+          window.removeEventListener('keydown', handleEscape);
+        };
+      }, [authMode, authBusy]);
+      const handleAuthSubmit = (event) => {
+        event.preventDefault();
+        if (authBusy) return;
+        const formData = new FormData(event.currentTarget);
+        const username = String(formData.get('username') || '').trim();
+        const password = String(formData.get('password') || '');
+        const confirmPassword = String(formData.get('confirmPassword') || '');
+        if (username.length < 3) {
+          setAuthError('Use at least 3 characters for your username or email.');
+          return;
+        }
+        if (password.length < 6) {
+          setAuthError('Your password needs at least 6 characters.');
+          return;
+        }
+        if (authMode === 'register' && password !== confirmPassword) {
+          setAuthError('Your passwords do not match yet.');
+          return;
+        }
+        setAuthBusy(true);
+        window.setTimeout(() => {
+          const displayName = username.includes('@') ? username.split('@')[0] : username;
+          try {
+            const savedProfile = JSON.parse(window.localStorage.getItem('csm-profile') || '{}');
+            window.localStorage.setItem('csm-profile', JSON.stringify({ ...savedProfile, displayName: savedProfile.displayName || displayName, username: displayName }));
+            window.localStorage.setItem('csm-auth-session', JSON.stringify({ username: displayName, signedInAt: Date.now() }));
+          } catch (error) {
+            // The workspace can still be opened when storage is unavailable.
+          }
+          setAuthBusy(false);
+          setAuthMode(null);
+          setAuthError('');
+          onAuthenticated();
+        }, 420);
+      };
+      useEffect(() => {
+        document.body.classList.add('csm-landing-mode');
+        const revealObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) entry.target.classList.add('is-visible');
+          });
+        }, { threshold: 0.12 });
+        document.querySelectorAll('.csm-reveal').forEach(element => revealObserver.observe(element));
+        const demoTimer = window.setInterval(() => setActiveDemo(value => (value + 1) % 3), 3600);
+        return () => {
+          document.body.classList.remove('csm-landing-mode');
+          revealObserver.disconnect();
+          window.clearInterval(demoTimer);
+        };
+      }, []);
+      useEffect(() => {
+        const loginTriggers = document.querySelectorAll('.csm-landing-login');
+        const handleLoginClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          openAuth('signin');
+        };
+        loginTriggers.forEach(trigger => {
+          trigger.setAttribute('href', 'login.html?mode=signin');
+          trigger.addEventListener('click', handleLoginClick, true);
+        });
+        return () => loginTriggers.forEach(trigger => trigger.removeEventListener('click', handleLoginClick, true));
+      }, []);
+      const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const faqs = [
+        ['Is Co-StudyMaxx free to use?', 'Yes. The core reviewer builder, library, and quiz experience are free to start. You can build a private workspace without entering payment details.'],
+        ['Can I build reviewers from my own notes?', 'Absolutely. Add your own questions and answers, organize them into decks, and keep each reviewer ready for a focused practice session.'],
+        ['How does the countdown quiz work?', 'Choose a deck, set your pace, and answer before the clock runs out. The fast feedback makes weak topics easy to spot and revisit.'],
+        ['Can I share a reviewer with classmates?', 'Yes. Share a reviewer in one tap so your classmates can study from the same material while keeping your original deck organized.'],
+        ['Do I need to install anything?', 'No install is needed for the web experience. Open the workspace in your browser and pick up where you left off.']
+      ];
+      const demoCards = [
+        { value: '12', label: 'Questions ready' },
+        { value: '86%', label: 'Practice accuracy' },
+        { value: '07:42', label: 'Focus time left' }
+      ];
+      return (
+        <div className="csm-landing-page">
+          <header className="csm-landing-header">
+            <div className="csm-landing-shell csm-landing-nav">
+              <a className="csm-landing-brand" href="#top" aria-label="Co-StudyMaxx home">
+                <img src="csm-mascot.png" alt="" />
+                <span>Co-StudyMaxx</span>
+              </a>
+              <nav className="csm-landing-links" aria-label="Landing page navigation">
+                <a href="#how-it-works">How it works</a>
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#faq">FAQ</a>
+              </nav>
+              <div className="csm-landing-nav-actions">
+                <a className="csm-landing-login" href="#workspace" onClick={(event) => { event.preventDefault(); onEnter(); }}>Sign In</a>
+                <button className="csm-landing-button" type="button" onClick={onEnter}>Get Started <IconArrowRight /></button>
+              </div>
+            </div>
+          </header>
+          <main id="top">
+            <section className="csm-landing-hero csm-reveal">
+              <div className="csm-landing-shell">
+                <span className="csm-landing-kicker">Study smarter, together</span>
+                <h1>Create reviewers, <span>play fast quizzes,</span> and learn together - absolutely free.</h1>
+                <p>Co-StudyMaxx helps students collaborate, organize reviewers, edit questions, share study materials, and play timed quiz sessions together. No paid upgrades, no third-party quiz banks, and no hidden fees - just a clean, private workspace built for group learning.</p>
+                <div className="csm-landing-hero-actions">
+                  <button className="csm-landing-button" type="button" onClick={onEnter}>Create Your Free Account <IconArrowRight /></button>
+                  <button className="csm-landing-button is-dark" type="button" onClick={() => scrollTo('how-it-works')}>See how it works</button>
+                </div>
+                <p className="csm-landing-hero-note">No credit card. No complicated setup.</p>
+              </div>
+            </section>
+            <section className="csm-landing-proof csm-reveal" aria-label="Supported colleges">
+              <div className="csm-landing-shell csm-landing-proof-grid">
+                <div className="csm-landing-proof-card"><strong><CollegeCapIcon />College of Education</strong><span>for reviewers, notes, and practice</span></div>
+                <div className="csm-landing-proof-card"><strong><CollegeCapIcon />College of Engineering</strong><span>countdown sessions that keep you sharp</span></div>
+                <div className="csm-landing-proof-card"><strong><CollegeCapIcon />College of Nursing</strong><span>your study space stays yours</span></div>
+                <div className="csm-landing-proof-card"><strong><CollegeCapIcon />College of Business</strong><span>start learning without the paywall</span></div>
+                <div className="csm-landing-proof-card"><strong><CollegeCapIcon />College of Information Technology</strong><span>start learning without the paywall</span></div>
+              </div>
+            </section>
+            <section className="csm-landing-section" id="how-it-works">
+              <div className="csm-landing-shell">
+                <div className="csm-landing-section-heading csm-reveal">
+                  <span className="csm-landing-section-kicker">Make the material yours</span>
+                  <h2>Build your own reviewer in seconds.</h2>
+                  <p>Keep the setup light. Add the questions that matter, then turn them into a practice loop that feels more like a game than a worksheet.</p>
+                </div>
+                <div className="csm-landing-demo-wrap csm-reveal" aria-label="Reviewer dashboard preview">
+                  <div className="csm-landing-demo-bar"><i className="csm-landing-demo-dot" /><i className="csm-landing-demo-dot" /><i className="csm-landing-demo-dot" /><div className="csm-landing-demo-url">app.co-studymaxx.local / overview</div></div>
+                  <div className="csm-landing-demo-window">
+                    <aside className="csm-landing-demo-sidebar"><strong>CO-STUDYMAXX</strong><span>Overview</span><i /><i /><i /><i /></aside>
+                    <div className="csm-landing-demo-main">
+                      <small>YOUR STUDY DESK</small>
+                      <h3>Turn “I should study” into “I'm ready.”</h3>
+                      <p>Pick a reviewer, see what needs attention, and jump into a short practice session.</p>
+                      <div className="csm-landing-demo-cards">
+                        {demoCards.map((card, index) => <div key={card.label} className={`csm-landing-demo-card ${activeDemo === index ? 'is-active' : ''}`}><b>{card.value}</b><span>{card.label}</span></div>)}
+                      </div>
+                      <div className="csm-landing-demo-progress" role="tablist" aria-label="Dashboard preview slides">
+                        {demoCards.map((card, index) => <button key={card.label} className={activeDemo === index ? 'is-active' : ''} type="button" aria-label={`Show ${card.label}`} onClick={() => setActiveDemo(index)} />)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section className="csm-landing-section is-tinted" id="features">
+              <div className="csm-landing-shell">
+                <div className="csm-landing-section-heading csm-reveal">
+                  <span className="csm-landing-section-kicker">One calm study system</span>
+                  <h2>Everything you need to study smart, not harder.</h2>
+                </div>
+                <div className="csm-landing-feature-grid">
+                  <article className="csm-landing-feature-card csm-reveal"><div className="csm-landing-feature-icon"><IconLibrary /></div><h3>Reviewer library</h3><p>Organize class materials into a clean private library you can actually find again.</p></article>
+                  <article className="csm-landing-feature-card csm-reveal"><div className="csm-landing-feature-icon"><IconFlame /></div><h3>Beat the clock</h3><p>Use timed quiz rounds to practice recall, build pace, and make weak spots visible.</p></article>
+                  <article className="csm-landing-feature-card csm-reveal"><div className="csm-landing-feature-icon"><IconShare /></div><h3>Share in one tap</h3><p>Send a reviewer to classmates so everyone can study from the same source.</p></article>
+                </div>
+              </div>
+            </section>
+            <section className="csm-landing-section" id="pricing">
+              <div className="csm-landing-shell">
+                <div className="csm-landing-pricing-card csm-reveal">
+                  <div><span className="csm-landing-section-kicker">Simple pricing</span><h2>Everything you need to start is free.</h2><p>No paid upgrades, no third-party quiz banks, and no hidden fees. Just a clean, private workspace built for group learning.</p></div>
+                  <button className="csm-landing-button" type="button" onClick={onEnter}>Get started free <IconArrowRight /></button>
+                </div>
+              </div>
+            </section>
+            <section className="csm-landing-section" aria-labelledby="library-heading">
+              <div className="csm-landing-shell csm-landing-split">
+                <div className="csm-landing-split-copy csm-reveal"><span className="csm-landing-section-kicker">Your study, your way</span><h2 id="library-heading">Build your own private reviewer library.</h2><p>From a quick question set to a full exam reviewer, keep everything together and ready for the next focused session.</p><button className="csm-landing-button is-dark" type="button" onClick={onEnter}>Open your workspace <IconArrowRight /></button></div>
+                <div className="csm-landing-visual csm-reveal" aria-hidden="true"><div className="csm-landing-visual-top"><span>REVIEWER LIBRARY</span><span>+ NEW DECK</span></div><div className="csm-landing-visual-screen"><div className="csm-landing-visual-nav"><i /><i /><i /><i /><i /></div><div className="csm-landing-visual-content"><strong>Your reviewers, in one place.</strong><p>Open a deck, add material, or pick up where your last session ended.</p><div className="csm-landing-visual-rows"><div className="csm-landing-visual-row"><span>ITE 292 B1</span><b>12 cards</b></div><div className="csm-landing-visual-row"><span>Database Systems</span><b>24 cards</b></div><div className="csm-landing-visual-row"><span>Network Fundamentals</span><b>18 cards</b></div></div></div></div></div>
+              </div>
+            </section>
+            <section className="csm-landing-section is-tinted" aria-labelledby="countdown-heading">
+              <div className="csm-landing-shell csm-landing-split is-reverse">
+                <div className="csm-landing-split-copy csm-reveal"><span className="csm-landing-section-kicker">Practice with a pulse</span><h2 id="countdown-heading">Race the clock. Answer confidently.</h2><p>Short countdown rounds keep your attention close to the question. Get instant feedback, then run it back until the answer sticks.</p><button className="csm-landing-button" type="button" onClick={onEnter}>Start a practice round <IconArrowRight /></button></div>
+                <div className="csm-landing-visual is-light csm-reveal" aria-hidden="true"><div className="csm-landing-visual-top" style={{ color: '#776d63' }}><span>COUNTDOWN QUIZ</span><span>07:42</span></div><div className="csm-landing-visual-content" style={{ marginTop: '16px', minHeight: '228px' }}><small style={{ color: '#ff4d22', fontWeight: 900, letterSpacing: '.13em' }}>QUESTION 04 / 12</small><strong style={{ marginTop: '20px' }}>Which protocol operates on port 443?</strong><div className="csm-landing-visual-rows"><div className="csm-landing-visual-row"><span>A. HTTP</span><b>1</b></div><div className="csm-landing-visual-row"><span>B. HTTPS</span><b>2</b></div><div className="csm-landing-visual-row"><span>C. FTP</span><b>3</b></div></div></div></div>
+              </div>
+            </section>
+            <section className="csm-landing-quote csm-reveal"><div className="csm-landing-shell"><span className="csm-landing-section-kicker">Your next study session</span><h2>Build your reviewer. Beat the clock. Ace the exam.</h2><button className="csm-landing-button" type="button" onClick={onEnter}>Get started for free <IconArrowRight /></button></div></section>
+            <section className="csm-landing-section" id="faq">
+              <div className="csm-landing-shell csm-landing-faq">
+                <div className="csm-reveal"><span className="csm-landing-section-kicker">Questions, answered</span><h2>Frequently asked questions.</h2></div>
+                <div className="csm-landing-faq-list csm-reveal">{faqs.map(([question, answer], index) => <div className={`csm-landing-faq-item ${openFaq === index ? 'is-open' : ''}`} key={question}><button className="csm-landing-faq-question" type="button" onClick={() => setOpenFaq(openFaq === index ? -1 : index)}><span>{question}</span><span aria-hidden="true">+</span></button><div className="csm-landing-faq-answer">{answer}</div></div>)}</div>
+              </div>
+            </section>
+          </main>
+          <footer className="csm-landing-footer" id="workspace">
+            <div className="csm-landing-shell csm-landing-footer-inner"><a className="csm-landing-brand" href="#top"><img src="csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></a><small>Made for the next focused study session.</small><div className="csm-landing-footer-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="#top">Back to top <IconArrowUp /></a></div></div>
+          </footer>
+          {authMode && (
+            <div className="csm-auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAuth(); }}>
+              <section className="csm-auth-modal" role="dialog" aria-modal="true" aria-labelledby="csm-auth-title">
+                <button className="csm-auth-modal-close" type="button" aria-label="Close authentication dialog" onClick={closeAuth}><IconClose /></button>
+                <div className="csm-auth-modal-brand"><img src="csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></div>
+                <span className="csm-auth-modal-kicker">{authMode === 'signin' ? 'WELCOME BACK' : 'START LEARNING TOGETHER'}</span>
+                <h2 id="csm-auth-title">{authMode === 'signin' ? 'Log in to your account.' : 'Create your free account.'}</h2>
+                <p>{authMode === 'signin' ? 'Pick up where your next focused study session starts.' : 'Build reviewers, play timed quizzes, and keep your study space private.'}</p>
+                <form className="csm-auth-form" onSubmit={handleAuthSubmit} noValidate>
+                  <label>Username or email<input name="username" type="text" autoComplete="username" placeholder="you@example.com" autoFocus /></label>
+                  <label>Password<div className="csm-auth-password"><input name="password" type={showPassword ? 'text' : 'password'} autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} placeholder="At least 6 characters" /><button type="button" onClick={() => setShowPassword(value => !value)}>{showPassword ? 'Hide' : 'Show'}</button></div></label>
+                  {authMode === 'register' && <label>Confirm password<div className="csm-auth-password"><input name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Repeat your password" /><button type="button" onClick={() => setShowConfirmPassword(value => !value)}>{showConfirmPassword ? 'Hide' : 'Show'}</button></div></label>}
+                  {authError && <div className="csm-auth-error" role="alert">{authError}</div>}
+                  <button className="csm-auth-submit" type="submit" disabled={authBusy}>{authBusy ? 'Opening your workspace...' : authMode === 'signin' ? 'Sign in' : 'Create account'} <span aria-hidden="true">→</span></button>
+                </form>
+                <div className="csm-auth-switch">{authMode === 'signin' ? 'New to Co-StudyMaxx?' : 'Already have an account?'} <button type="button" onClick={() => openAuth(authMode === 'signin' ? 'register' : 'signin')}>{authMode === 'signin' ? 'Create account' : 'Sign in'}</button></div>
+              </section>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<LandingPage />);
+  </script>
+</body>
+</html>
