@@ -3873,12 +3873,7 @@
     /* ===== SIGN IN / LOGOUT ===== */
     function handleSignIn() {
       isAuthenticated = true;
-      document.body.classList.remove('auth-mode');
-      document.body.classList.add('app-mode');
-      document.getElementById('authScreen').classList.add('hidden-screen');
-      document.getElementById('appScreen').classList.remove('hidden-screen');
-      document.getElementById('welcomeHeading').textContent = `Welcome Back, ${mockUsername}!`;
-      switchTab('home');
+      window.location.href = 'index.html';
     }
 
     function handleLogout() {

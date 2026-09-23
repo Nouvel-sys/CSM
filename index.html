@@ -2131,6 +2131,80 @@
       display: none;
     }
 
+    /* Nested Library Sub-navigation */
+    .csm-sidebar-subnav {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      margin: 4px 0 6px 0;
+      padding-left: 12px;
+      border-left: 2px solid rgba(255, 255, 255, 0.08);
+      margin-left: 20px;
+    }
+
+    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-subnav {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
+      align-items: center;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .app-shell>nav.sidebar-expanded .csm-sidebar-subitem {
+      height: 34px !important;
+      padding: 0 10px !important;
+      font-size: 11.5px !important;
+      font-weight: 600 !important;
+      border-radius: 9px !important;
+      gap: 9px !important;
+      color: #94a3b8;
+      background: transparent;
+      transition: all 0.18s ease;
+      cursor: pointer;
+    }
+
+    .app-shell>nav.sidebar-expanded .csm-sidebar-subitem:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .app-shell>nav.sidebar-expanded .csm-sidebar-subitem.active {
+      color: #ffffff !important;
+      background: #f04824 !important;
+      box-shadow: 0 0 14px rgba(240, 72, 36, 0.42) !important;
+      font-weight: 700 !important;
+    }
+
+    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-subitem {
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
+      border-radius: 8px !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      color: #94a3b8;
+      cursor: pointer;
+    }
+
+    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-subitem:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-subitem.active {
+      background: #f04824 !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 12px rgba(240, 72, 36, 0.42) !important;
+    }
+
+    .app-shell>nav:not(.sidebar-expanded) .csm-sidebar-subitem .csm-sidebar-label {
+      display: none !important;
+    }
+
     .app-shell>main {
       display: flex !important;
       flex-direction: column !important;
@@ -6347,6 +6421,82 @@
       const [newQAnswer, setNewQAnswer] = useState('');
       const [newQAlternates, setNewQAlternates] = useState('');
 
+      // --- Dedicated Create Bombcards Page Form State ---
+      const [creatorTargetDeckId, setCreatorTargetDeckId] = useState('deck-2');
+      const [creatorType, setCreatorType] = useState('MULTIPLE_CHOICE');
+      const [creatorPrompt, setCreatorPrompt] = useState('');
+      const [creatorHint, setCreatorHint] = useState('');
+      const [creatorOptions, setCreatorOptions] = useState(['', '', '', '']);
+      const [creatorCorrectIndex, setCreatorCorrectIndex] = useState(0);
+      const [creatorAnswer, setCreatorAnswer] = useState('');
+      const [creatorAlternates, setCreatorAlternates] = useState('');
+
+      const handleSaveBombcard = () => {
+        if (!creatorPrompt.trim()) {
+          triggerToast('Please enter a question prompt.');
+          return;
+        }
+        if (creatorType === 'MULTIPLE_CHOICE') {
+          const filledOptions = creatorOptions.filter(opt => opt.trim());
+          if (filledOptions.length < 2) {
+            triggerToast('Please provide at least 2 multiple choice options.');
+            return;
+          }
+          if (!creatorOptions[creatorCorrectIndex]?.trim()) {
+            triggerToast('The designated correct option cannot be blank.');
+            return;
+          }
+        } else {
+          if (!creatorAnswer.trim()) {
+            triggerToast('Please enter the correct answer.');
+            return;
+          }
+        }
+
+        const targetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
+        if (!targetDeck) return;
+
+        const newCard = {
+          id: 'c-' + Date.now(),
+          type: creatorType,
+          prompt: creatorPrompt.trim(),
+          hint: creatorHint.trim() || undefined,
+          ...(creatorType === 'MULTIPLE_CHOICE' ? {
+            options: creatorOptions.map((opt, i) => opt.trim() || `Option ${i + 1}`),
+            correctIndex: creatorCorrectIndex,
+            correctAnswer: creatorOptions[creatorCorrectIndex]?.trim() || 'Correct'
+          } : {
+            correctAnswer: creatorAnswer.trim(),
+            alternates: creatorAlternates.trim() || undefined
+          })
+        };
+
+        setDecks(prevDecks => prevDecks.map(deck => {
+          if (deck.id === targetDeck.id) {
+            return {
+              ...deck,
+              cards: [...(deck.cards || []), newCard]
+            };
+          }
+          return deck;
+        }));
+
+        recordActivity({
+          material: targetDeck.code || targetDeck.title,
+          mode: 'Bombcard Creation',
+          deckId: targetDeck.id,
+          screen: 'creator',
+          status: 'Card added'
+        });
+
+        triggerToast(`Bombcard added to ${targetDeck.code || targetDeck.title}!`);
+        setCreatorPrompt('');
+        setCreatorHint('');
+        setCreatorOptions(['', '', '', '']);
+        setCreatorAnswer('');
+        setCreatorAlternates('');
+      };
+
       // --- Game Mode Lobby State ---
       const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
       const [gameFormat, setGameFormat] = useState('MCQ'); // 'BOTH', 'MCQ', 'ID'
@@ -6908,9 +7058,13 @@
       };
 
       const handleChooseManualCreation = () => {
-        const target = targetDeckForAddMaterial || currentSelectedDeck;
+        const target = targetDeckForAddMaterial || currentSelectedDeck || decks[0];
+        if (target) {
+          setSelectedDeckIds([target.id]);
+          setCreatorTargetDeckId(target.id);
+        }
         setIsAddMaterialPopupOpen(false);
-        handleOpenEditDeck(target);
+        setActiveTab('creator');
       };
       const handleOpenCreateDeck = () => {
         setEditingDeck(null);
@@ -7435,19 +7589,59 @@
                   <span className="csm-sidebar-label">Home</span>
                 </button>
 
-                {/* 2. Reviewer Library (Authoring & Management) */}
-                <button
-                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                  data-tooltip="Reviewer Library"
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab)
-                    ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  title="Reviewer Library (Authoring & Management)"
-                >
-                  <IconLibrary />
-                  <span className="csm-sidebar-label">Library</span>
-                </button>
+                {/* 2. Reviewer Library (Parent with Nested Child Items) */}
+                <div className="w-full flex flex-col items-center">
+                  <button
+                    onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                    data-tooltip="Reviewer Library"
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'library'
+                      ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                      : ['flashcards', 'creator', 'highlighter'].includes(activeTab)
+                        ? 'text-white bg-white/10 font-bold border border-white/15'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    title="Reviewer Library (Authoring & Management)"
+                  >
+                    <IconLibrary />
+                    <span className="csm-sidebar-label">Library</span>
+                  </button>
+
+                  {/* Nested Navigation: Study & Create Bombcards (Revealed when Library is active) */}
+                  {['library', 'flashcards', 'creator'].includes(activeTab) && (
+                    <div className="csm-sidebar-subnav animate-fadeIn">
+                      {/* 2a. Study Mini Sidebar */}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
+                        data-tooltip="Study"
+                        className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
+                        title="Study (Review Bombcards)"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                          <path d="M6 6h10" />
+                          <path d="M6 10h10" />
+                        </svg>
+                        <span className="csm-sidebar-label">Study</span>
+                      </button>
+
+                      {/* 2b. Create Bombcards Mini Sidebar */}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('creator'); }}
+                        data-tooltip="Create Bombcards"
+                        className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'creator' ? 'active' : ''}`}
+                        title="Create Bombcards"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="3" />
+                          <path d="M12 8v8M8 12h8" />
+                        </svg>
+                        <span className="csm-sidebar-label">Create Bombcards</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* 3. Game Mode Section (Launch Lobby) */}
                 <button
@@ -7491,7 +7685,7 @@
                 className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-rose-400 hover:bg-white/5 transition-colors"
                 title="Logout"
                 data-tooltip="Sign out"
-                onClick={() => alert('Logged out. Returning to guest view.')}
+                onClick={() => { window.location.href = 'login.html'; }}
               >
                 <IconLogout />
                 <span className="csm-sidebar-label">Sign out</span>
@@ -7513,8 +7707,20 @@
                   <span className="csm-topbar-current">
                     {activeTab === 'home' && 'Overview'}
                     {activeTab === 'library' && (selectedDeckForFolderView ? (currentSelectedDeck?.code || currentSelectedDeck?.title) : 'Reviewer Library')}
-                    {activeTab === 'flashcards' && 'Flashcards'}
-                    {activeTab === 'creator' && 'Create Flashcards'}
+                    {activeTab === 'flashcards' && (
+                      <>
+                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                        <span className="csm-topbar-sep">/</span>
+                        <span className="text-slate-900 font-extrabold">Study</span>
+                      </>
+                    )}
+                    {activeTab === 'creator' && (
+                      <>
+                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                        <span className="csm-topbar-sep">/</span>
+                        <span className="text-slate-900 font-extrabold">Create Bombcards</span>
+                      </>
+                    )}
                     {activeTab === 'highlighter' && 'PDF Study Tool'}
                     {activeTab === 'game' && 'Bomb Mode Lobby'}
                     {activeTab === 'account' && 'Account Settings'}
@@ -7949,10 +8155,40 @@
                     <section className="csm-library-content-section">
                       <div className="csm-library-section-heading">
                         <div className="csm-library-section-heading-left"><span className="csm-kicker">PRACTICE SET</span><span className="csm-library-count-pill">{currentSelectedDeck.cards?.length || 0} cards</span></div>
-                        <div className="flex items-center gap-3"><button type="button" onClick={(e) => handleOpenAddMaterialPopup(currentSelectedDeck, e)}><IconPlus /> Add material</button>{currentSelectedDeck.cards?.length > 3 && <button type="button" onClick={() => setShowAllBombcards(prev => !prev)}>{showAllBombcards ? 'Show less' : 'Show all'}</button>}</div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentSelectedDeck.id]);
+                              setCreatorTargetDeckId(currentSelectedDeck.id);
+                              setActiveTab('creator');
+                            }}
+                          >
+                            <IconPlus /> Create Bombcards
+                          </button>
+                          {currentSelectedDeck.cards?.length > 3 && (
+                            <button type="button" onClick={() => setShowAllBombcards(prev => !prev)}>
+                              {showAllBombcards ? 'Show less' : 'Show all'}
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {(!currentSelectedDeck.cards || currentSelectedDeck.cards.length === 0) ? (
-                        <div className="csm-library-empty"><strong>Your Bombcard set is empty</strong><p>Add your first question manually or upload a PDF to start building this reviewer.</p><button type="button" className="csm-primary-button" onClick={(e) => handleOpenAddMaterialPopup(currentSelectedDeck, e)}><IconPlus /> Add material</button></div>
+                        <div className="csm-library-empty">
+                          <strong>Your Bombcard set is empty</strong>
+                          <p>Add your first question manually or explore reviewer tools to start building this set.</p>
+                          <button
+                            type="button"
+                            className="csm-primary-button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentSelectedDeck.id]);
+                              setCreatorTargetDeckId(currentSelectedDeck.id);
+                              setActiveTab('creator');
+                            }}
+                          >
+                            <IconPlus /> Create Bombcards
+                          </button>
+                        </div>
                       ) : (
                         <div className="csm-library-bombcard-grid">
                           {visibleCards.map((card, idx) => {
@@ -7961,7 +8197,44 @@
                             const materialMenuOpen = openMaterialMenuId === cardId;
                             return (
                               <article key={cardId} className={`csm-library-bombcard ${isRevealed ? 'revealed' : ''}`}>
-                                <div className="csm-library-bombcard-top"><span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span><div className="csm-material-actions"><button type="button" className="csm-material-menu-trigger" aria-label={`Card options for ${idx + 1}`} aria-expanded={materialMenuOpen} onClick={() => setOpenMaterialMenuId(materialMenuOpen ? null : cardId)}>•••</button>{materialMenuOpen && <div className="csm-material-menu"><button type="button" onClick={() => { toggleLibraryCardAnswer(cardId); setOpenMaterialMenuId(null); }}>{isRevealed ? 'Hide answer' : 'Reveal answer'}</button><button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenEditDeck(currentSelectedDeck); }}><IconEdit /> Edit cards</button></div>}</div></div>
+                                <div className="csm-library-bombcard-top">
+                                  <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>
+                                  <div className="csm-material-actions">
+                                    <button
+                                      type="button"
+                                      className="csm-material-menu-trigger"
+                                      aria-label={`Card options for ${idx + 1}`}
+                                      aria-expanded={materialMenuOpen}
+                                      onClick={() => setOpenMaterialMenuId(materialMenuOpen ? null : cardId)}
+                                    >
+                                      •••
+                                    </button>
+                                    {materialMenuOpen && (
+                                      <div className="csm-material-menu">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            toggleLibraryCardAnswer(cardId);
+                                            setOpenMaterialMenuId(null);
+                                          }}
+                                        >
+                                          {isRevealed ? 'Hide answer' : 'Reveal answer'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMaterialMenuId(null);
+                                            setSelectedDeckIds([currentSelectedDeck.id]);
+                                            setCreatorTargetDeckId(currentSelectedDeck.id);
+                                            setActiveTab('creator');
+                                          }}
+                                        >
+                                          <IconEdit /> Create cards
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
                                 <p className="csm-library-bombcard-prompt">{card.prompt}</p>
                                 {isRevealed && <p className="csm-library-bombcard-answer">{card.correctAnswer || 'Answer not saved yet.'}</p>}
                                 <div className="csm-library-bombcard-footer"><small>{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</small><button type="button" className="csm-library-reveal" onClick={() => toggleLibraryCardAnswer(cardId)}>{isRevealed ? 'Hide answer' : 'Reveal answer'}</button></div>
@@ -8012,31 +8285,458 @@
             )}
 
             {/* ========================================================
-                VIEW B2: FLASHCARDS VIEWER
+                VIEW B2: STUDY (Active Review of Bombcards)
                 ======================================================== */}
             {activeTab === 'flashcards' && (
               <div className="csm-screen csm-flashcards-screen custom-scroll">
                 <div className="csm-page-head">
-                  <div><span className="csm-kicker">ACTIVE REVIEW</span><h1>Flashcards</h1><p>Recall first, reveal the answer when you’re ready.</p></div>
-                  <div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('creator')}>Create cards</button><button type="button" className="csm-primary-button" onClick={() => setActiveTab('game')}>Play Bomb Mode <span>→</span></button></div>
+                  <div>
+                    <span className="csm-kicker">ACTIVE REVIEW</span>
+                    <h1>Study Bombcards</h1>
+                    <p>Recall first, reveal the answer when you’re ready. Focus on understanding before moving forward.</p>
+                  </div>
+                  <div className="csm-page-actions">
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      onClick={() => {
+                        setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
+                        setActiveTab('creator');
+                      }}
+                    >
+                      <IconPlus className="w-3.5 h-3.5 mr-1.5 text-[#f04824]" /> Create Bombcards
+                    </button>
+                    <button type="button" className="csm-primary-button" onClick={() => setActiveTab('game')}>
+                      Play Bomb Mode <span>→</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="csm-viewer-toolbar"><label>Reviewing deck<select value={activeFlashcardDeck?.id || ''} onChange={(e) => { setSelectedDeckIds([e.target.value]); setFlashcardIndex(0); setFlashcardFlipped(false); }}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.code}</option>)}</select></label><span className="csm-viewer-progress">Card {Math.min(flashcardIndex + 1, flashcards.length)} of {flashcards.length}</span></div>
+                <div className="csm-viewer-toolbar">
+                  <label>
+                    Reviewing deck
+                    <select
+                      value={activeFlashcardDeck?.id || ''}
+                      onChange={(e) => {
+                        setSelectedDeckIds([e.target.value]);
+                        setFlashcardIndex(0);
+                        setFlashcardFlipped(false);
+                      }}
+                    >
+                      {decks.map(deck => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.code} — {deck.title || deck.subject} ({deck.cards?.length || 0} cards)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="csm-viewer-progress">
+                    Card {flashcards.length ? Math.min(flashcardIndex + 1, flashcards.length) : 0} of {flashcards.length}
+                  </span>
+                </div>
                 <div className="csm-viewer-layout">
-                  <section className="csm-flashcard-panel"><div className="csm-flashcard-progress"><span style={{ width: `${flashcards.length ? ((flashcardIndex + 1) / flashcards.length) * 100 : 0}%` }} /></div><button type="button" className={`csm-flashcard ${flashcardFlipped ? 'is-flipped' : ''}`} onClick={() => setFlashcardFlipped(value => !value)} aria-label="Flip flashcard"><span className="csm-flashcard-side-label">{flashcardFlipped ? 'ANSWER' : 'PROMPT'}</span><strong>{flashcardFlipped ? (activeFlashcard?.correctAnswer || 'No answer saved yet') : (activeFlashcard?.prompt || 'No cards in this deck yet.')}</strong>{flashcardFlipped && activeFlashcard?.explanation && <p>{activeFlashcard.explanation}</p>}<small>{flashcardFlipped ? 'Click or press Space to see prompt' : 'Click or press Space to reveal answer'} &bull; &larr; &rarr; to navigate</small></button><div className="csm-viewer-controls"><button type="button" className="csm-secondary-button" onClick={() => { setFlashcardIndex(index => Math.max(0, index - 1)); setFlashcardFlipped(false); }} disabled={flashcardIndex === 0}>← Previous</button><button type="button" className="csm-primary-button" onClick={() => { setFlashcardIndex(index => Math.min(Math.max(flashcards.length - 1, 0), index + 1)); setFlashcardFlipped(false); }} disabled={!flashcards.length || flashcardIndex >= flashcards.length - 1}>Next card →</button></div></section>
-                  <aside className="csm-review-summary"><span className="csm-kicker">SESSION SUMMARY</span><h2>{activeFlashcardDeck?.code || 'Your deck'}</h2><div className="csm-summary-stat"><strong>{flashcards.length}</strong><span>cards in deck</span></div><div className="csm-summary-stat"><strong>86%</strong><span>last accuracy</span></div><div className="csm-summary-stat"><strong>3</strong><span>missed to revisit</span></div><button type="button" className="csm-text-button" onClick={() => setActiveTab('game')}>Practice missed cards <span>→</span></button></aside>
+                  <section className="csm-flashcard-panel">
+                    <div className="csm-flashcard-progress">
+                      <span style={{ width: `${flashcards.length ? ((flashcardIndex + 1) / flashcards.length) * 100 : 0}%` }} />
+                    </div>
+                    {flashcards.length > 0 ? (
+                      <button
+                        type="button"
+                        className={`csm-flashcard ${flashcardFlipped ? 'is-flipped' : ''}`}
+                        onClick={() => setFlashcardFlipped(value => !value)}
+                        aria-label="Flip flashcard"
+                      >
+                        <span className="csm-flashcard-side-label">{flashcardFlipped ? 'ANSWER' : 'PROMPT'}</span>
+                        <strong>{flashcardFlipped ? (activeFlashcard?.correctAnswer || 'No answer saved yet') : (activeFlashcard?.prompt || 'No cards in this deck yet.')}</strong>
+                        {flashcardFlipped && activeFlashcard?.explanation && <p>{activeFlashcard.explanation}</p>}
+                        <small>{flashcardFlipped ? 'Click or press Space to see prompt' : 'Click or press Space to reveal answer'} &bull; &larr; &rarr; to navigate</small>
+                      </button>
+                    ) : (
+                      <div className="csm-flashcard flex flex-col items-center justify-center p-8 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#f04824] flex items-center justify-center mb-3">
+                          <IconCards className="w-6 h-6" />
+                        </div>
+                        <strong className="text-lg text-slate-800">No Bombcards in this deck yet</strong>
+                        <p className="text-xs text-slate-400 mt-1 mb-4">Add your first question to start studying this reviewer.</p>
+                        <button
+                          type="button"
+                          className="csm-primary-button"
+                          onClick={() => {
+                            setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
+                            setActiveTab('creator');
+                          }}
+                        >
+                          <IconPlus className="w-3.5 h-3.5 mr-1" /> Create Bombcards
+                        </button>
+                      </div>
+                    )}
+                    <div className="csm-viewer-controls">
+                      <button
+                        type="button"
+                        className="csm-secondary-button"
+                        onClick={() => { setFlashcardIndex(index => Math.max(0, index - 1)); setFlashcardFlipped(false); }}
+                        disabled={flashcardIndex === 0}
+                      >
+                        ← Previous
+                      </button>
+                      <button
+                        type="button"
+                        className="csm-primary-button"
+                        onClick={() => { setFlashcardIndex(index => Math.min(Math.max(flashcards.length - 1, 0), index + 1)); setFlashcardFlipped(false); }}
+                        disabled={!flashcards.length || flashcardIndex >= flashcards.length - 1}
+                      >
+                        Next card →
+                      </button>
+                    </div>
+                  </section>
+                  <aside className="csm-review-summary">
+                    <span className="csm-kicker">SESSION SUMMARY</span>
+                    <h2>{activeFlashcardDeck?.code || 'Your deck'}</h2>
+                    <div className="csm-summary-stat"><strong>{flashcards.length}</strong><span>cards in deck</span></div>
+                    <div className="csm-summary-stat"><strong>86%</strong><span>last accuracy</span></div>
+                    <div className="csm-summary-stat"><strong>3</strong><span>missed to revisit</span></div>
+                    <button type="button" className="csm-text-button" onClick={() => setActiveTab('game')}>Practice missed cards <span>→</span></button>
+                  </aside>
                 </div>
               </div>
             )}
 
             {/* ========================================================
-                VIEW B3: FLASHCARDS CREATOR
+                VIEW B3: CREATE BOMBCARDS (Dedicated Full Page Experience)
                 ======================================================== */}
-            {activeTab === 'creator' && (
-              <div className="csm-screen csm-creator-screen custom-scroll">
-                <div className="csm-page-head"><div><span className="csm-kicker">AUTHORING WORKSPACE</span><h1>Create flashcards</h1><p>Turn your notes into a focused reviewer that is easy to revisit.</p></div><div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button><button type="button" className="csm-primary-button" onClick={() => { triggerToast('Flashcard draft saved'); setActiveTab('library'); }}>Save reviewer</button></div></div>
-                <div className="csm-creator-layout"><section className="csm-form-card"><div className="csm-card-heading"><div><span className="csm-kicker">NEW REVIEWER</span><h2>Reviewer details</h2></div><span className="csm-draft-badge">Draft</span></div><label className="csm-field">Title<input defaultValue="ITE 292 B1" placeholder="e.g. Biology Midterms" /></label><label className="csm-field">Subject<select defaultValue="Information Technology"><option>Information Technology</option><option>Biology</option><option>Mathematics</option><option>General</option></select></label><label className="csm-field">Description<textarea defaultValue="SQL, normalization, and database foundations." rows="4" /></label><div className="csm-import-box"><span className="csm-import-icon">↑</span><div><strong>Import from PDF</strong><p>Attach lecture notes and highlight key ideas later.</p></div><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('highlighter')}>Open PDF tool</button></div></section><section className="csm-form-card"><div className="csm-card-heading"><div><span className="csm-kicker">CARD BUILDER</span><h2>Questions in this reviewer</h2></div><button type="button" className="csm-secondary-button csm-small-button" onClick={() => triggerToast('New blank card added')}>+ Add card</button></div><div className="csm-builder-card"><span className="csm-builder-number">01</span><div><strong>Which SQL command removes all rows from a table?</strong><p>Multiple choice · Correct answer: TRUNCATE</p></div><button type="button" className="csm-row-menu" aria-label="Edit card">•••</button></div><div className="csm-builder-card"><span className="csm-builder-number">02</span><div><strong>What normal form eliminates transitive dependencies?</strong><p>Identification · Correct answer: 3NF</p></div><button type="button" className="csm-row-menu" aria-label="Edit card">•••</button></div><div className="csm-empty-builder"><span>＋</span><p>Add a multiple choice or identification card to keep practicing.</p><button type="button" className="csm-text-button" onClick={() => triggerToast('New blank card added')}>Add first card <span>→</span></button></div></section></div>
-              </div>
-            )}
+            {activeTab === 'creator' && (() => {
+              const currentTargetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
+              const deckCards = currentTargetDeck?.cards || [];
+              return (
+                <div className="csm-screen csm-creator-screen custom-scroll">
+                  {/* Page Header */}
+                  <div className="csm-page-head">
+                    <div>
+                      <span className="csm-kicker">BOMBCARD AUTHORING</span>
+                      <h1>Create Bombcards</h1>
+                      <p>Draft new study questions manually or prepare materials for your reviewer decks.</p>
+                    </div>
+                    <div className="csm-page-actions">
+                      <button
+                        type="button"
+                        className="csm-secondary-button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      >
+                        Back to Library
+                      </button>
+                      <button
+                        type="button"
+                        className="csm-primary-button"
+                        onClick={() => setActiveTab('flashcards')}
+                      >
+                        Go to Study <span>→</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Creation Options Header Banner */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {/* Option A: Create Bombcards Manually (ACTIVE & AVAILABLE) */}
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#f04824] shadow-sm flex items-start gap-4 transition-all">
+                      <div className="w-11 h-11 rounded-xl bg-orange-50 text-[#f04824] border border-orange-100 flex items-center justify-center flex-shrink-0">
+                        <IconCards className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-extrabold text-slate-900">Create Bombcards Manually</h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-[#f04824]">Active Mode</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Write custom questions, correct answers, and optional hints directly into your selected reviewer deck.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Option B: Generate AI Bombcards (COMING SOON / DISABLED) */}
+                    <div className="bg-white/70 p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-start gap-4 relative overflow-hidden select-none cursor-not-allowed">
+                      <div className="opacity-35 blur-[1.2px] flex items-start gap-4 w-full pointer-events-none">
+                        <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center flex-shrink-0">
+                          <IconSparkles className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-sm font-extrabold text-slate-900">Generate AI Bombcards</h3>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Automatically extract key question-and-answer pairs from uploaded lecture notes and PDFs.
+                          </p>
+                        </div>
+                      </div>
+                      {/* Prominent Coming Soon badge overlay */}
+                      <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] flex items-center justify-center">
+                        <span className="px-3.5 py-1.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider rounded-full shadow-md border border-slate-700/40 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                          Coming Soon
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Manual Creation Workspace Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Column: Authoring Form */}
+                    <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
+                        <div>
+                          <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block">MANUAL AUTHORING</span>
+                          <h2 className="text-base font-extrabold text-slate-900">Card Specifications</h2>
+                        </div>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          Deck: <b className="text-slate-800">{currentTargetDeck?.code || 'None'}</b>
+                        </span>
+                      </div>
+
+                      {/* 1. Target Deck Selection */}
+                      <label className="block mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Target Reviewer Deck *</span>
+                        <select
+                          value={creatorTargetDeckId}
+                          onChange={(e) => setCreatorTargetDeckId(e.target.value)}
+                          className="w-full h-10 px-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all cursor-pointer"
+                        >
+                          {decks.map(d => (
+                            <option key={d.id} value={d.id}>
+                              {d.code} — {d.title || d.subject} ({d.cards?.length || 0} cards)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {/* 2. Format Toggle */}
+                      <div className="mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Format</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCreatorType('MULTIPLE_CHOICE')}
+                            className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              creatorType === 'MULTIPLE_CHOICE'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Multiple Choice
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCreatorType('IDENTIFICATION')}
+                            className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              creatorType === 'IDENTIFICATION'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Identification
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 3. Question Prompt */}
+                      <label className="block mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Prompt *</span>
+                        <textarea
+                          value={creatorPrompt}
+                          onChange={(e) => setCreatorPrompt(e.target.value)}
+                          placeholder="e.g. Which SQL command removes all rows from a table without logging individual row deletions?"
+                          rows="3"
+                          className="w-full p-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-[#f04824] focus:bg-white resize-none transition-all leading-relaxed"
+                        />
+                      </label>
+
+                      {/* 4. Answer Area */}
+                      {creatorType === 'MULTIPLE_CHOICE' ? (
+                        <div className="mb-4 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">Answer Options *</span>
+                            <span className="text-[11px] text-slate-400 font-medium">Select radio to set the correct answer</span>
+                          </div>
+                          {creatorOptions.map((opt, idx) => (
+                            <div key={idx} className="flex items-center gap-2.5">
+                              <input
+                                type="radio"
+                                name="creatorRadioCorrect"
+                                checked={creatorCorrectIndex === idx}
+                                onChange={() => setCreatorCorrectIndex(idx)}
+                                className="w-4 h-4 text-[#f04824] accent-[#f04824] cursor-pointer"
+                                title="Designate as correct answer"
+                              />
+                              <input
+                                type="text"
+                                value={opt}
+                                onChange={(e) => {
+                                  const updated = [...creatorOptions];
+                                  updated[idx] = e.target.value;
+                                  setCreatorOptions(updated);
+                                }}
+                                placeholder={`Option ${String.fromCharCode(65 + idx)}${idx === creatorCorrectIndex ? ' (Correct Answer)' : ''}`}
+                                className={`flex-1 h-9 px-3 bg-[#f8f9fa] border rounded-xl text-xs text-slate-800 outline-none focus:bg-white transition-all ${
+                                  creatorCorrectIndex === idx
+                                    ? 'border-[#f04824] bg-orange-50/20 font-bold'
+                                    : 'border-slate-200 focus:border-slate-400'
+                                }`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mb-4 space-y-3">
+                          <label className="block">
+                            <span className="text-xs font-bold text-slate-700 block mb-1.5">Correct Answer *</span>
+                            <input
+                              type="text"
+                              value={creatorAnswer}
+                              onChange={(e) => setCreatorAnswer(e.target.value)}
+                              placeholder="e.g. TRUNCATE"
+                              className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-xs font-bold text-slate-500 block mb-1.5">Accepted Alternates (Optional)</span>
+                            <input
+                              type="text"
+                              value={creatorAlternates}
+                              onChange={(e) => setCreatorAlternates(e.target.value)}
+                              placeholder="e.g. truncate, TRUNCATE TABLE"
+                              className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* 5. Optional Hint */}
+                      <label className="block mb-6">
+                        <span className="text-xs font-bold text-slate-500 block mb-1.5">Study Hint / Tag (Optional)</span>
+                        <input
+                          type="text"
+                          value={creatorHint}
+                          onChange={(e) => setCreatorHint(e.target.value)}
+                          placeholder="e.g. DDL Command, Fast Erase, Chapter 2"
+                          className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                        />
+                      </label>
+
+                      {/* Form Actions Footer */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatorPrompt('');
+                            setCreatorHint('');
+                            setCreatorOptions(['', '', '', '']);
+                            setCreatorAnswer('');
+                            setCreatorAlternates('');
+                          }}
+                          className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          Clear fields
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveBombcard}
+                          className="csm-primary-button"
+                        >
+                          <IconPlus /> Add Bombcard
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Live Card Preview & Existing Cards in Deck */}
+                    <div className="lg:col-span-5 space-y-5">
+                      {/* Live Card Preview */}
+                      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                          <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider">LIVE PREVIEW</span>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            {creatorType === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-[#fbfcfd] to-[#f4f7fb] border border-slate-200/90 rounded-xl min-h-[160px] flex flex-col justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              {currentTargetDeck?.code || 'Deck'} • Question Preview
+                            </span>
+                            <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                              {creatorPrompt.trim() || 'Your question prompt will appear here as you type...'}
+                            </p>
+                            {creatorHint.trim() && (
+                              <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                                Hint: {creatorHint}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-200/80">
+                            <span className="text-[10px] font-bold text-[#f04824] uppercase tracking-wider block mb-1">
+                              Correct Answer
+                            </span>
+                            <span className="text-xs font-extrabold text-slate-900 bg-white px-2.5 py-1 rounded-md border border-slate-200 inline-block">
+                              {creatorType === 'MULTIPLE_CHOICE'
+                                ? (creatorOptions[creatorCorrectIndex]?.trim() || `Option ${String.fromCharCode(65 + creatorCorrectIndex)} (Designated)`)
+                                : (creatorAnswer.trim() || 'Answer not specified yet')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cards in Deck Overview */}
+                      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <IconCards className="w-4 h-4 text-slate-600" />
+                            <h3 className="text-xs font-extrabold text-slate-900">
+                              Cards in {currentTargetDeck?.code}
+                            </h3>
+                          </div>
+                          <span className="text-xs font-extrabold text-[#f04824] bg-orange-50 px-2 py-0.5 rounded-full">
+                            {deckCards.length} cards
+                          </span>
+                        </div>
+                        {deckCards.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic py-3 text-center">
+                            No cards in this deck yet. Use the form to add your first card!
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-56 overflow-y-auto custom-scroll pr-1">
+                            {deckCards.map((card, idx) => (
+                              <div
+                                key={card.id || idx}
+                                className="p-2.5 bg-[#f8f9fa] border border-slate-200/80 rounded-xl text-xs flex items-start justify-between gap-2"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <span className="text-[10px] font-bold text-slate-400 block">
+                                    #{idx + 1} • {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                                  </span>
+                                  <p className="font-semibold text-slate-800 truncate mt-0.5">{card.prompt}</p>
+                                </div>
+                                <span className="text-[10px] font-extrabold text-[#f04824] bg-white border border-slate-200 px-2 py-0.5 rounded whitespace-nowrap">
+                                  {card.correctAnswer || 'Answer'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentTargetDeck.id]);
+                              setActiveTab('flashcards');
+                            }}
+                            className="text-xs font-extrabold text-[#f04824] hover:underline cursor-pointer flex items-center gap-1"
+                          >
+                            <span>Review deck in Study</span>
+                            <span>→</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ========================================================
                 VIEW B4: PDF HIGHLIGHTER
