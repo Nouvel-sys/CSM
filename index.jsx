@@ -1656,12 +1656,12 @@ function App() {
             {/* 3. Game Mode Section (Launch Lobby) */}
             <button
               onClick={() => { setSelectedDeckForFolderView(null); setBombstylePhase('select_deck'); setActiveTab('arena'); }}
-              data-tooltip="Bomb Mode"
+              data-tooltip="Arena"
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'game' || activeTab === 'arena'
                 ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
                 : 'text-zinc-400 hover:text-white hover:bg-white/5'
                 }`}
-              title="Game Mode (Countdown Arena Lobby)"
+              title="Arena (Bombstyle Recall)"
             >
               <IconCards className="w-6 h-6" />
               <span className="csm-sidebar-label">Arena</span>
@@ -1712,8 +1712,7 @@ function App() {
       <main className="flex-1 bg-[#f6f8fb] border-l border-[#dce5ee] overflow-hidden flex flex-col relative">
 
         {/* Unified fintech-inspired application header - hidden during active arena drill */}
-        {!(activeTab === 'arena' && bombstylePhase === 'gameplay') && (
-          <header className="csm-topbar">
+        <header className="csm-topbar">
             <div className="csm-topbar-context">
               <span className="csm-topbar-workspace">Workspace</span>
               <span className="csm-topbar-sep">/</span>
@@ -1735,7 +1734,37 @@ function App() {
                   </>
                 )}
                 {activeTab === 'highlighter' && 'PDF Study Tool'}
-                {(activeTab === 'arena' || activeTab === 'game') && (<><span>Arena</span><span className="csm-topbar-sep">/</span><span className="text-slate-900 font-extrabold">Bombstyle</span></>)}
+                {(activeTab === 'arena' || activeTab === 'game') && (
+                      <>
+                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Arena</span>
+                        <span className="csm-topbar-sep">/</span>
+                        <span className="text-slate-900 font-extrabold cursor-pointer hover:text-slate-700 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Bombstyle</span>
+                        {bombstylePhase === 'configure' && (
+                          <>
+                            <span className="csm-topbar-sep">/</span>
+                            <span className="text-slate-500 font-medium">{bombstyleActiveDeck?.code || 'Configure'}</span>
+                          </>
+                        )}
+                        {bombstylePhase === 'gameplay' && bombstyleActiveDeck && (
+                          <>
+                            <span className="csm-topbar-sep">/</span>
+                            <span className="text-slate-500 font-medium">{bombstyleActiveDeck.code}</span>
+                          </>
+                        )}
+                        {bombstylePhase === 'results' && (
+                          <>
+                            <span className="csm-topbar-sep">/</span>
+                            <span className="text-slate-500 font-medium">Results</span>
+                          </>
+                        )}
+                        {bombstylePhase === 'review_missed' && (
+                          <>
+                            <span className="csm-topbar-sep">/</span>
+                            <span className="text-slate-500 font-medium">Missed Cards</span>
+                          </>
+                        )}
+                      </>
+                    )}
                 {activeTab === 'account' && 'Account Settings'}
               </span>
             </div>
@@ -1809,7 +1838,6 @@ function App() {
               </div>
             </div>
           </header>
-        )}
 
         {/* Floating Toast Notification */}
         {shareToast && (
@@ -1962,10 +1990,10 @@ function App() {
                         <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
                       </svg>
                     </span>
-                    <h3 className="home-tool-title">BombStyle Mode</h3>
-                    <p className="home-tool-description">Customize game mode<br />and play.</p>
+                    <h3 className="home-tool-title">Bombstyle Arena</h3>
+                    <p className="home-tool-description">Pressure-based recall.<br />Defuse cards before fuse detonates.</p>
                     <button className="home-tool-button" type="button" onClick={handleOpenGameMode}>
-                      <span>Enter Bomb Mode</span>
+                      <span>Enter Arena</span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M4 12h15" />
                         <path d="m13 6 6 6-6 6" />
@@ -2358,8 +2386,8 @@ function App() {
                 >
                   <IconPlus className="w-3.5 h-3.5 mr-1.5 text-[#f04824]" /> Create Bombcards
                 </button>
-                <button type="button" className="csm-primary-button" onClick={() => setActiveTab('game')}>
-                  Play Bomb Mode <span>→</span>
+                <button type="button" className="csm-primary-button" onClick={() => handleOpenGameMode(activeFlashcardDeck?.id)}>
+                  Play Bombstyle <span>→</span>
                 </button>
               </div>
             </div>
@@ -2805,24 +2833,66 @@ function App() {
         )}
 
         {/* ========================================================
-                BOMBSTYLE ARENA (COMPLETE SYSTEM REPLACEMENT)
+                VIEW C: BOMBSTYLE ARENA (CO-STUDYMAXX SYSTEM-CONSISTENT)
                 ======================================================== */}
             {(activeTab === 'arena' || activeTab === 'game') && (
-              <div className="bombstyle-container custom-scroll">
+              <div className="csm-screen csm-arena-screen custom-scroll">
 
                 {/* PHASE 1: DECK SELECTION HUB */}
                 {bombstylePhase === 'select_deck' && (
-                  <div className="bombstyle-inner">
-                    <header className="bombstyle-header">
-                      <div className="bombstyle-kicker">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9 4h6"/></svg>
-                        ARENA • BOMBSTYLE
+                  <div>
+                    <div className="csm-page-head">
+                      <div>
+                        <span className="csm-kicker">ARENA • BOMBSTYLE</span>
+                        <h1>Bombstyle Arena</h1>
+                        <p>Test your Bombcards under pressure. Active recall, countdown fuse, zero hesitation. Choose a deck to start.</p>
                       </div>
-                      <h1 className="bombstyle-title">Bombstyle Arena</h1>
-                      <p className="bombstyle-subtitle">Test your Bombcards under pressure. Active recall, countdown fuse, zero hesitation. Choose a deck to start.</p>
-                    </header>
+                    </div>
 
-                    <div className="bombstyle-deck-grid">
+                    {/* Arena High-Level Stats Overview */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center font-bold">
+                          <IconCards className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Ready Decks</span>
+                          <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.filter(d => d.cards && d.cards.length > 0).length} Decks</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-[#f04824] text-white flex items-center justify-center font-bold shadow-sm">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Playable Cards</span>
+                          <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.reduce((acc, d) => acc + (d.cards?.length || 0), 0)} Bombcards</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
+                          🔥
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Best Streak</span>
+                          <span className="text-xl font-extrabold text-slate-900 leading-none">{bombstyleMaxStreak}x Recall</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        </div>
+                        <div>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Time Pressure</span>
+                          <span className="text-xl font-extrabold text-slate-900 leading-none">10s – 30s</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="csm-arena-deck-grid">
                       {decks.map(deck => {
                         const cardCount = deck.cards ? deck.cards.length : 0;
                         const hasCards = cardCount > 0;
@@ -2831,7 +2901,7 @@ function App() {
                         return (
                           <div
                             key={deck.id}
-                            className={`bombstyle-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''}`}
+                            className={`csm-arena-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''}`}
                             onClick={() => {
                               if (!hasCards) {
                                 triggerToast('This deck has no Bombcards. Create cards in Library first!');
@@ -2841,20 +2911,20 @@ function App() {
                             }}
                           >
                             <div>
-                              <div className="bombstyle-deck-top">
-                                <span className="bombstyle-deck-code">{deck.code || deck.title}</span>
-                                <span className={`bombstyle-deck-badge ${hasCards ? 'has-cards' : ''}`}>
+                              <div className="csm-arena-deck-top">
+                                <span className="csm-arena-deck-code">{deck.code || deck.title}</span>
+                                <span className={`csm-arena-deck-badge ${hasCards ? 'has-cards' : ''}`}>
                                   {cardCount} {cardCount === 1 ? 'Bombcard' : 'Bombcards'}
                                 </span>
                               </div>
-                              <p className="bombstyle-deck-subject">{deck.subject || 'General Studies'}</p>
+                              <p className="csm-arena-deck-subject">{deck.subject || 'General Studies'}</p>
                             </div>
 
-                            <div className="bombstyle-deck-bottom">
-                              <span className="bombstyle-deck-meta">
+                            <div className="csm-arena-deck-bottom">
+                              <span className="csm-arena-deck-meta">
                                 {deck.category || 'Deck'} &bull; {deck.cards?.length || 0} items
                               </span>
-                              <span className="bombstyle-deck-action">
+                              <span className="csm-arena-deck-action">
                                 {hasCards ? 'Select Deck →' : 'No cards yet'}
                               </span>
                             </div>
@@ -2867,28 +2937,24 @@ function App() {
 
                 {/* PHASE 2: SESSION CONFIGURATION */}
                 {bombstylePhase === 'configure' && (
-                  <div className="bombstyle-inner" style={{ justifyContent: 'center' }}>
-                    <div className="bombstyle-config-card">
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div className="csm-arena-config-card">
                       <header style={{ marginBottom: '22px' }}>
-                        <div className="bombstyle-kicker">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                          SESSION CONFIGURATION
-                        </div>
-                        <h2 className="bombstyle-title" style={{ fontSize: '26px' }}>Configure Bombstyle</h2>
-                        <p className="bombstyle-subtitle">Dial in your challenge rules before the timer lights up.</p>
+                        <span className="csm-kicker">SESSION CONFIGURATION</span>
+                        <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#090d14', margin: '4px 0 6px', letterSpacing: '-0.02em' }}>Configure Bombstyle</h2>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Dial in your challenge rules before the timer lights up.</p>
                       </header>
 
                       {/* Selected Deck Summary */}
-                      <div className="bombstyle-config-deck-summary">
+                      <div className="csm-arena-deck-summary-box">
                         <div>
-                          <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#a1a1aa', fontWeight: 800, display: 'block' }}>SELECTED DECK</span>
-                          <span style={{ fontSize: '18px', fontWeight: 800, color: '#ffffff' }}>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}</span>
-                          <span style={{ fontSize: '12px', color: '#71717a', display: 'block' }}>{bombstyleAvailableCards.length} Bombcards available in this deck</span>
+                          <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 800, display: 'block' }}>SELECTED DECK</span>
+                          <span style={{ fontSize: '17px', fontWeight: 800, color: '#090d14' }}>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}</span>
+                          <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block' }}>{bombstyleAvailableCards.length} Bombcards available in this deck</span>
                         </div>
                         <button
                           type="button"
-                          className="bombstyle-secondary-btn"
-                          style={{ height: '38px', padding: '0 14px', fontSize: '12px' }}
+                          className="csm-secondary-button"
                           onClick={() => setBombstylePhase('select_deck')}
                         >
                           Change Deck
@@ -2896,10 +2962,10 @@ function App() {
                       </div>
 
                       {/* Setting: Number of Cards */}
-                      <div className="bombstyle-setting-row">
-                        <label className="bombstyle-setting-label">Number of Bombcards</label>
-                        <p className="bombstyle-setting-desc">How many cards to recall in this run.</p>
-                        <div className="bombstyle-pill-group">
+                      <div className="csm-arena-setting-row">
+                        <label className="csm-arena-setting-label">Number of Bombcards</label>
+                        <p className="csm-arena-setting-desc">How many cards to recall in this run.</p>
+                        <div className="csm-arena-pill-group">
                           {[10, 20, 30].map(cnt => {
                             const isAvailable = bombstyleAvailableCards.length >= cnt;
                             return (
@@ -2907,7 +2973,7 @@ function App() {
                                 key={cnt}
                                 type="button"
                                 disabled={!isAvailable}
-                                className={`bombstyle-pill-btn ${bombstyleCardCount === cnt ? 'is-active' : ''} ${!isAvailable ? 'is-disabled' : ''}`}
+                                className={`csm-arena-pill-btn ${bombstyleCardCount === cnt ? 'is-active' : ''} ${!isAvailable ? 'is-disabled' : ''}`}
                                 onClick={() => setBombstyleCardCount(cnt)}
                               >
                                 {cnt} Cards
@@ -2916,7 +2982,7 @@ function App() {
                           })}
                           <button
                             type="button"
-                            className={`bombstyle-pill-btn ${bombstyleCardCount === 'all' ? 'is-active' : ''}`}
+                            className={`csm-arena-pill-btn ${bombstyleCardCount === 'all' ? 'is-active' : ''}`}
                             onClick={() => setBombstyleCardCount('all')}
                           >
                             All ({bombstyleAvailableCards.length})
@@ -2925,27 +2991,27 @@ function App() {
                       </div>
 
                       {/* Setting: Difficulty Preset */}
-                      <div className="bombstyle-setting-row">
-                        <label className="bombstyle-setting-label">Difficulty</label>
-                        <p className="bombstyle-setting-desc">Sets default time pressure and mistake tolerances.</p>
-                        <div className="bombstyle-pill-group">
+                      <div className="csm-arena-setting-row">
+                        <label className="csm-arena-setting-label">Difficulty</label>
+                        <p className="csm-arena-setting-desc">Sets default time pressure and mistake tolerances.</p>
+                        <div className="csm-arena-pill-group">
                           <button
                             type="button"
-                            className={`bombstyle-pill-btn ${bombstyleDifficulty === 'easy' ? 'is-active' : ''}`}
+                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'easy' ? 'is-active' : ''}`}
                             onClick={() => handleSetDifficulty('easy')}
                           >
                             Easy (30s &bull; 3 Fuses)
                           </button>
                           <button
                             type="button"
-                            className={`bombstyle-pill-btn ${bombstyleDifficulty === 'normal' ? 'is-active' : ''}`}
+                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'normal' ? 'is-active' : ''}`}
                             onClick={() => handleSetDifficulty('normal')}
                           >
                             Normal (20s &bull; 3 Fuses)
                           </button>
                           <button
                             type="button"
-                            className={`bombstyle-pill-btn ${bombstyleDifficulty === 'hard' ? 'is-active' : ''}`}
+                            className={`csm-arena-pill-btn ${bombstyleDifficulty === 'hard' ? 'is-active' : ''}`}
                             onClick={() => handleSetDifficulty('hard')}
                           >
                             Hard (10s &bull; 2 Fuses)
@@ -2954,15 +3020,15 @@ function App() {
                       </div>
 
                       {/* Setting: Time per Bombcard */}
-                      <div className="bombstyle-setting-row">
-                        <label className="bombstyle-setting-label">Time per Bombcard</label>
-                        <p className="bombstyle-setting-desc">Recall countdown before the bomb detonates.</p>
-                        <div className="bombstyle-pill-group">
+                      <div className="csm-arena-setting-row">
+                        <label className="csm-arena-setting-label">Time per Bombcard</label>
+                        <p className="csm-arena-setting-desc">Recall countdown before the bomb detonates.</p>
+                        <div className="csm-arena-pill-group">
                           {[10, 20, 30].map(seconds => (
                             <button
                               key={seconds}
                               type="button"
-                              className={`bombstyle-pill-btn ${bombstyleTimePerCard === seconds ? 'is-active' : ''}`}
+                              className={`csm-arena-pill-btn ${bombstyleTimePerCard === seconds ? 'is-active' : ''}`}
                               onClick={() => setBombstyleTimePerCard(seconds)}
                             >
                               {seconds} Seconds
@@ -2972,15 +3038,15 @@ function App() {
                       </div>
 
                       {/* Setting: Fuses (Lives) */}
-                      <div className="bombstyle-setting-row">
-                        <label className="bombstyle-setting-label">Fuses (Allowed Mistakes)</label>
-                        <p className="bombstyle-setting-desc">Each forgotten card or timeout burns a fuse.</p>
-                        <div className="bombstyle-pill-group">
+                      <div className="csm-arena-setting-row">
+                        <label className="csm-arena-setting-label">Fuses (Allowed Mistakes)</label>
+                        <p className="csm-arena-setting-desc">Each forgotten card or timeout burns a fuse.</p>
+                        <div className="csm-arena-pill-group">
                           {[2, 3, 5].map(fuses => (
                             <button
                               key={fuses}
                               type="button"
-                              className={`bombstyle-pill-btn ${bombstyleTotalFuses === fuses ? 'is-active' : ''}`}
+                              className={`csm-arena-pill-btn ${bombstyleTotalFuses === fuses ? 'is-active' : ''}`}
                               onClick={() => setBombstyleTotalFuses(fuses)}
                             >
                               {fuses} Fuses
@@ -2990,17 +3056,17 @@ function App() {
                       </div>
 
                       {/* Action buttons */}
-                      <div className="bombstyle-actions-row">
+                      <div className="csm-arena-actions-row">
                         <button
                           type="button"
-                          className="bombstyle-secondary-btn"
+                          className="csm-arena-secondary-btn"
                           onClick={() => setBombstylePhase('select_deck')}
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          className="bombstyle-primary-btn"
+                          className="csm-arena-primary-btn"
                           disabled={bombstyleAvailableCards.length === 0}
                           onClick={() => handleStartBombstyle()}
                         >
@@ -3014,15 +3080,15 @@ function App() {
 
                 {/* PHASE 3: GAMEPLAY SCREEN */}
                 {bombstylePhase === 'gameplay' && (
-                  <div className="bombstyle-gameplay-wrap">
+                  <div className="csm-arena-gameplay-wrap">
                     {/* Top HUD */}
-                    <header className="bombstyle-hud">
+                    <header className="csm-arena-hud">
                       {/* Left: Exit & Deck Title */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                           type="button"
-                          className="bombstyle-secondary-btn"
-                          style={{ height: '36px', width: '36px', padding: 0 }}
+                          className="csm-secondary-button"
+                          style={{ height: '34px', width: '34px', padding: 0 }}
                           title="Exit Run to Arena Hub"
                           onClick={() => {
                             if (window.confirm('Exit current Bombstyle session?')) {
@@ -3033,8 +3099,8 @@ function App() {
                           <IconArrowLeft />
                         </button>
                         <div>
-                          <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#a1a1aa', fontWeight: 800, display: 'block', lineHeight: 1 }}>DECK</span>
-                          <span style={{ fontSize: '14px', fontWeight: 800, color: '#ffffff' }}>
+                          <span style={{ fontSize: '9px', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, display: 'block', lineHeight: 1 }}>DECK</span>
+                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#090d14' }}>
                             {bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}
                           </span>
                         </div>
@@ -3042,17 +3108,17 @@ function App() {
 
                       {/* Center: Card Progress */}
                       <div style={{ textAlign: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 800, background: '#222222', border: '1px solid #333333', padding: '4px 12px', borderRadius: '9999px', color: '#e4e4e7', letterSpacing: '0.04em' }}>
+                        <span className="csm-arena-hud-progress">
                           {bombstyleIndex + 1} / {bombstyleQueue.length} BOMBCARDS
                         </span>
                       </div>
 
                       {/* Right: Sound, Streak & Fuses */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <button
                           type="button"
-                          className="bombstyle-secondary-btn"
-                          style={{ height: '36px', width: '36px', padding: 0 }}
+                          className="csm-secondary-button"
+                          style={{ height: '34px', width: '34px', padding: 0 }}
                           onClick={() => setSoundMuted(sound.toggleMute())}
                           title={soundMuted ? 'Unmute' : 'Mute'}
                         >
@@ -3060,12 +3126,12 @@ function App() {
                         </button>
 
                         {/* Streak Badge */}
-                        <div className={`bombstyle-streak-badge ${bombstyleStreak >= 3 ? 'streak-hot' : ''}`}>
+                        <div className={`csm-arena-streak-badge ${bombstyleStreak >= 3 ? 'streak-hot' : ''}`}>
                           🔥 STREAK ×{bombstyleStreak}
                         </div>
 
                         {/* Fuses Tray */}
-                        <div className="bombstyle-fuses-tray" title={`${bombstyleFusesRemaining} of ${bombstyleTotalFuses} fuses remaining`}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} title={`${bombstyleFusesRemaining} of ${bombstyleTotalFuses} fuses remaining`}>
                           {Array.from({ length: bombstyleTotalFuses }).map((_, i) => (
                             <MiniBombIcon key={i} active={bombstyleFusesRemaining > i} />
                           ))}
@@ -3074,7 +3140,7 @@ function App() {
                     </header>
 
                     {/* Central Stage */}
-                    <div className="bombstyle-stage-center relative">
+                    <div className="csm-arena-stage-center relative">
                       {/* Micro Feedback Popup */}
                       {bombstyleFeedback === 'defused' && (
                         <div className="bombstyle-feedback-pill defused">
@@ -3090,9 +3156,9 @@ function App() {
                       {/* Animated SVG Bomb Mascot */}
                       <div className={`relative transition-transform duration-150 ${isBombDanger ? 'animate-shake-danger' : ''}`}>
                         {/* Glow Aura */}
-                        <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isBombDanger ? 'bg-red-600/40 opacity-100' : 'bg-[#f04824]/20 opacity-70'}`} />
+                        <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isBombDanger ? 'bg-red-500/25 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
 
-                        <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-2xl">
+                        <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-xl">
                           <defs>
                             <radialGradient id="bsBombBody" cx="35%" cy="35%" r="65%">
                               <stop offset="0%" stopColor="#2e2a28" />
@@ -3180,25 +3246,25 @@ function App() {
                       </div>
 
                       {/* Timer & Fuse Progress Bar */}
-                      <div className="bombstyle-timer-box">
-                        <div className={`bombstyle-timer-text ${isBombDanger ? 'danger' : ''}`}>
+                      <div className="csm-arena-timer-box">
+                        <div className={`csm-arena-timer-text ${isBombDanger ? 'danger' : ''}`}>
                           {bombstyleTimeRemaining.toFixed(1)}s
                         </div>
-                        <div className="bombstyle-fuse-bar">
+                        <div className="csm-arena-fuse-bar">
                           <div
-                            className={`bombstyle-fuse-fill ${isBombDanger ? 'danger' : ''}`}
+                            className={`csm-arena-fuse-fill ${isBombDanger ? 'danger' : ''}`}
                             style={{ width: `${bombFusePercent}%` }}
                           />
                         </div>
                       </div>
 
-                      {/* Question Card (High Contrast) */}
+                      {/* Question Card (Consistent High Contrast) */}
                       {activeBombstyleCard && (
-                        <div className="bombstyle-question-card">
-                          <div className="bombstyle-question-kicker">
+                        <div className="csm-arena-question-card">
+                          <div className="csm-arena-question-kicker">
                             QUESTION #{bombstyleIndex + 1} {activeBombstyleCard.hint ? `• ${activeBombstyleCard.hint}` : ''}
                           </div>
-                          <div className="bombstyle-question-prompt">
+                          <div className="csm-arena-question-prompt">
                             {activeBombstyleCard.prompt}
                           </div>
                         </div>
@@ -3206,13 +3272,13 @@ function App() {
 
                       {/* Answer Box (Shown when Revealed) */}
                       {bombstyleRevealed && activeBombstyleCard && (
-                        <div className="bombstyle-answer-box">
-                          <div className="bombstyle-answer-label">CORRECT ANSWER</div>
-                          <div className="bombstyle-answer-content">
+                        <div className="csm-arena-answer-box">
+                          <div className="csm-arena-answer-label">CORRECT ANSWER</div>
+                          <div className="csm-arena-answer-content">
                             {activeBombstyleCard.correctAnswer}
                           </div>
                           {activeBombstyleCard.explanation && (
-                            <div className="bombstyle-answer-explanation">
+                            <div className="csm-arena-answer-explanation">
                               {activeBombstyleCard.explanation}
                             </div>
                           )}
@@ -3220,21 +3286,21 @@ function App() {
                       )}
 
                       {/* Action / Decision Zone */}
-                      <div className="bombstyle-controls-zone">
+                      <div className="csm-arena-controls-zone">
                         {!bombstyleRevealed ? (
                           <button
                             type="button"
-                            className="bombstyle-reveal-btn"
+                            className="csm-arena-reveal-btn"
                             onClick={handleBombstyleReveal}
                           >
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            REVEAL ANSWER &nbsp;<span style={{ fontSize: '12px', opacity: 0.8 }}>(Space)</span>
+                            REVEAL ANSWER &nbsp;<span style={{ fontSize: '12px', opacity: 0.85 }}>(Space)</span>
                           </button>
                         ) : (
-                          <div className="bombstyle-decision-grid">
+                          <div className="csm-arena-decision-grid">
                             <button
                               type="button"
-                              className="bombstyle-defuse-btn"
+                              className="csm-arena-defuse-btn"
                               disabled={bombstyleFeedback !== null}
                               onClick={() => handleBombstyleDecision(true)}
                             >
@@ -3243,7 +3309,7 @@ function App() {
                             </button>
                             <button
                               type="button"
-                              className="bombstyle-explode-btn"
+                              className="csm-arena-explode-btn"
                               disabled={bombstyleFeedback !== null}
                               onClick={() => handleBombstyleDecision(false)}
                             >
@@ -3259,9 +3325,9 @@ function App() {
 
                 {/* PHASE 4: RESULTS SCREEN */}
                 {bombstylePhase === 'results' && (
-                  <div className="bombstyle-inner" style={{ justifyContent: 'center' }}>
-                    <div className="bombstyle-results-card">
-                      <div className={`bombstyle-results-icon ${bombstyleFusesRemaining > 0 ? 'complete' : 'detonated'}`}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <div className="csm-arena-results-card">
+                      <div className={`csm-arena-results-icon ${bombstyleFusesRemaining > 0 ? 'complete' : 'detonated'}`}>
                         {bombstyleFusesRemaining > 0 ? (
                           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         ) : (
@@ -3269,50 +3335,50 @@ function App() {
                         )}
                       </div>
 
-                      <h2 className="bombstyle-title" style={{ fontSize: '28px' }}>
+                      <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#090d14', margin: '0' }}>
                         {bombstyleFusesRemaining > 0 ? 'BOMBSTYLE COMPLETE' : 'SESSION DETONATED'}
                       </h2>
-                      <p className="bombstyle-subtitle" style={{ margin: '8px auto 0' }}>
+                      <p style={{ fontSize: '13px', color: '#64748b', margin: '8px auto 0', maxWidth: '480px' }}>
                         {bombstyleFusesRemaining > 0
                           ? 'Outstanding recall! You defused the cards and beat the countdown.'
                           : 'Your fuses ran out under pressure. Review your missed cards below to lock in the concepts.'}
                       </p>
 
                       {/* Stats Grid */}
-                      <div className="bombstyle-stats-grid">
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">DEFUSED</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#10b981' }}>
+                      <div className="csm-arena-stats-grid">
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">DEFUSED</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#10b981' }}>
                             {bombstyleCorrectCount} / {bombstyleQueue.length}
                           </span>
                         </div>
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">ACCURACY</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#ffffff' }}>
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">ACCURACY</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#090d14' }}>
                             {Math.round((bombstyleCorrectCount / (bombstyleQueue.length || 1)) * 100)}%
                           </span>
                         </div>
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">BEST STREAK</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#f04824' }}>
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">BEST STREAK</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#f04824' }}>
                             {bombstyleMaxStreak}x
                           </span>
                         </div>
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">EXPLOSIONS</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#ef4444' }}>
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">EXPLOSIONS</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#ef4444' }}>
                             {bombstyleQueue.length - bombstyleCorrectCount}
                           </span>
                         </div>
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">TIME SPENT</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#d4d4d8' }}>
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">TIME SPENT</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#334155' }}>
                             {Math.floor(bombstyleDurationSeconds / 60)}m {bombstyleDurationSeconds % 60}s
                           </span>
                         </div>
-                        <div className="bombstyle-stat-cell">
-                          <span className="bombstyle-stat-label">MISSED CARDS</span>
-                          <span className="bombstyle-stat-val" style={{ color: '#f59e0b' }}>
+                        <div className="csm-arena-stat-cell">
+                          <span className="csm-arena-stat-label">MISSED CARDS</span>
+                          <span className="csm-arena-stat-val" style={{ color: '#f59e0b' }}>
                             {bombstyleMissedCards.length}
                           </span>
                         </div>
@@ -3323,8 +3389,8 @@ function App() {
                         {bombstyleMissedCards.length > 0 && (
                           <button
                             type="button"
-                            className="bombstyle-primary-btn"
-                            style={{ background: '#f59e0b', color: '#181818', boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)' }}
+                            className="csm-arena-primary-btn"
+                            style={{ background: '#f59e0b', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}
                             onClick={() => setBombstylePhase('review_missed')}
                           >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -3334,7 +3400,7 @@ function App() {
                         <div style={{ display: 'flex', gap: '10px' }}>
                           <button
                             type="button"
-                            className="bombstyle-primary-btn"
+                            className="csm-arena-primary-btn"
                             onClick={() => handleStartBombstyle()}
                           >
                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -3342,7 +3408,7 @@ function App() {
                           </button>
                           <button
                             type="button"
-                            className="bombstyle-secondary-btn"
+                            className="csm-arena-secondary-btn"
                             onClick={() => setBombstylePhase('select_deck')}
                           >
                             BACK TO ARENA
@@ -3355,68 +3421,62 @@ function App() {
 
                 {/* PHASE 5: MISSED CARD REVIEW */}
                 {bombstylePhase === 'review_missed' && (
-                  <div className="bombstyle-inner">
-                    <header className="bombstyle-header">
-                      <div className="bombstyle-kicker">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                        POST-SESSION LEARNING
+                  <div>
+                    <div className="csm-page-head">
+                      <div>
+                        <span className="csm-kicker">POST-SESSION LEARNING</span>
+                        <h1>Missed Bombcards ({bombstyleMissedCards.length})</h1>
+                        <p>
+                          These are the cards you missed during the pressure run for {bombstyleActiveDeck?.code || 'this deck'}. Review them below, then jump to Study to commit them to memory.
+                        </p>
                       </div>
-                      <h1 className="bombstyle-title">Missed Bombcards ({bombstyleMissedCards.length})</h1>
-                      <p className="bombstyle-subtitle">
-                        These are the cards you missed during the pressure run for {bombstyleActiveDeck?.code || 'this deck'}. Review them below, then jump to Study to commit them to memory.
-                      </p>
-                    </header>
-
-                    {/* Action Toolbar */}
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        className="bombstyle-primary-btn"
-                        style={{ flex: 'none', padding: '0 20px' }}
-                        onClick={handleStudyMissedDeck}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="14" height="15" rx="2"/><path d="M7 5V3a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2h-2"/></svg>
-                        STUDY THIS DECK IN LIBRARY
-                      </button>
-                      <button
-                        type="button"
-                        className="bombstyle-secondary-btn"
-                        onClick={() => handleStartBombstyle(bombstyleMissedCards)}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9 4h6"/></svg>
-                        RETRY MISSED IN BOMBSTYLE
-                      </button>
-                      <button
-                        type="button"
-                        className="bombstyle-secondary-btn"
-                        onClick={() => setBombstylePhase('results')}
-                      >
-                        Back to Results
-                      </button>
+                      <div className="csm-page-actions">
+                        <button
+                          type="button"
+                          className="csm-primary-button"
+                          onClick={handleStudyMissedDeck}
+                        >
+                          <IconCards /> STUDY THIS DECK IN LIBRARY
+                        </button>
+                        <button
+                          type="button"
+                          className="csm-secondary-button"
+                          onClick={() => handleStartBombstyle(bombstyleMissedCards)}
+                        >
+                          RETRY MISSED IN BOMBSTYLE
+                        </button>
+                        <button
+                          type="button"
+                          className="csm-secondary-button"
+                          onClick={() => setBombstylePhase('results')}
+                        >
+                          Back to Results
+                        </button>
+                      </div>
                     </div>
 
                     {/* Cards List */}
-                    <div className="bombstyle-missed-list">
+                    <div className="csm-arena-missed-list">
                       {bombstyleMissedCards.map((card, idx) => (
-                        <div key={card.id || idx} className="bombstyle-missed-item">
+                        <div key={card.id || idx} className="csm-arena-missed-item">
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <span style={{ fontSize: '11px', fontWeight: 800, color: '#71717a', textTransform: 'uppercase' }}>
+                            <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                               CARD #{idx + 1} {card.hint ? `• ${card.hint}` : ''}
                             </span>
-                            <span className="bombstyle-missed-tag">
+                            <span className="csm-arena-missed-tag">
                               {card.resultReason === 'timed_out' ? '⏰ Timed Out' : '❌ Failed Recall'}
                             </span>
                           </div>
-                          <div className="bombstyle-missed-prompt">
+                          <div className="csm-arena-missed-prompt">
                             {card.prompt}
                           </div>
-                          <div style={{ marginTop: '4px', paddingTop: '8px', borderTop: '1px solid #27272a' }}>
-                            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: '#a1a1aa', fontWeight: 800, display: 'block' }}>Correct Answer</span>
-                            <div className="bombstyle-missed-answer">
+                          <div style={{ marginTop: '4px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 800, display: 'block' }}>Correct Answer</span>
+                            <div className="csm-arena-missed-answer">
                               {card.correctAnswer}
                             </div>
                             {card.explanation && (
-                              <p style={{ fontSize: '12px', color: '#71717a', marginTop: '4px' }}>
+                              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
                                 {card.explanation}
                               </p>
                             )}
