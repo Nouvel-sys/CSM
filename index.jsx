@@ -1,0 +1,3808 @@
+const { useState, useEffect, useRef, useMemo } = React;
+
+    // ========================================================
+    // 1. SOUND SYNTHESIZER (Web Audio API - Pure Client-Side)
+    // ========================================================
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+      init() {
+        if (!this.ctx && (window.AudioContext || window.webkitAudioContext)) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      toggleMute() {
+        this.muted = !this.muted;
+        return this.muted;
+      }
+      tick() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(400, this.ctx.currentTime + 0.05);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.05);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.05);
+        } catch (e) { }
+      }
+      correct() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+          notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.07);
+            gain.gain.setValueAtTime(0.12, this.ctx.currentTime + idx * 0.07);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.07 + 0.16);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(this.ctx.currentTime + idx * 0.07);
+            osc.stop(this.ctx.currentTime + idx * 0.07 + 0.16);
+          });
+        } catch (e) { }
+      }
+      wrong() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(80, this.ctx.currentTime + 0.22);
+          gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.22);
+        } catch (e) { }
+      }
+      detonation() {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const bufferSize = this.ctx.sampleRate * 0.45;
+          const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+          const noise = this.ctx.createBufferSource();
+          noise.buffer = buffer;
+          const filter = this.ctx.createBiquadFilter();
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(500, this.ctx.currentTime);
+          filter.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.45);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
+          noise.connect(filter);
+          filter.connect(gain);
+          gain.connect(this.ctx.destination);
+          noise.start();
+          noise.stop(this.ctx.currentTime + 0.45);
+        } catch (e) { }
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // ========================================================
+    // 2. VECTOR ICONS (Strictly Zero Emojis)
+    // ========================================================
+    const IconHome = () => (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
+      </svg>
+    );
+
+    const IconLibrary = () => (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    );
+
+    const IconBomb = () => (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="14" r="7" />
+        <path d="M12 7V4" />
+        <path d="M9 4h6" />
+        <circle cx="16" cy="3" r="1" fill="currentColor" />
+      </svg>
+    );
+
+    const IconUser = () => (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    );
+
+    const IconLogout = () => (
+      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
+      </svg>
+    );
+
+    const IconSearch = () => (
+      <svg className="w-4 h-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+    );
+
+    const IconPlus = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="12" y1="5" x2="12" y2="19" />
+        <line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+    );
+
+    const IconEdit = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+    );
+
+    const IconShare = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+    );
+
+    const IconTrash = () => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 6 5 6 21 6" />
+        <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+      </svg>
+    );
+
+    const IconArrowLeft = ({ className = "w-5 h-5" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+    );
+
+    const IconClose = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    );
+
+    const IconChevronDown = ({ className = "w-3.5 h-3.5" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="6 9 12 15 18 9" />
+      </svg>
+    );
+
+    const IconSpeaker = ({ muted }) => (
+      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        {muted ? (
+          <React.Fragment>
+            <line x1="23" y1="9" x2="17" y2="15"></line>
+            <line x1="17" y1="9" x2="23" y2="15"></line>
+          </React.Fragment>
+        ) : (
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        )}
+      </svg>
+    );
+
+    const IconPdf = () => (
+      <svg className="w-6 h-7 shrink-0" viewBox="0 0 24 28" fill="none">
+        <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M15 1V8.5H23" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
+        <text x="4" y="20" fontFamily="Helvetica, Arial, sans-serif" fontSize="7.5" fontWeight="900" fill="#222222" letterSpacing="-0.4">PDF</text>
+      </svg>
+    );
+
+    const IconFlame = () => (
+      <svg className="w-4 h-4 text-[#f04824]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 12c2-2.96 0-7-1-8 0 3.038-1.773 4.741-3 6-1.226 1.26-2 3.24-2 5a6 6 0 1012 0c0-1.532-1.056-3.94-2-5-1.786 3-2.791 3-4 2z" />
+      </svg>
+    );
+
+    const IconUpload = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <polyline points="17 8 12 3 7 8" />
+        <line x1="12" y1="3" x2="12" y2="15" />
+      </svg>
+    );
+
+    const IconSparkles = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z" />
+      </svg>
+    );
+
+    const IconCards = ({ className = "w-4 h-4" }) => (
+      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="14" height="15" rx="2" />
+        <path d="M7 5V3a2 2 0 012-2h10a2 2 0 012 2v14a2 2 0 01-2 2h-2" />
+      </svg>
+    );
+
+    const MiniBombIcon = ({ active }) => (
+      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${active
+        ? 'bg-[#2a1309] border border-[#f04824] shadow-[0_0_12px_rgba(240,72,36,0.4)] text-[#f04824]'
+        : 'bg-[#181818] border border-[#333333] text-[#444444]'
+        }`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="14" r="7" fill={active ? "#f04824" : "#242424"} stroke={active ? "#ff6b4a" : "#444444"} strokeWidth="1.5" />
+          <path d="M12 7V4" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
+          <path d="M9 4h6" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
+        </svg>
+      </div>
+    );
+
+    // ========================================================
+    // 3. INITIAL MOCK DECKS (With Full BombCards in State)
+    // ========================================================
+    const INITIAL_DECKS = [
+      {
+        id: 'deck-2',
+        code: 'ITE 292 B1',
+        title: 'ITE 292 B1',
+        subject: 'Information Technology',
+        owner: 'Gavin Dave',
+        lastModified: 'Sep 13, 2026',
+        category: 'Finals',
+        section: 'recent',
+        cards: [
+          {
+            id: 'c201',
+            type: 'MULTIPLE_CHOICE',
+            prompt: 'Which SQL command removes all rows from a table without logging individual row deletions?',
+            options: ['DELETE', 'TRUNCATE', 'DROP', 'REMOVE'],
+            correctIndex: 1,
+            correctAnswer: 'TRUNCATE',
+            hint: 'DDL Fast Erase'
+          },
+          {
+            id: 'c202',
+            type: 'IDENTIFICATION',
+            prompt: 'What normal form eliminates transitive functional dependencies?',
+            correctAnswer: '3NF',
+            alternates: '3nf, third normal form',
+            hint: '3 Letters'
+          },
+          {
+            id: 'c203',
+            type: 'MULTIPLE_CHOICE',
+            prompt: 'What ACID property ensures all transactions are either completely committed or fully aborted?',
+            options: ['Atomicity', 'Consistency', 'Isolation', 'Durability'],
+            correctIndex: 0,
+            correctAnswer: 'Atomicity',
+            hint: 'All-or-nothing'
+          }
+        ],
+        documents: [
+          { id: 'd201', title: 'ITE 292 B1 M1 - Normalization Rules.pdf' },
+          { id: 'd202', title: 'ITE 292 B1 M2 - SQL Joins Visualized.pdf' },
+          { id: 'd203', title: 'ITE 292 B1 M3 - Indexing Strategies.pdf' }
+        ]
+      },
+      {
+        id: 'deck-3',
+        code: 'ITE 083',
+        title: 'ITE 083',
+        subject: 'Information Technology',
+        owner: 'Gavin Dave',
+        lastModified: 'Sep 10, 2026',
+        category: 'Midterms',
+        section: 'older',
+        cards: [
+          {
+            id: 'c301',
+            type: 'IDENTIFICATION',
+            prompt: 'What HTTP status code represents an unauthorized access error?',
+            correctAnswer: '401',
+            alternates: '401, 401 unauthorized',
+            hint: '3 Digits'
+          },
+          {
+            id: 'c302',
+            type: 'MULTIPLE_CHOICE',
+            prompt: 'Which CSS property creates a responsive flexbox layout container?',
+            options: ['display: flex', 'float: left', 'position: relative', 'display: grid'],
+            correctIndex: 0,
+            correctAnswer: 'display: flex',
+            hint: 'Flex Container'
+          }
+        ],
+        documents: [
+          { id: 'd301', title: 'ITE 083 - DOM Manipulation & Events.pdf' }
+        ]
+      },
+      {
+        id: 'deck-1',
+        code: 'ITE 001',
+        title: 'ITE 001',
+        subject: 'Networking & Telecommunications',
+        owner: 'Gavin Dave',
+        lastModified: 'Sep 14, 2026',
+        category: 'Midterms',
+        section: 'older',
+        cards: [
+          {
+            id: 'c1',
+            type: 'MULTIPLE_CHOICE',
+            prompt: 'What protocol operates on Port 443?',
+            options: ['HTTP', 'HTTPS', 'FTP', 'SSH'],
+            correctIndex: 1,
+            correctAnswer: 'HTTPS',
+            hint: 'Secure Web Browsing'
+          },
+          {
+            id: 'c2',
+            type: 'IDENTIFICATION',
+            prompt: 'Identify the topology where all nodes connect directly to a central switch.',
+            correctAnswer: 'Star',
+            alternates: 'star, star topology',
+            hint: '4 Letters'
+          }
+        ],
+        documents: [
+          { id: 'd1', title: 'ITE 001 - Ch 1 & 2 OSI Model Notes.pdf' }
+        ]
+      }
+    ];
+
+    // ========================================================
+    // 4. MAIN APP CONTAINER & STATE CONTROLLER
+    // ========================================================
+    function App() {
+      // Navigation: 'home' | 'library' | 'game' | 'arena' | 'account'
+      const requestedScreen = new URLSearchParams(window.location.search).get('screen');
+      const [activeTab, setActiveTab] = useState(['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account'].includes(requestedScreen) ? requestedScreen : 'home');
+      const [sidebarExpanded, setSidebarExpanded] = useState(false);
+      const [notificationsOpen, setNotificationsOpen] = useState(false);
+      const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+      const [notifications, setNotifications] = useState([]);
+      const [changeConfirmation, setChangeConfirmation] = useState(null);
+      const defaultProfile = { displayName: 'Gavin Dave', username: 'gavin_dave', avatar: 'ember', nameChangedAt: null };
+      const [profile, setProfile] = useState(() => {
+        try {
+          const savedProfile = window.localStorage.getItem('csm-profile');
+          const parsedProfile = savedProfile ? JSON.parse(savedProfile) : {};
+          const savedValues = parsedProfile && typeof parsedProfile === 'object' ? parsedProfile : {};
+          const { email: legacyEmail, ...profileValues } = savedValues;
+          return { ...defaultProfile, ...profileValues, username: profileValues.username || (typeof legacyEmail === 'string' && legacyEmail ? legacyEmail.split('@')[0] : defaultProfile.username) };
+        } catch (error) {
+          return defaultProfile;
+        }
+      });
+      const [profileNameDraft, setProfileNameDraft] = useState(() => profile.displayName);
+      const [profileClock, setProfileClock] = useState(Date.now());
+      const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
+      const [accountSection, setAccountSection] = useState('profile');
+      const [chatMessages, setChatMessages] = useState([
+        { id: 'welcome', role: 'assistant', text: 'Hi, I’m MAXX! Choose any topic below for instant guidance on your reviewers, flashcards, or Bomb Mode:' }
+      ]);
+      const [chatTyping, setChatTyping] = useState(false);
+      const [chatCollapsed, setChatCollapsed] = useState(() => {
+        try {
+          return window.localStorage.getItem('csm-chat-collapsed') === 'true';
+        } catch {
+          return false;
+        }
+      });
+
+      useEffect(() => {
+        try {
+          window.localStorage.setItem('csm-chat-collapsed', String(chatCollapsed));
+        } catch { }
+      }, [chatCollapsed]);
+
+      const [decks, setDecks] = useState(INITIAL_DECKS);
+      const [recentActivities, setRecentActivities] = useState(() => {
+        const defaultActivities = [
+          { id: 'activity-1', material: 'ITE 292 B1', mode: 'Reviewer library', accuracy: '—', status: 'Viewed', timestamp: Date.now() - 2 * 60 * 60 * 1000, deckId: 'deck-2', screen: 'library' },
+          { id: 'activity-2', material: 'ITE 083', mode: 'Reviewer library', accuracy: '—', status: 'Viewed', timestamp: Date.now() - 24 * 60 * 60 * 1000, deckId: 'deck-3', screen: 'library' },
+          { id: 'activity-3', material: 'ITE 001', mode: 'Reviewer library', accuracy: '—', status: 'Viewed', timestamp: Date.now() - 9 * 24 * 60 * 60 * 1000, deckId: 'deck-1', screen: 'library' }
+        ];
+        try {
+          const savedActivities = window.localStorage.getItem('csm-recent-activities');
+          const parsedActivities = savedActivities ? JSON.parse(savedActivities) : null;
+          return Array.isArray(parsedActivities) ? parsedActivities.filter(activity => activity.screen === 'library') : defaultActivities;
+        } catch (error) {
+          return defaultActivities;
+        }
+      });
+
+      // --- Library Workshop State ---
+      const [searchQuery, setSearchQuery] = useState('');
+      const [librarySubjectFilter, setLibrarySubjectFilter] = useState('All subjects');
+      const [filterPill, setFilterPill] = useState('All');
+      const [selectedDeckForFolderView, setSelectedDeckForFolderView] = useState(null); // When clicking folder
+      const [isDeckEditorOpen, setIsDeckEditorOpen] = useState(false);
+      const [editingDeck, setEditingDeck] = useState(null);
+
+      // Add Material Popup State (VAIA Hierarchy + CSM Design Premise)
+      const [isAddMaterialPopupOpen, setIsAddMaterialPopupOpen] = useState(false);
+      const [targetDeckForAddMaterial, setTargetDeckForAddMaterial] = useState(null);
+      const [isDraggingAddMaterialFile, setIsDraggingAddMaterialFile] = useState(false);
+      const addMaterialFileInputRef = useRef(null);
+
+      // Deck Editor Form State
+      const [editorCode, setEditorCode] = useState('');
+      const [editorTitle, setEditorTitle] = useState('');
+      const [editorSubject, setEditorSubject] = useState('');
+      const [editorCards, setEditorCards] = useState([]);
+      const [editorDocuments, setEditorDocuments] = useState([]);
+      const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+      const pdfInputRef = useRef(null);
+
+      // New Question sub-form inside editor
+      const [newQType, setNewQType] = useState('MULTIPLE_CHOICE');
+      const [newQPrompt, setNewQPrompt] = useState('');
+      const [newQHint, setNewQHint] = useState('');
+      const [newQOptions, setNewQOptions] = useState(['', '', '', '']);
+      const [newQCorrectIndex, setNewQCorrectIndex] = useState(0);
+      const [newQAnswer, setNewQAnswer] = useState('');
+      const [newQAlternates, setNewQAlternates] = useState('');
+
+      // --- Dedicated Create Bombcards Page Form State ---
+      const [creatorTargetDeckId, setCreatorTargetDeckId] = useState('deck-2');
+      const [creatorType, setCreatorType] = useState('MULTIPLE_CHOICE');
+      const [creatorPrompt, setCreatorPrompt] = useState('');
+      const [creatorHint, setCreatorHint] = useState('');
+      const [creatorOptions, setCreatorOptions] = useState(['', '', '', '']);
+      const [creatorCorrectIndex, setCreatorCorrectIndex] = useState(0);
+      const [creatorAnswer, setCreatorAnswer] = useState('');
+      const [creatorAlternates, setCreatorAlternates] = useState('');
+
+      const handleSaveBombcard = () => {
+        if (!creatorPrompt.trim()) {
+          triggerToast('Please enter a question prompt.');
+          return;
+        }
+        if (creatorType === 'MULTIPLE_CHOICE') {
+          const filledOptions = creatorOptions.filter(opt => opt.trim());
+          if (filledOptions.length < 2) {
+            triggerToast('Please provide at least 2 multiple choice options.');
+            return;
+          }
+          if (!creatorOptions[creatorCorrectIndex]?.trim()) {
+            triggerToast('The designated correct option cannot be blank.');
+            return;
+          }
+        } else {
+          if (!creatorAnswer.trim()) {
+            triggerToast('Please enter the correct answer.');
+            return;
+          }
+        }
+
+        const targetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
+        if (!targetDeck) return;
+
+        const newCard = {
+          id: 'c-' + Date.now(),
+          type: creatorType,
+          prompt: creatorPrompt.trim(),
+          hint: creatorHint.trim() || undefined,
+          ...(creatorType === 'MULTIPLE_CHOICE' ? {
+            options: creatorOptions.map((opt, i) => opt.trim() || `Option ${i + 1}`),
+            correctIndex: creatorCorrectIndex,
+            correctAnswer: creatorOptions[creatorCorrectIndex]?.trim() || 'Correct'
+          } : {
+            correctAnswer: creatorAnswer.trim(),
+            alternates: creatorAlternates.trim() || undefined
+          })
+        };
+
+        setDecks(prevDecks => prevDecks.map(deck => {
+          if (deck.id === targetDeck.id) {
+            return {
+              ...deck,
+              cards: [...(deck.cards || []), newCard]
+            };
+          }
+          return deck;
+        }));
+
+        recordActivity({
+          material: targetDeck.code || targetDeck.title,
+          mode: 'Bombcard Creation',
+          deckId: targetDeck.id,
+          screen: 'creator',
+          status: 'Card added'
+        });
+
+        triggerToast(`Bombcard added to ${targetDeck.code || targetDeck.title}!`);
+        setCreatorPrompt('');
+        setCreatorHint('');
+        setCreatorOptions(['', '', '', '']);
+        setCreatorAnswer('');
+        setCreatorAlternates('');
+      };
+
+      // --- Game Mode Lobby State ---
+      const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
+      const [gameFormat, setGameFormat] = useState('MCQ'); // 'BOTH', 'MCQ', 'ID'
+      const [countdownSpeed, setCountdownSpeed] = useState(15); // 10, 15, 30
+      const [healthSetting, setHealthSetting] = useState(1); // 1, 2, 3
+      const [questionOrder, setQuestionOrder] = useState('SHUFFLE'); // 'SHUFFLE', 'CHRONO'
+      const [roomCodeInput, setRoomCodeInput] = useState('');
+      const [shareToast, setShareToast] = useState('');
+
+      // --- Active Word Bomb Arena State ---
+      const [arenaDeckQueue, setArenaDeckQueue] = useState([]);
+      const [arenaQIndex, setArenaQIndex] = useState(0);
+      const [arenaTimeRemaining, setArenaTimeRemaining] = useState(15);
+      const [arenaLives, setArenaLives] = useState(3);
+      const [arenaScore, setArenaScore] = useState(0);
+      const [arenaStreak, setArenaStreak] = useState(0);
+      const [arenaMaxStreak, setArenaMaxStreak] = useState(0);
+      const [arenaStatus, setArenaStatus] = useState('PLAYING'); // 'PLAYING', 'DEFUSED', 'DETONATED'
+      const [arenaSelectedChoice, setArenaSelectedChoice] = useState(null);
+      const [arenaIdInput, setArenaIdInput] = useState('');
+      const [arenaIsAnswering, setArenaIsAnswering] = useState(false);
+      const [arenaHistory, setArenaHistory] = useState([]);
+      const [soundMuted, setSoundMuted] = useState(false);
+      const [flashcardIndex, setFlashcardIndex] = useState(0);
+      const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+      const [highlightColor, setHighlightColor] = useState('#f5a23a');
+      const [highlights, setHighlights] = useState([
+        { id: 1, text: 'Normalization reduces data redundancy.', color: '#f5a23a' },
+        { id: 2, text: 'A transaction is atomic when it completes fully or not at all.', color: '#8dc7ef' }
+      ]);
+
+      useEffect(() => {
+        const closeDeckMenuOnOutsideClick = (event) => {
+          if (!event.target.closest('.csm-deck-actions')) {
+            setOpenDeckMenuId(null);
+          }
+          if (!event.target.closest('.csm-material-actions')) {
+            setOpenMaterialMenuId(null);
+          }
+          if (!event.target.closest('.csm-profile-wrap')) {
+            setAccountMenuOpen(false);
+          }
+        };
+        document.addEventListener('mousedown', closeDeckMenuOnOutsideClick);
+        return () => document.removeEventListener('mousedown', closeDeckMenuOnOutsideClick);
+      }, []);
+
+      const arenaTimerRef = useRef(null);
+      const idInputRef = useRef(null);
+      const chatBodyRef = useRef(null);
+      const chatReplyTimerRef = useRef(null);
+
+      // --- Stats Computation ---
+      const totalReviewers = decks.length;
+      const totalBombCards = useMemo(() => decks.reduce((acc, d) => acc + d.cards.length, 0), [decks]);
+      const totalDocuments = useMemo(() => decks.reduce((acc, d) => acc + (d.documents?.length || 0), 0), [decks]);
+      const activeFlashcardDeck = useMemo(() => decks.find(d => d.id === selectedDeckIds[0]) || decks[0], [decks, selectedDeckIds]);
+      const flashcards = activeFlashcardDeck?.cards || [];
+      const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
+      const currentHour = new Date().getHours();
+      const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
+      const displayName = profile.displayName || defaultProfile.displayName;
+      const displayFirstName = displayName.trim().split(/\s+/)[0] || 'there';
+      const profileInitials = displayName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0].toUpperCase()).join('') || 'GD';
+      const nameCooldownDuration = 7 * 24 * 60 * 60 * 1000;
+      const nameCooldownRemaining = profile.nameChangedAt ? Math.max(0, profile.nameChangedAt + nameCooldownDuration - profileClock) : 0;
+      const nameCooldownDays = Math.ceil(nameCooldownRemaining / (24 * 60 * 60 * 1000));
+      const avatarOptions = [
+        { id: 'ember', label: 'Ember', initials: profileInitials, background: 'linear-gradient(145deg, #f47c59, #ed4e2d)' },
+        { id: 'ocean', label: 'Ocean', initials: profileInitials, background: 'linear-gradient(145deg, #5c8fe8, #243f86)' },
+        { id: 'mint', label: 'Mint', initials: profileInitials, background: 'linear-gradient(145deg, #61c7a0, #247d68)' },
+        { id: 'violet', label: 'Violet', initials: profileInitials, background: 'linear-gradient(145deg, #a580e8, #5b3c9a)' },
+        { id: 'sunset', label: 'Sunset', initials: profileInitials, background: 'linear-gradient(145deg, #f3bd56, #c85b30)' },
+        { id: 'slate', label: 'Slate', initials: profileInitials, background: 'linear-gradient(145deg, #718096, #263246)' }
+      ];
+      const currentAvatar = avatarOptions.find(avatar => avatar.id === profile.avatar) || avatarOptions[0];
+      const accountSectionDetails = {
+        profile: { title: 'Your profile', description: 'Manage how you appear in Co-StudyMaxx and keep your account ready for study.' },
+        security: { title: 'Security', description: 'Manage password access and account security settings.' },
+        privacy: { title: 'Privacy & policy', description: 'Review how your local profile and study activity are handled.' }
+      }[accountSection] || { title: 'Your profile', description: 'Manage how you appear in Co-StudyMaxx and keep your account ready for study.' };
+
+      useEffect(() => {
+        setProfileNameDraft(profile.displayName || defaultProfile.displayName);
+      }, [profile.displayName]);
+
+      useEffect(() => {
+        const profileClockTimer = window.setInterval(() => setProfileClock(Date.now()), 60000);
+        return () => window.clearInterval(profileClockTimer);
+      }, []);
+
+      useEffect(() => {
+        try {
+          window.localStorage.setItem('csm-recent-activities', JSON.stringify(recentActivities));
+        } catch (error) {
+          // Recent activity is a browser-only placeholder until the activity API is connected.
+        }
+      }, [recentActivities]);
+
+      const recordActivity = ({ material, mode, accuracy = '—', status = 'In progress', deckId = null, screen = 'library' }) => {
+        if (screen !== 'library') return;
+        const activity = { id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, material, mode, accuracy, status, timestamp: Date.now(), deckId, screen };
+        setRecentActivities(prev => [activity, ...prev.filter(item => !(item.material === material && item.mode === mode && item.deckId === deckId))].slice(0, 10));
+      };
+
+      const formatActivityTime = (timestamp) => {
+        const elapsed = Math.max(0, Date.now() - Number(timestamp));
+        const minute = 60 * 1000;
+        const hour = 60 * minute;
+        const day = 24 * hour;
+        if (elapsed < minute) return 'Just now';
+        if (elapsed < hour) return `${Math.floor(elapsed / minute)} min ago`;
+        if (elapsed < day) return `${Math.floor(elapsed / hour)}h ago`;
+        if (elapsed < 7 * day) return `${Math.floor(elapsed / day)}d ago`;
+        return new Date(Number(timestamp)).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      };
+
+      const openRecentActivity = (activity) => {
+        if (activity.deckId) {
+          const activityDeck = decks.find(deck => deck.id === activity.deckId);
+          setSelectedDeckIds([activity.deckId]);
+          if (activity.screen === 'library') setSelectedDeckForFolderView(activityDeck || null);
+        }
+        setActiveTab(activity.screen || 'library');
+      };
+
+      // --- Detail View States (Synced with decks) ---
+      const [showAllBombcards, setShowAllBombcards] = useState(false);
+
+      const currentSelectedDeck = useMemo(() => {
+        if (!selectedDeckForFolderView) return null;
+        return decks.find(d => d.id === selectedDeckForFolderView.id) || selectedDeckForFolderView;
+      }, [decks, selectedDeckForFolderView]);
+
+      const visibleCards = useMemo(() => {
+        if (!currentSelectedDeck || !currentSelectedDeck.cards) return [];
+        if (showAllBombcards) return currentSelectedDeck.cards;
+        return currentSelectedDeck.cards.slice(0, 3);
+      }, [currentSelectedDeck, showAllBombcards]);
+
+      const handleSelectDeckForDetail = (deck) => {
+        setSelectedDeckForFolderView(deck);
+        setShowAllBombcards(false);
+        recordActivity({ material: deck.code || deck.title, mode: 'Reviewer library', deckId: deck.id, screen: 'library' });
+        setActiveTab('library');
+      };
+
+      // --- Folder Info Modal State (Edits Name & Description Only, NOT Content) ---
+      const [folderInfoModalOpen, setFolderInfoModalOpen] = useState(false);
+      const [targetFolderForEdit, setTargetFolderForEdit] = useState(null);
+      const [folderNameInput, setFolderNameInput] = useState('');
+      const [folderDescInput, setFolderDescInput] = useState('');
+      const [openDeckMenuId, setOpenDeckMenuId] = useState(null);
+      const [openMaterialMenuId, setOpenMaterialMenuId] = useState(null);
+      const [revealedLibraryCards, setRevealedLibraryCards] = useState([]);
+      const [deleteDeckTarget, setDeleteDeckTarget] = useState(null);
+      const [deleteConfirmation, setDeleteConfirmation] = useState(null);
+
+      // Section collapsing states
+      const [collapseRecent, setCollapseRecent] = useState(false);
+      const [collapseOlder, setCollapseOlder] = useState(false);
+
+      const handleOpenEditFolderInfo = (deck, e) => {
+        if (e) e.stopPropagation();
+        setOpenDeckMenuId(null);
+        setTargetFolderForEdit(deck);
+        setFolderNameInput(deck.code || deck.title);
+        setFolderDescInput(deck.subject || '');
+        setFolderInfoModalOpen(true);
+      };
+
+      const handleOpenCreateFolderInfo = () => {
+        setOpenDeckMenuId(null);
+        setTargetFolderForEdit(null);
+        setFolderNameInput('');
+        setFolderDescInput('');
+        setFolderInfoModalOpen(true);
+      };
+
+      const handleSaveFolderInfo = (e) => {
+        if (e) e.preventDefault();
+        if (!folderNameInput.trim()) {
+          triggerToast('Please enter a deck title');
+          return;
+        }
+
+        if (targetFolderForEdit) {
+          // Edit ONLY folder name & description (NOT content)
+          setDecks(prev => prev.map(d => {
+            if (d.id === targetFolderForEdit.id) {
+              return {
+                ...d,
+                code: folderNameInput.trim(),
+                title: folderNameInput.trim(),
+                subject: folderDescInput.trim() || 'Information Technology',
+                lastModified: 'Just now'
+              };
+            }
+            return d;
+          }));
+          triggerToast(`Updated folder "${folderNameInput.trim()}"`);
+          showChangeConfirmation('Deck updated', `Your changes to "${folderNameInput.trim()}" were saved.`);
+        } else {
+          // Create new folder
+          const newDeck = {
+            id: 'deck-' + Date.now(),
+            code: folderNameInput.trim(),
+            title: folderNameInput.trim(),
+            subject: folderDescInput.trim() || 'Information Technology',
+            owner: 'Gavin Dave',
+            lastModified: 'Just now',
+            category: 'Recent',
+            section: 'recent',
+            cards: [],
+            documents: []
+          };
+          setDecks(prev => [newDeck, ...prev]);
+          setSelectedDeckIds(prev => [...prev, newDeck.id]);
+          triggerToast(`Created new folder "${folderNameInput.trim()}"`);
+          showChangeConfirmation('Deck created', `"${folderNameInput.trim()}" is ready for your study materials.`);
+        }
+
+        setFolderInfoModalOpen(false);
+        setTargetFolderForEdit(null);
+      };
+
+      const handleDeleteFolder = (deckId, e) => {
+        if (e) e.stopPropagation();
+        const target = decks.find(d => d.id === deckId);
+        setOpenDeckMenuId(null);
+        setDeleteDeckTarget(target || { id: deckId, code: 'this deck', title: 'this deck' });
+      };
+
+      const handleRemoveDocument = (deckId, docId) => {
+        const deck = decks.find(item => item.id === deckId);
+        const document = deck?.documents?.find(item => item.id === docId);
+        if (!document) return;
+        setOpenMaterialMenuId(null);
+        requestDeleteConfirmation({
+          title: `Remove "${document.title}"?`,
+          message: 'This PDF will be removed from the reviewer. You can upload it again later if needed.',
+          confirmLabel: 'Remove PDF',
+          action: () => {
+            setDecks(prev => prev.map(item => item.id === deckId
+              ? { ...item, documents: (item.documents || []).filter(doc => doc.id !== docId), lastModified: 'Just now' }
+              : item
+            ));
+            triggerToast('Document removed from this reviewer');
+            showChangeConfirmation('PDF removed', 'The document was removed from this reviewer.');
+          }
+        });
+      };
+
+      const handleOpenDeckStudy = (deck, mode = 'flashcards') => {
+        setSelectedDeckIds([deck.id]);
+        setSelectedDeckForFolderView(null);
+        recordActivity({ material: deck.code || deck.title, mode: mode === 'game' ? 'BombStyle quiz' : 'Flashcards', deckId: deck.id, screen: mode, status: 'In progress' });
+        setActiveTab(mode);
+      };
+
+      const handleOpenDocument = (deck, document) => {
+        setSelectedDeckIds([deck.id]);
+        recordActivity({ material: document.title, mode: 'PDF Tools', deckId: deck.id, screen: 'highlighter', status: 'In progress' });
+        setActiveTab('highlighter');
+        triggerToast(`Opening "${document.title}"...`);
+      };
+
+      const handleOpenAccount = () => {
+        setSelectedDeckForFolderView(null);
+        setAccountSection('profile');
+        setActiveTab('account');
+      };
+
+      const handleOpenLibrary = () => {
+        recordActivity({ material: 'Reviewer Library', mode: 'Library overview', screen: 'library', status: 'Viewed' });
+        setSelectedDeckForFolderView(null);
+        setActiveTab('library');
+      };
+
+      const handleOpenGameMode = () => {
+        recordActivity({ material: activeGameDeck?.code || 'Bomb Mode', mode: 'BombStyle lobby', deckId: activeGameDeck?.id || null, screen: 'game', status: 'Viewed' });
+        setActiveTab('game');
+      };
+
+      const toggleLibraryCardAnswer = (cardId) => {
+        setRevealedLibraryCards(prev => prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]);
+      };
+
+      const confirmDeleteFolder = () => {
+        if (!deleteDeckTarget) return;
+        const deckId = deleteDeckTarget.id;
+        const name = deleteDeckTarget.code || deleteDeckTarget.title || 'this deck';
+        setDecks(prev => prev.filter(d => d.id !== deckId));
+        setSelectedDeckIds(prev => prev.filter(id => id !== deckId));
+        if (selectedDeckForFolderView && selectedDeckForFolderView.id === deckId) {
+          setSelectedDeckForFolderView(null);
+        }
+        setDeleteDeckTarget(null);
+        triggerToast(`Deleted deck "${name}"`);
+        showChangeConfirmation('Deck deleted', `"${name}" and its materials were removed.`);
+      };
+
+      const DeckCardActions = ({ deck }) => {
+        const isOpen = openDeckMenuId === deck.id;
+        return (
+          <div className="csm-deck-actions">
+            <button
+              type="button"
+              className="csm-deck-menu-trigger"
+              aria-label={`Actions for ${deck.code || deck.title}`}
+              aria-expanded={isOpen}
+              onClick={(e) => { e.stopPropagation(); setOpenDeckMenuId(isOpen ? null : deck.id); }}
+            >•••</button>
+            {isOpen && (
+              <div className="csm-deck-menu" onClick={(e) => e.stopPropagation()}>
+                <button type="button" onClick={(e) => handleOpenEditFolderInfo(deck, e)}><IconEdit /> Edit</button>
+                <button type="button" className="danger" onClick={(e) => handleDeleteFolder(deck.id, e)}><IconTrash /> Delete</button>
+              </div>
+            )}
+          </div>
+        );
+      };
+
+      // Filtered Decks for Library
+      const visibleDecks = useMemo(() => {
+        return decks.filter(d => {
+          const q = searchQuery.toLowerCase();
+          const matchesSubject = librarySubjectFilter === 'All subjects' || (d.subject || 'Information Technology') === librarySubjectFilter;
+          return matchesSubject && ((d.title || '').toLowerCase().includes(q) ||
+            (d.code || '').toLowerCase().includes(q) ||
+            (d.subject || '').toLowerCase().includes(q));
+        });
+      }, [decks, searchQuery, librarySubjectFilter]);
+
+      const librarySubjectOptions = useMemo(() => {
+        return ['All subjects', ...Array.from(new Set(decks.map(deck => deck.subject || 'Information Technology')))];
+      }, [decks]);
+
+      const recentDecks = useMemo(() => {
+        return visibleDecks.filter(d => d.section === 'recent' || d.id === 'deck-2');
+      }, [visibleDecks]);
+
+      const olderDecks = useMemo(() => {
+        return visibleDecks.filter(d => d.section === 'older' || (d.id !== 'deck-2' && d.section !== 'recent'));
+      }, [visibleDecks]);
+
+      // Total Selected BombCards in Game Mode
+      const selectedTotalCards = useMemo(() => {
+        return decks
+          .filter(d => selectedDeckIds.includes(d.id))
+          .reduce((acc, d) => acc + d.cards.length, 0);
+      }, [decks, selectedDeckIds]);
+
+      const activeGameDeck = decks.find(d => d.id === selectedDeckIds[0]) || decks[0];
+      const activeGameDeckCodeParts = (activeGameDeck?.code || 'ITE 292 B1').split(' ');
+
+      // Notification Toast Helper
+      const triggerToast = (msg) => {
+        setShareToast(msg);
+        setTimeout(() => setShareToast(''), 3000);
+      };
+
+      const showChangeConfirmation = (title, message) => {
+        setChangeConfirmation({ title, message });
+      };
+
+      const persistProfile = (nextProfile) => {
+        setProfile(nextProfile);
+        try {
+          window.localStorage.setItem('csm-profile', JSON.stringify(nextProfile));
+        } catch (error) {
+          // Local storage is only a placeholder until the account API is connected.
+        }
+      };
+
+      const handleSaveDisplayName = (event) => {
+        event.preventDefault();
+        const nextName = profileNameDraft.trim();
+        if (!nextName) {
+          triggerToast('Please enter a display name');
+          return;
+        }
+        if (nameCooldownRemaining > 0) {
+          triggerToast(`You can change your display name again in ${nameCooldownDays} day${nameCooldownDays === 1 ? '' : 's'}`);
+          return;
+        }
+        if (nextName === displayName) {
+          triggerToast('Your display name is already up to date');
+          return;
+        }
+        persistProfile({ ...profile, displayName: nextName, nameChangedAt: Date.now() });
+        showChangeConfirmation('Display name updated', `Your name is now "${nextName}". You can change it again in 7 days.`);
+      };
+
+      const handleChooseAvatar = (avatarId) => {
+        if (avatarId === profile.avatar) return;
+        const avatar = avatarOptions.find(item => item.id === avatarId);
+        persistProfile({ ...profile, avatar: avatarId });
+        showChangeConfirmation('Avatar updated', `${avatar?.label || 'Your new avatar'} is now set on your profile.`);
+      };
+
+      const FIXED_CHAT_TOPICS = [
+        {
+          id: 'review-today',
+          title: 'What should I review today?',
+          getAnswer: (deckName, count) => count
+            ? `Start with ${deckName}. It has ${count} Bombcard${count === 1 ? '' : 's'} ready for a focused review session.`
+            : 'Open your Library and add a few Bombcards first. I’ll help you choose a focused session once your deck has cards.',
+          actionLabel: 'Open Flashcards',
+          actionTab: 'flashcards'
+        },
+        {
+          id: 'weakest-topics',
+          title: 'Show my weakest topics',
+          getAnswer: () => 'Your dashboard shows 86% average accuracy. Focus on missed cards in your latest sessions, then test yourself in Bomb Mode under time pressure to solidify retention.',
+          actionLabel: 'Review Cards',
+          actionTab: 'flashcards'
+        },
+        {
+          id: 'bomb-mode',
+          title: 'How does BombStyle mode work?',
+          getAnswer: () => 'Bomb Mode turns your selected deck into an arcade countdown drill. You set your lives and time limit, then defuse cards before the fuse runs out!',
+          actionLabel: 'Enter Bomb Mode',
+          actionTab: 'game'
+        },
+        {
+          id: 'create-cards',
+          title: 'How do I create new Bombcards?',
+          getAnswer: () => 'You can build cards manually in Create Flashcards, or open the PDF Study Tool to highlight document excerpts and convert them directly into flashcards.',
+          actionLabel: 'Create Flashcards',
+          actionTab: 'creator'
+        },
+        {
+          id: 'share-reviewer',
+          title: 'How do I share my reviewer?',
+          getAnswer: () => 'In the Reviewer Library, each deck has an actions menu (...) where you can edit, export, duplicate, or share your study materials.',
+          actionLabel: 'Open Library',
+          actionTab: 'library'
+        }
+      ];
+
+      const handleSelectChatTopic = (topic) => {
+        if (chatTyping) return;
+        const currentDeck = activeFlashcardDeck || decks[0];
+        const currentDeckName = currentDeck?.code || currentDeck?.title || 'your reviewer';
+        const currentCardCount = currentDeck?.cards?.length || 0;
+        const answerText = topic.getAnswer(currentDeckName, currentCardCount);
+
+        const userMessage = { id: `user-${Date.now()}`, role: 'user', text: topic.title };
+        setChatMessages(prev => [...prev, userMessage]);
+        setChatTyping(true);
+
+        window.clearTimeout(chatReplyTimerRef.current);
+        chatReplyTimerRef.current = window.setTimeout(() => {
+          setChatMessages(prev => [
+            ...prev,
+            {
+              id: `assistant-${Date.now()}`,
+              role: 'assistant',
+              text: answerText,
+              actionLabel: topic.actionLabel,
+              actionTab: topic.actionTab
+            }
+          ]);
+          setChatTyping(false);
+        }, 320);
+      };
+
+      const handleChatReset = () => {
+        window.clearTimeout(chatReplyTimerRef.current);
+        setChatTyping(false);
+        setChatMessages([
+          { id: `welcome-${Date.now()}`, role: 'assistant', text: 'Hi, I’m MAXX! Choose any topic below for instant guidance on your reviewers, flashcards, or Bomb Mode:' }
+        ]);
+        triggerToast('MAXX chat restarted');
+      };
+
+      useEffect(() => {
+        if (!chatBodyRef.current) return;
+        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+      }, [chatMessages, chatTyping]);
+
+      const requestDeleteConfirmation = ({ title, message, confirmLabel = 'Delete', action }) => {
+        setDeleteConfirmation({ title, message, confirmLabel, action });
+      };
+
+      const confirmDeleteAction = () => {
+        if (!deleteConfirmation) return;
+        const action = deleteConfirmation.action;
+        setDeleteConfirmation(null);
+        if (action) action();
+      };
+
+      const handleClearHighlights = () => {
+        if (!highlights.length) {
+          triggerToast('There are no highlights to clear');
+          return;
+        }
+        requestDeleteConfirmation({
+          title: 'Clear all highlights?',
+          message: 'This will remove every saved highlight from the current study page.',
+          confirmLabel: 'Clear highlights',
+          action: () => {
+            setHighlights([]);
+            showChangeConfirmation('Highlights cleared', 'All saved highlights were removed from this study page.');
+          }
+        });
+      };
+
+      const handleRemoveHighlight = (highlightId) => {
+        const highlight = highlights.find(item => item.id === highlightId);
+        requestDeleteConfirmation({
+          title: 'Delete this highlight?',
+          message: `The saved note${highlight?.text ? ` “${highlight.text}”` : ''} will be removed.`,
+          confirmLabel: 'Delete highlight',
+          action: () => {
+            setHighlights(list => list.filter(note => note.id !== highlightId));
+            showChangeConfirmation('Highlight deleted', 'The saved highlight was removed.');
+          }
+        });
+      };
+
+      // ========================================================
+      // 5. LIBRARY WORKSHOP ACTIONS (Pure Authoring & Editing)
+      // ========================================================
+      // Add Material Popup Actions (VAIA Hierarchy + CSM Design Premise)
+      const handleOpenAddMaterialPopup = (deck, e) => {
+        if (e) e.stopPropagation();
+        setTargetDeckForAddMaterial(deck);
+        setIsAddMaterialPopupOpen(true);
+      };
+
+      const handleAddMaterialDirectUpload = (filesToUpload) => {
+        const files = Array.from(filesToUpload || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (files.length === 0) {
+          triggerToast('Please upload PDF files');
+          return;
+        }
+        const target = targetDeckForAddMaterial || currentSelectedDeck;
+        if (!target) return;
+
+        const newDocs = files.map(file => ({
+          id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          title: file.name
+        }));
+
+        setDecks(prev => prev.map(d => {
+          if (d.id === target.id) {
+            return {
+              ...d,
+              documents: [...(d.documents || []), ...newDocs],
+              lastModified: 'Just now'
+            };
+          }
+          return d;
+        }));
+
+        triggerToast(`Uploaded ${files.length} document${files.length > 1 ? 's' : ''} to ${target.code || target.title}`);
+        showChangeConfirmation('PDF uploaded', `${files.length} document${files.length > 1 ? 's were' : ' was'} added to "${target.code || target.title}".`);
+        setIsAddMaterialPopupOpen(false);
+        if (addMaterialFileInputRef.current) addMaterialFileInputRef.current.value = '';
+      };
+
+      const handleChooseManualCreation = () => {
+        const target = targetDeckForAddMaterial || currentSelectedDeck || decks[0];
+        if (target) {
+          setSelectedDeckIds([target.id]);
+          setCreatorTargetDeckId(target.id);
+        }
+        setIsAddMaterialPopupOpen(false);
+        setActiveTab('creator');
+      };
+      const handleOpenCreateDeck = () => {
+        setEditingDeck(null);
+        setEditorCode('ITE ' + Math.floor(100 + Math.random() * 900));
+        setEditorTitle('');
+        setEditorSubject('Information Technology');
+        setEditorCards([]);
+        resetNewQForm();
+        setIsDeckEditorOpen(true);
+      };
+
+      const handleOpenEditDeck = (deck, e) => {
+        if (e) e.stopPropagation();
+        setEditingDeck(deck);
+        setEditorCode(deck.code || '');
+        setEditorTitle(deck.title || '');
+        setEditorSubject(deck.subject || '');
+        setEditorCards([...(deck.cards || [])]);
+        setEditorDocuments([...(deck.documents || [])]);
+        resetNewQForm();
+        setIsDeckEditorOpen(true);
+      };
+
+      const handlePdfUpload = (e) => {
+        const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+        if (files.length === 0) return;
+        const newDocs = files.map(file => ({
+          id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+          title: file.name
+        }));
+        setEditorDocuments(prev => [...prev, ...newDocs]);
+        triggerToast(`Imported ${files.length} PDF file${files.length > 1 ? 's' : ''}`);
+        if (pdfInputRef.current) pdfInputRef.current.value = '';
+      };
+
+      const handleRemoveDocFromEditor = (docId) => {
+        const document = editorDocuments.find(item => item.id === docId);
+        requestDeleteConfirmation({
+          title: `Remove "${document?.title || 'this PDF'}"?`,
+          message: 'This document will be removed from the current reviewer draft.',
+          confirmLabel: 'Remove PDF',
+          action: () => {
+            setEditorDocuments(prev => prev.filter(d => d.id !== docId));
+            triggerToast('PDF removed from the draft');
+          }
+        });
+      };
+
+      const handleDeleteDeck = (deckId, e) => {
+        if (e) e.stopPropagation();
+        const target = decks.find(deck => deck.id === deckId);
+        setDeleteDeckTarget(target || { id: deckId, code: 'this deck', title: 'this deck' });
+      };
+
+      const handleShareDeck = (deck, e) => {
+        if (e) e.stopPropagation();
+        const code = `${deck.code.replace(/\s+/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        navigator.clipboard?.writeText(code);
+        triggerToast(`Share code copied to clipboard: ${code}`);
+      };
+
+      const resetNewQForm = () => {
+        setNewQPrompt('');
+        setNewQHint('');
+        setNewQOptions(['', '', '', '']);
+        setNewQCorrectIndex(0);
+        setNewQAnswer('');
+        setNewQAlternates('');
+      };
+
+      const handleAddQuestionToEditor = (e) => {
+        e.preventDefault();
+        if (!newQPrompt.trim()) return;
+
+        let cardObj = {
+          id: 'card-' + Date.now(),
+          type: newQType,
+          prompt: newQPrompt.trim(),
+          hint: newQHint.trim() || (newQType === 'MULTIPLE_CHOICE' ? 'Knowledge Check' : 'Identification')
+        };
+
+        if (newQType === 'MULTIPLE_CHOICE') {
+          const filledOptions = newQOptions.map((opt, i) => opt.trim() || `Option ${i + 1}`);
+          cardObj.options = filledOptions;
+          cardObj.correctIndex = newQCorrectIndex;
+          cardObj.correctAnswer = filledOptions[newQCorrectIndex];
+        } else {
+          cardObj.correctAnswer = newQAnswer.trim() || 'Answer';
+          cardObj.alternates = newQAlternates.trim() || cardObj.correctAnswer.toLowerCase();
+        }
+
+        setEditorCards(prev => [...prev, cardObj]);
+        resetNewQForm();
+        triggerToast('BombCard appended to deck list');
+      };
+
+      const handleRemoveCardFromEditor = (cardId) => {
+        const card = editorCards.find(item => item.id === cardId);
+        requestDeleteConfirmation({
+          title: 'Delete this Bombcard?',
+          message: `This ${card?.type === 'MULTIPLE_CHOICE' ? 'multiple-choice' : 'identification'} card will be removed from the current draft.`,
+          confirmLabel: 'Delete card',
+          action: () => {
+            setEditorCards(prev => prev.filter(c => c.id !== cardId));
+            triggerToast('Bombcard removed from the draft');
+          }
+        });
+      };
+
+      const handleSaveDeck = () => {
+        if (editingDeck) {
+          // Update existing deck's cards and documents (subject code and subject name are not edited here)
+          setDecks(prev => prev.map(d => {
+            if (d.id === editingDeck.id) {
+              return {
+                ...d,
+                cards: editorCards,
+                documents: editorDocuments,
+                lastModified: 'Just now'
+              };
+            }
+            return d;
+          }));
+          triggerToast(`Saved materials for "${editingDeck.code || editingDeck.title}"`);
+          showChangeConfirmation('Materials saved', `The cards and documents in "${editingDeck.code || editingDeck.title}" were updated.`);
+        } else {
+          // Create fresh fallback
+          const newDeck = {
+            id: 'deck-' + Date.now(),
+            code: editorCode || 'NEW DECK',
+            title: editorTitle || 'New Reviewer',
+            subject: editorSubject || 'Information Technology',
+            owner: 'Gavin Dave',
+            lastModified: 'Just now',
+            category: 'Midterms',
+            cards: editorCards,
+            documents: editorDocuments
+          };
+          setDecks(prev => [newDeck, ...prev]);
+          triggerToast(`Created new reviewer materials`);
+          showChangeConfirmation('Reviewer created', `Your new reviewer "${editorTitle || editorCode || 'New Reviewer'}" is ready.`);
+        }
+
+        setIsDeckEditorOpen(false);
+      };
+
+      // ========================================================
+      // 6. GAME MODE LAUNCH & ARENA ENGINE
+      // ========================================================
+      const toggleSelectDeck = (deckId) => {
+        setSelectedDeckIds(prev => {
+          if (prev.includes(deckId)) {
+            if (prev.length === 1) return prev; // Keep at least one
+            return prev.filter(id => id !== deckId);
+          } else {
+            return [...prev, deckId];
+          }
+        });
+      };
+
+      const handleLaunchArena = () => {
+        // Collect cards from selected decks
+        let combinedCards = [];
+        decks.forEach(d => {
+          if (selectedDeckIds.includes(d.id)) {
+            combinedCards.push(...d.cards);
+          }
+        });
+
+        if (combinedCards.length === 0) {
+          alert('Selected reviewers do not have any BombCards yet. Add cards in Reviewer Library first.');
+          return;
+        }
+
+        // Apply format filter
+        if (gameFormat === 'MCQ') {
+          combinedCards = combinedCards.filter(c => c.type === 'MULTIPLE_CHOICE');
+        } else if (gameFormat === 'ID') {
+          combinedCards = combinedCards.filter(c => c.type === 'IDENTIFICATION');
+        }
+
+        if (combinedCards.length === 0) {
+          alert('No cards match the selected Game Format filter.');
+          return;
+        }
+
+        // Apply ordering
+        if (questionOrder === 'SHUFFLE') {
+          combinedCards = [...combinedCards].sort(() => Math.random() - 0.5);
+        }
+
+        setArenaDeckQueue(combinedCards);
+        setArenaQIndex(0);
+        setArenaLives(healthSetting);
+        setArenaScore(0);
+        setArenaStreak(0);
+        setArenaMaxStreak(0);
+        setArenaStatus('PLAYING');
+        setArenaSelectedChoice(null);
+        setArenaIdInput('');
+        setArenaIsAnswering(false);
+        setArenaHistory([]);
+
+        setActiveTab('arena');
+      };
+
+      // Start countdown timer when in arena
+      useEffect(() => {
+        if (activeTab !== 'arena' || arenaStatus !== 'PLAYING') {
+          if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+          return;
+        }
+
+        setArenaTimeRemaining(countdownSpeed);
+
+        if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+        arenaTimerRef.current = setInterval(() => {
+          setArenaTimeRemaining(prev => {
+            if (prev <= 0.1) {
+              clearInterval(arenaTimerRef.current);
+              handleTimeout();
+              return 0;
+            }
+            // Tick sound in danger zone (< 5s)
+            if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
+              sound.tick();
+            }
+            return Math.max(0, prev - 0.1);
+          });
+        }, 100);
+
+        return () => {
+          if (arenaTimerRef.current) clearInterval(arenaTimerRef.current);
+        };
+      }, [activeTab, arenaQIndex, arenaStatus, countdownSpeed]);
+
+      // Focus text input on identification questions
+      useEffect(() => {
+        if (activeTab === 'arena' && arenaStatus === 'PLAYING') {
+          const currentQ = arenaDeckQueue[arenaQIndex];
+          if (currentQ && currentQ.type === 'IDENTIFICATION' && idInputRef.current) {
+            idInputRef.current.focus();
+          }
+        }
+      }, [activeTab, arenaQIndex, arenaStatus, arenaDeckQueue]);
+
+      const handleTimeout = () => {
+        sound.wrong();
+        sound.detonation();
+        const currentQ = arenaDeckQueue[arenaQIndex];
+
+        setArenaHistory(prev => [
+          ...prev,
+          {
+            prompt: currentQ.prompt,
+            format: currentQ.type,
+            userAns: '(Timed Out)',
+            correctAns: currentQ.correctAnswer,
+            isRight: false
+          }
+        ]);
+
+        const nextLives = arenaLives - 1;
+        setArenaLives(nextLives);
+        setArenaStreak(0);
+
+        if (nextLives <= 0) {
+          setArenaStatus('DETONATED');
+        } else {
+          setTimeout(() => {
+            advanceQuestion();
+          }, 600);
+        }
+      };
+
+      const handleAnswerMCQ = (choiceIdx) => {
+        if (arenaIsAnswering || arenaStatus !== 'PLAYING') return;
+        setArenaIsAnswering(true);
+        setArenaSelectedChoice(choiceIdx);
+
+        const currentQ = arenaDeckQueue[arenaQIndex];
+        const isRight = (choiceIdx === currentQ.correctIndex);
+
+        if (isRight) {
+          sound.correct();
+          const newStreak = arenaStreak + 1;
+          setArenaStreak(newStreak);
+          if (newStreak > arenaMaxStreak) setArenaMaxStreak(newStreak);
+          setArenaScore(s => s + 500 + newStreak * 50);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: currentQ.options[choiceIdx],
+              correctAns: currentQ.correctAnswer,
+              isRight: true
+            }
+          ]);
+
+          setTimeout(() => {
+            advanceQuestion();
+          }, 500);
+        } else {
+          sound.wrong();
+          const nextLives = arenaLives - 1;
+          setArenaLives(nextLives);
+          setArenaStreak(0);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: currentQ.options[choiceIdx],
+              correctAns: currentQ.correctAnswer,
+              isRight: false
+            }
+          ]);
+
+          setTimeout(() => {
+            if (nextLives <= 0) {
+              sound.detonation();
+              setArenaStatus('DETONATED');
+            } else {
+              advanceQuestion();
+            }
+          }, 700);
+        }
+      };
+
+      const handleAnswerID = (e) => {
+        if (e) e.preventDefault();
+        if (arenaIsAnswering || arenaStatus !== 'PLAYING' || !arenaIdInput.trim()) return;
+
+        setArenaIsAnswering(true);
+        const currentQ = arenaDeckQueue[arenaQIndex];
+        const cleanInput = arenaIdInput.trim().toLowerCase();
+
+        let isRight = false;
+        if (cleanInput === currentQ.correctAnswer.trim().toLowerCase()) {
+          isRight = true;
+        } else if (currentQ.alternates) {
+          const list = currentQ.alternates.split(',').map(s => s.trim().toLowerCase());
+          if (list.includes(cleanInput)) isRight = true;
+        }
+
+        if (isRight) {
+          sound.correct();
+          const newStreak = arenaStreak + 1;
+          setArenaStreak(newStreak);
+          if (newStreak > arenaMaxStreak) setArenaMaxStreak(newStreak);
+          setArenaScore(s => s + 500 + newStreak * 50);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: arenaIdInput.trim(),
+              correctAns: currentQ.correctAnswer,
+              isRight: true
+            }
+          ]);
+
+          setTimeout(() => {
+            advanceQuestion();
+          }, 500);
+        } else {
+          sound.wrong();
+          const nextLives = arenaLives - 1;
+          setArenaLives(nextLives);
+          setArenaStreak(0);
+
+          setArenaHistory(prev => [
+            ...prev,
+            {
+              prompt: currentQ.prompt,
+              format: currentQ.type,
+              userAns: arenaIdInput.trim(),
+              correctAns: currentQ.correctAnswer,
+              isRight: false
+            }
+          ]);
+
+          setTimeout(() => {
+            if (nextLives <= 0) {
+              sound.detonation();
+              setArenaStatus('DETONATED');
+            } else {
+              advanceQuestion();
+            }
+          }, 700);
+        }
+      };
+
+      const advanceQuestion = () => {
+        setArenaIsAnswering(false);
+        setArenaSelectedChoice(null);
+        setArenaIdInput('');
+
+        if (arenaQIndex + 1 < arenaDeckQueue.length) {
+          setArenaQIndex(i => i + 1);
+        } else {
+          setArenaStatus('DEFUSED');
+        }
+      };
+
+      // Keyboard Controls for Word Bomb Arena (A,B,C,D, Esc) and Flashcards (Space, Left, Right)
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          const tag = e.target?.tagName?.toLowerCase();
+          if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+          if (activeTab === 'arena' && arenaStatus === 'PLAYING') {
+            if (e.key === 'Escape') {
+              setActiveTab('game');
+              return;
+            }
+            const currentQ = arenaDeckQueue[arenaQIndex];
+            if (currentQ && currentQ.type === 'MULTIPLE_CHOICE' && !arenaIsAnswering) {
+              const keyMap = { 'a': 0, 'A': 0, '1': 0, 'b': 1, 'B': 1, '2': 1, 'c': 2, 'C': 2, '3': 2, 'd': 3, 'D': 3, '4': 3 };
+              if (e.key in keyMap) {
+                const choiceIdx = keyMap[e.key];
+                if (currentQ.options && choiceIdx < currentQ.options.length) {
+                  e.preventDefault();
+                  handleAnswerMCQ(choiceIdx);
+                }
+              }
+            }
+          }
+
+          if (activeTab === 'flashcards') {
+            if (e.code === 'Space') {
+              e.preventDefault();
+              setFlashcardFlipped(f => !f);
+            } else if (e.key === 'ArrowLeft') {
+              e.preventDefault();
+              setFlashcardIndex(idx => Math.max(0, idx - 1));
+              setFlashcardFlipped(false);
+            } else if (e.key === 'ArrowRight') {
+              e.preventDefault();
+              setFlashcardIndex(idx => Math.min(Math.max((flashcards.length || 1) - 1, 0), idx + 1));
+              setFlashcardFlipped(false);
+            }
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [activeTab, arenaStatus, arenaIsAnswering, arenaQIndex, arenaDeckQueue, flashcards.length]);
+
+      const activeArenaQ = arenaDeckQueue[arenaQIndex];
+      const isArenaDanger = arenaTimeRemaining <= 5.0 && arenaStatus === 'PLAYING';
+      const fusePercent = Math.max(0, Math.min(100, (arenaTimeRemaining / countdownSpeed) * 100));
+
+      const renderLibraryDeckCard = (deck) => {
+        const cardCount = deck.cards?.length || 0;
+        const documentCount = deck.documents?.length || 0;
+        const totalMaterials = cardCount + documentCount;
+        return (
+          <article
+            key={deck.id}
+            className="csm-library-deck-card"
+            onClick={() => handleSelectDeckForDetail(deck)}
+          >
+            <div className="csm-library-deck-card-top">
+              <span className="csm-library-deck-icon"><IconCards /></span>
+              <DeckCardActions deck={deck} />
+            </div>
+            <div className="csm-library-deck-card-copy">
+              <h3>{deck.code || deck.title}</h3>
+              <p>{deck.subject || 'Information Technology'}</p>
+              <span>{totalMaterials} material{totalMaterials === 1 ? '' : 's'}</span>
+            </div>
+            <div className="csm-library-deck-card-footer">
+              <span><IconUser /> By you</span>
+              <strong>Open deck <span>→</span></strong>
+            </div>
+          </article>
+        );
+      };
+
+      return (
+        <div className="app-shell w-full h-full flex items-stretch overflow-hidden">
+
+          {/* ========================================================
+              LEFT CAPSULE SIDEBAR
+              ======================================================== */}
+          <nav className={`w-14 min-w-[56px] bg-[#141922] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+            {/* Top Logo */}
+            <div className="flex flex-col items-center gap-4">
+              <div
+                className="w-10 h-10 csm-sidebar-logo flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+                onClick={() => { if (sidebarExpanded) setActiveTab('home'); else setSidebarExpanded(true); }}
+                title={sidebarExpanded ? 'Co-StudyMaxx Home' : 'Open sidebar'}
+                aria-label={sidebarExpanded ? 'Co-StudyMaxx Home' : 'Open sidebar'}
+              >
+                <img
+                  src="csm-sidebar-logo.png"
+                  alt="Co-StudyMaxx Logo"
+                  className="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                />
+                <svg className="csm-sidebar-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16M14 8l4 4-4 4" /></svg>
+                <span className="csm-sidebar-wordmark">Co-StudyMaxx</span>
+              </div>
+
+              {/* Navigation Tabs (MAIN Category) */}
+              <div className="flex flex-col items-center gap-2 mt-2 w-full">
+                <span className="csm-sidebar-category">MAIN</span>
+                <span className="csm-sidebar-divider" />
+
+                {/* 1. Home Dashboard */}
+                <button
+                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('home'); }}
+                  data-tooltip="Overview"
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'home'
+                    ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  title="Home Dashboard"
+                >
+                  <IconHome />
+                  <span className="csm-sidebar-label">Home</span>
+                </button>
+
+                {/* 2. Reviewer Library (Parent with Nested Child Items) */}
+                <div className="w-full flex flex-col items-center">
+                  <button
+                    onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                    data-tooltip="Reviewer Library"
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'library'
+                      ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                      : ['flashcards', 'creator', 'highlighter'].includes(activeTab)
+                        ? 'text-white bg-white/10 font-bold border border-white/15'
+                        : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    title="Reviewer Library (Authoring & Management)"
+                  >
+                    <IconLibrary />
+                    <span className="csm-sidebar-label">Library</span>
+                  </button>
+
+                  {/* Nested Navigation: Study & Create Bombcards (Revealed when Library is active) */}
+                  {['library', 'flashcards', 'creator'].includes(activeTab) && (
+                    <div className="csm-sidebar-subnav animate-fadeIn">
+                      {/* 2a. Study Mini Sidebar */}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
+                        data-tooltip="Study"
+                        className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
+                        title="Study (Review Bombcards)"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                          <path d="M6 6h10" />
+                          <path d="M6 10h10" />
+                        </svg>
+                        <span className="csm-sidebar-label">Study</span>
+                      </button>
+
+                      {/* 2b. Create Bombcards Mini Sidebar */}
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('creator'); }}
+                        data-tooltip="Create Bombcards"
+                        className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'creator' ? 'active' : ''}`}
+                        title="Create Bombcards"
+                      >
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="3" width="18" height="18" rx="3" />
+                          <path d="M12 8v8M8 12h8" />
+                        </svg>
+                        <span className="csm-sidebar-label">Create Bombcards</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Game Mode Section (Launch Lobby) */}
+                <button
+                  onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('game'); }}
+                  data-tooltip="Bomb Mode"
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'game' || activeTab === 'arena'
+                    ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  title="Game Mode (Countdown Arena Lobby)"
+                >
+                  <IconCards className="w-6 h-6" />
+                  <span className="csm-sidebar-label">Arena</span>
+                </button>
+
+                {/* ACCOUNT Category — placed below Arena */}
+                <span className="csm-sidebar-category" style={{marginTop: '8px'}}>ACCOUNT</span>
+                <span className="csm-sidebar-divider" />
+
+                {/* Profile Settings */}
+                <button
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'account' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+                  title="Account Profile"
+                  data-tooltip="Profile Settings"
+                  onClick={handleOpenAccount}
+                >
+                  <IconUser />
+                  <span className="csm-sidebar-label">Profile</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sidebar Collapse/Expand Toggle — bottom of nav */}
+            <div className="flex flex-col items-center gap-2 w-full">
+              <button
+                type="button"
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                data-tooltip={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                onClick={() => setSidebarExpanded(v => !v)}
+              >
+                <svg className={`w-4 h-4 transition-transform duration-200 ${sidebarExpanded ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3" />
+                  <path d="M9 3v18" />
+                  <path d="m15 9-3 3 3 3" />
+                </svg>
+                <span className="csm-sidebar-label">
+                  {sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+                </span>
+              </button>
+            </div>
+          </nav>
+
+          {/* ========================================================
+              MAIN LIGHT CANVAS SHELL
+              ======================================================== */}
+          <main className="flex-1 bg-[#f6f8fb] border-l border-[#dce5ee] overflow-hidden flex flex-col relative">
+
+            {/* Unified fintech-inspired application header - hidden during active arena drill */}
+            {activeTab !== 'arena' && (
+              <header className="csm-topbar">
+                <div className="csm-topbar-context">
+                  <span className="csm-topbar-workspace">Workspace</span>
+                  <span className="csm-topbar-sep">/</span>
+                  <span className="csm-topbar-current">
+                    {activeTab === 'home' && 'Overview'}
+                    {activeTab === 'library' && (selectedDeckForFolderView ? (currentSelectedDeck?.code || currentSelectedDeck?.title) : 'Reviewer Library')}
+                    {activeTab === 'flashcards' && (
+                      <>
+                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                        <span className="csm-topbar-sep">/</span>
+                        <span className="text-slate-900 font-extrabold">Study</span>
+                      </>
+                    )}
+                    {activeTab === 'creator' && (
+                      <>
+                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                        <span className="csm-topbar-sep">/</span>
+                        <span className="text-slate-900 font-extrabold">Create Bombcards</span>
+                      </>
+                    )}
+                    {activeTab === 'highlighter' && 'PDF Study Tool'}
+                    {activeTab === 'game' && 'Bomb Mode Lobby'}
+                    {activeTab === 'account' && 'Account Settings'}
+                  </span>
+                </div>
+                <div className="csm-top-actions">
+                  {activeTab === 'home' && (
+                    <button
+                      className={`csm-icon-button ${!chatCollapsed ? 'text-[#f04824] bg-orange-50/80 border-[#f04824]/30' : ''}`}
+                      type="button"
+                      aria-label={chatCollapsed ? 'Open MAXX Assistant' : 'Collapse MAXX Assistant'}
+                      title={chatCollapsed ? 'Open MAXX Assistant' : 'Collapse MAXX Assistant'}
+                      onClick={() => setChatCollapsed(prev => !prev)}
+                    >
+                      <img src="csm-sidebar-logo.png" alt="MAXX" className="w-4 h-4 object-contain" />
+                    </button>
+                  )}
+                  <div className="csm-notifications-wrap">
+                    <button className={`csm-icon-button csm-notification ${notifications.length ? '' : 'is-empty'}`} type="button" aria-label="Notifications" aria-expanded={notificationsOpen} title="Notifications" onClick={() => setNotificationsOpen(value => !value)}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+                    </button>
+                    {notificationsOpen && (
+                      <div className="csm-notifications-panel" role="dialog" aria-label="Notifications panel">
+                        <div className="csm-notifications-header"><strong>Notifications</strong><span>{notifications.length ? `${notifications.length} unread` : 'All caught up'}</span></div>
+                        <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. New study updates will appear here.</p></div>
+                        <div className="csm-notifications-actions"><button type="button" onClick={() => triggerToast(notifications.length ? 'Notifications marked as read' : 'No notifications to mark as read')}>Mark all as read</button><button type="button" onClick={() => { if (!notifications.length) { triggerToast('No notifications to clear'); return; } requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: () => { setNotifications([]); triggerToast('Notifications cleared'); } }); }}>Clear all</button></div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="csm-profile-wrap relative">
+                    <button
+                      className="csm-profile cursor-pointer"
+                      type="button"
+                      aria-label="Open profile menu"
+                      aria-expanded={accountMenuOpen}
+                      onClick={() => setAccountMenuOpen(v => !v)}
+                    >
+                      <span className="csm-profile-avatar" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span>
+                      <span className="csm-profile-copy"><strong>{displayName}</strong><small>@{profile.username || defaultProfile.username}</small></span>
+                      <svg className={`transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    {accountMenuOpen && (
+                      <div className="csm-account-dropdown animate-fadeIn" role="menu">
+                        <div className="csm-account-dropdown-user">
+                          <p>{displayName}</p>
+                          <span>@{profile.username || defaultProfile.username}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="csm-account-dropdown-item"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            handleOpenAccount();
+                          }}
+                        >
+                          <IconUser />
+                          <span>Profile Settings</span>
+                        </button>
+                        <div className="csm-account-dropdown-divider" />
+                        <button
+                          type="button"
+                          className="csm-account-dropdown-item danger"
+                          onClick={() => {
+                            setAccountMenuOpen(false);
+                            window.location.href = 'login.html';
+                          }}
+                        >
+                          <IconLogout />
+                          <span>Sign out</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </header>
+            )}
+
+            {/* Floating Toast Notification */}
+            {shareToast && (
+              <div className="absolute top-4 right-4 z-50 bg-[#181818] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 csm-toast-animate">
+                <span className="w-2 h-2 rounded-full bg-[#f04824]"></span>
+                {shareToast}
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW A: HOME DASHBOARD
+                ======================================================== */}
+            {activeTab === 'home' && (
+              <div className="flex h-full overflow-hidden relative">
+
+                {/* Dashboard Content Container (Static and unaffected by chatbot popup) */}
+                <div className="home-dashboard-content flex-1 w-full overflow-y-auto custom-scroll">
+
+                  {/* Header */}
+                  <div className="home-dashboard-header">
+                    <span className="home-dashboard-eyebrow">OVERVIEW</span>
+                    <h1 className="home-dashboard-title">{greeting}, {displayFirstName}</h1>
+                    <p className="home-dashboard-subtitle">Stay on top of your reviewers, practice progress, and study streak.</p>
+                  </div>
+
+                  {/* Statistic Cards Row */}
+                  <div className="home-stat-grid">
+                    <div
+                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      className="home-stat-card"
+                    >
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL DECKS</span>
+                        <span className="home-stat-value">{totalReviewers}</span>
+                        <span className="home-stat-description"><b className="csm-trend up">↑ 12%</b> this month</span>
+                      </span>
+                    </div>
+                    <div
+                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      className="home-stat-card cards-stat"
+                    >
+                      <span className="home-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                          <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                        </svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">TOTAL BOMBCARDS</span>
+                        <span className="home-stat-value">{totalBombCards}</span>
+                        <span className="home-stat-description"><b className="csm-trend up">↑ 8%</b> across your sets</span>
+                      </span>
+                    </div>
+                    <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
+                      <span className="home-stat-icon csm-stat-streak" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21a8 8 0 0 0 5.8-13.7C16.4 6 14.5 4.4 14 2c-3 2-4.2 4.2-3.4 6.3A4.6 4.6 0 0 0 7.5 12c0 1.3.6 2.5 1.5 3.4" /><path d="M12 21c-2.8 0-5-1.8-5-4.2 0-1.5.8-2.7 2.2-3.6.1 2.1 1.4 3.5 3.2 3.5 1.4 0 2.5-1 2.5-2.5 1.3 1.1 2.1 2.4 2.1 3.8 0 1.7-1.3 3-3 3Z" /></svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">STUDY STREAK</span>
+                        <span className="home-stat-value">7 days</span>
+                        <span className="home-stat-description"><b className="csm-trend up">↑ 2 days</b> personal best</span>
+                      </span>
+                    </div>
+                    <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
+                      <span className="home-stat-icon csm-stat-accuracy" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V5M4 19h16" /><path d="m7 15 3-4 3 2 5-7" /></svg>
+                      </span>
+                      <span className="home-stat-copy">
+                        <span className="home-stat-label">AVG. ACCURACY</span>
+                        <span className="home-stat-value">86%</span>
+                        <span className="home-stat-description"><b className="csm-trend up">↑ 5%</b> than last week</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="csm-home-grid">
+                    <section className="csm-chart-card">
+                      <div className="csm-card-heading"><div><span className="csm-kicker">PROGRESS</span><h2>Cards reviewed</h2></div><div className="csm-chart-legend"><span><i className="legend-dark" />This week</span><span><i className="legend-orange" />Last week</span></div></div>
+                      <div className="csm-chart" aria-label="Cards reviewed by day">
+                        {[['Mon', 42, 31], ['Tue', 58, 38], ['Wed', 48, 35], ['Thu', 76, 46], ['Fri', 62, 40], ['Sat', 86, 52], ['Sun', 70, 44]].map(([day, current, previous]) => <div className="csm-chart-column" key={day}><div className="csm-bars"><span className="csm-bar previous" style={{ height: `${previous}%` }} /><span className="csm-bar current" style={{ height: `${current}%` }} /></div><small>{day}</small></div>)}
+                      </div>
+                    </section>
+                    <section className="csm-detail-card">
+                      <div className="csm-card-heading"><div><span className="csm-kicker">FOCUS PLAN</span><h2>Study streak</h2></div><span className="csm-detail-menu">•••</span></div>
+                      <div className="csm-progress-ring"><strong>7</strong><small>days</small></div>
+                      <div className="csm-progress-track"><span style={{ width: '70%' }} /></div>
+                      <div className="csm-progress-labels"><span>3 days to goal</span><b>10 day goal</b></div>
+                      <p className="csm-card-note">Keep your momentum going. A short review today protects your streak.</p>
+                    </section>
+                  </div>
+
+                  <section className="csm-deck-row-card">
+                    <div className="csm-card-heading"><div><span className="csm-kicker">YOUR DECKS</span><h2>Pick up where you left off</h2></div><button type="button" className="csm-outline-button" onClick={() => setActiveTab('library')}>View all <span>→</span></button></div>
+                    <div className="csm-deck-row">{decks.map(deck => <button type="button" className="csm-deck-tile" key={deck.id} onClick={() => { setSelectedDeckIds([deck.id]); setActiveTab('flashcards'); }}><span className="csm-deck-tile-icon">▦</span><span><strong>{deck.code}</strong><small>{deck.cards?.length || 0} cards · {deck.subject}</small></span><span className="csm-deck-tile-arrow">→</span></button>)}</div>
+                  </section>
+
+                  <section className="csm-activity-card">
+                    <div className="csm-card-heading"><div><span className="csm-kicker">ACTIVITY</span><h2>Recent study sessions</h2></div><button type="button" className="csm-outline-button" onClick={() => setActiveTab('library')}>View library <span>→</span></button></div>
+                    <div className="csm-table-wrap"><table className="csm-table"><thead><tr><th><input type="checkbox" aria-label="Select all sessions" /></th><th>Material</th><th>Mode</th><th>Accuracy</th><th>Status</th><th>Last studied</th><th /></tr></thead><tbody>
+                      {[
+                        ['ITE 292 B1', 'BombStyle quiz', '92%', 'Completed', 'Today, 9:15 AM', 'deck-2'],
+                        ['ITE 083', 'Flashcards', '81%', 'In progress', 'Yesterday, 4:20 PM', 'deck-3'],
+                        ['ITE 001', 'Missed questions', '74%', 'Needs review', 'Sep 14, 2026', 'deck-1']
+                      ].map(([name, mode, accuracy, status, date, id]) => <tr key={id}><td><input type="checkbox" aria-label={`Select ${name}`} /></td><td><button className="csm-table-material" type="button" onClick={() => { setSelectedDeckForFolderView(decks.find(d => d.id === id) || null); setActiveTab('library'); }}><span className="csm-material-icon">▦</span><strong>{name}</strong></button></td><td>{mode}</td><td><strong>{accuracy}</strong></td><td><span className={`csm-status ${status === 'Completed' ? 'done' : status === 'In progress' ? 'progress' : 'review'}`}><i />{status}</span></td><td>{date}</td><td><button type="button" className="csm-row-menu" aria-label={`More actions for ${name}`}>•••</button></td></tr>)}
+                    </tbody></table></div>
+                  </section>
+
+                  <section className="csm-live-activity-card">
+                    <div className="csm-live-activity-heading"><div><span className="csm-kicker">ACTIVITY</span><h2>Recent Activity</h2><p>Your latest accessed study areas appear here.</p></div><button type="button" className="csm-outline-button" onClick={handleOpenLibrary}>View library <span>-&gt;</span></button></div>
+                    <div className="csm-live-activity-list">
+                      {recentActivities.length ? recentActivities.slice(0, 4).map(activity => <button key={activity.id} type="button" className="csm-live-activity-row" onClick={() => openRecentActivity(activity)}><span className="csm-live-activity-icon">{activity.mode === 'PDF Tools' ? 'PDF' : activity.mode === 'Profile' ? 'ME' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'BS' : 'FC'}</span><span className="csm-live-activity-copy"><strong>{activity.material}</strong><small>{activity.mode} · {formatActivityTime(activity.timestamp)}</small></span><span className="csm-live-activity-status">{activity.status}</span><span className="csm-live-activity-arrow">-&gt;</span></button>) : <div className="csm-live-activity-empty">No activity has been recorded yet.</div>}
+                    </div>
+                  </section>
+
+                  {/* Study Tools */}
+                  <section className="home-tools-section">
+                    <h2 className="home-tools-heading">Your Study Tools</h2>
+                    <p className="home-tools-subtitle">Everything you need to create, study, and improve.</p>
+                    <div className="home-tools-grid">
+                      <article className="home-tool-card" onClick={handleOpenLibrary}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="7" height="7" rx="1" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">Reviewer Library</h3>
+                        <p className="home-tool-description">Create, edit, and manage<br />your reviewers and PDF materials.</p>
+                        <button className="home-tool-button" type="button" onClick={handleOpenLibrary}>
+                          <span>Open Library</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
+
+                      <article className="home-tool-card bomb-tool" onClick={handleOpenGameMode}>
+                        <span className="home-tool-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
+                            <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
+                          </svg>
+                        </span>
+                        <h3 className="home-tool-title">BombStyle Mode</h3>
+                        <p className="home-tool-description">Customize game mode<br />and play.</p>
+                        <button className="home-tool-button" type="button" onClick={handleOpenGameMode}>
+                          <span>Enter Bomb Mode</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 12h15" />
+                            <path d="m13 6 6 6-6 6" />
+                          </svg>
+                        </button>
+                      </article>
+                    </div>
+                  </section>
+
+                  {/* Recent Activity */}
+                  <section className="home-recent-card">
+                    <h2 className="home-recent-heading">Recent Activity</h2>
+                    <p className="home-recent-subtitle">Pick up where you left off.</p>
+                    <div className="home-recent-divider" />
+                    <div className="home-recent-row">
+                      <span className="home-activity-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M7 3h7l4 4v14H7z" />
+                          <path d="M14 3v5h4M10 12h5M10 15h5M10 18h3" />
+                        </svg>
+                      </span>
+                      <span className="home-activity-copy">
+                        <span className="home-activity-title">ITE 292 B1</span>
+                        <span className="home-activity-meta">Last studied 2 hours ago · 3 cards</span>
+                      </span>
+                      <button className="home-activity-button" type="button" onClick={() => setActiveTab('library')}>
+                        <span>Continue</span>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M4 12h15" />
+                          <path d="m13 6 6 6-6 6" />
+                        </svg>
+                      </button>
+                    </div>
+                  </section>
+
+                </div>
+
+                {/* RIGHT COLUMN: Study Assistant Panel */}
+                <div className={`home-chat-panel flex flex-col shrink-0 hidden md:flex ${chatCollapsed ? 'is-collapsed' : ''}`}>
+
+                  {/* Assistant Header */}
+                  <div className="home-chat-header">
+                    <img src="csm-sidebar-logo.png" alt="Co-StudyMaxx Chat Bot" className="home-chat-avatar" />
+                    <div className="home-chat-heading">
+                      <h3 className="home-chat-title">MAXX</h3>
+                      <span className="home-chat-powered">Powered by Co-StudyMaxx</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button className="home-chat-reset" type="button" aria-label="Restart chat" title="Restart chat" onClick={handleChatReset}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 11a8 8 0 0 0-14.8-4L3 9" />
+                          <path d="M3 4v5h5" />
+                          <path d="M4 13a8 8 0 0 0 14.8 4L21 15" />
+                        </svg>
+                      </button>
+                      <button className="home-chat-collapse" type="button" aria-label="Collapse assistant" title="Collapse assistant" onClick={() => setChatCollapsed(true)}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 6L6 18M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Chat / Conversation Area */}
+                  <div className="home-chat-body flex-1 overflow-y-auto custom-scroll" aria-label="Chat conversation area" ref={chatBodyRef}>
+                    <div className="home-chat-messages">
+                      {chatMessages.map(message => (
+                        <div key={message.id} className={`home-chat-message ${message.role === 'user' ? 'user' : 'assistant'}`}>
+                          <span>{message.text}</span>
+                          {message.role === 'assistant' && message.actionLabel && (
+                            <button
+                              type="button"
+                              className="home-chat-action-btn"
+                              onClick={() => {
+                                if (message.actionTab === 'game') handleOpenGameMode();
+                                else setActiveTab(message.actionTab);
+                              }}
+                            >
+                              <span>{message.actionLabel}</span>
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {chatTyping && <div className="home-chat-message assistant home-chat-typing"><span><i /> <i /> <i /></span></div>}
+                    </div>
+                  </div>
+
+                  {/* Fixed Questions Footer - No Free Typing */}
+                  <div className="home-chat-footer">
+                    <div className="home-chat-footer-label">
+                      <span>CHOOSE A TOPIC</span>
+                      <span className="home-chat-footer-badge">Fixed Q&A</span>
+                    </div>
+                    <div className="home-chat-fixed-list custom-scroll" role="list">
+                      {FIXED_CHAT_TOPICS.map((topic) => (
+                        <button
+                          key={topic.id}
+                          className="home-chat-fixed-btn"
+                          type="button"
+                          onClick={() => handleSelectChatTopic(topic)}
+                          disabled={chatTyping}
+                        >
+                          <span className="home-chat-fixed-bullet">●</span>
+                          <span className="home-chat-fixed-text">{topic.title}</span>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m9 5 7 7-7 7" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Floating Launcher Button when collapsed */}
+                {chatCollapsed && (
+                  <button
+                    type="button"
+                    className="home-chat-launcher"
+                    onClick={() => setChatCollapsed(false)}
+                    title="Open MAXX Assistant"
+                    aria-label="Open MAXX Assistant"
+                  >
+                    <img src="csm-sidebar-logo.png" alt="MAXX" />
+                    <span>Ask MAXX</span>
+                    <span className="launcher-dot"></span>
+                  </button>
+                )}
+
+              </div>
+            )}
+
+            {activeTab === 'account' && (
+              <div className="csm-screen csm-account-screen custom-scroll">
+                <div className="csm-page-head">
+                  <div><span className="csm-kicker">ACCOUNT SETTINGS</span><h1>{accountSectionDetails.title}</h1><p>{accountSectionDetails.description}</p></div>
+                  <div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('home')}>Back to dashboard</button></div>
+                </div>
+
+                <div className="csm-account-tabs" role="tablist" aria-label="Account sections">
+                  {[
+                    ['profile', 'Profile'],
+                    ['security', 'Security'],
+                    ['privacy', 'Privacy & policy']
+                  ].map(([sectionId, label]) => (
+                    <button key={sectionId} type="button" role="tab" aria-selected={accountSection === sectionId} className={accountSection === sectionId ? 'active' : ''} onClick={() => setAccountSection(sectionId)}>{label}</button>
+                  ))}
+                </div>
+
+                <div className={`csm-account-layout account-section-${accountSection}`}>
+                  <section className="csm-account-card csm-account-summary">
+                    <div className="csm-account-summary-top"><span className="csm-account-avatar-large" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span><div><span className="csm-kicker">STUDY PROFILE</span><h2>{displayName}</h2><p>@{profile.username || defaultProfile.username}</p></div></div>
+                    <div className="csm-account-summary-note"><span>Local placeholder</span><p>Your profile changes are currently saved in this browser. They will connect to your account once the database is added.</p></div>
+                    <div className="csm-account-summary-stats"><div><strong>{totalReviewers}</strong><span>reviewers</span></div><div><strong>{totalBombCards}</strong><span>Bombcards</span></div><div><strong>{totalDocuments}</strong><span>PDF notes</span></div></div>
+                  </section>
+
+                  <section className="csm-account-card csm-account-identity-card">
+                    <div className="csm-account-card-heading"><div><span className="csm-kicker">IDENTITY</span><h2>Display name</h2></div><span className="csm-account-status">Visible to classmates</span></div>
+                    <div className="csm-account-username-row"><span>Username</span><strong>@{profile.username || defaultProfile.username}</strong></div>
+                    <form className="csm-account-name-form" onSubmit={handleSaveDisplayName}>
+                      <label className="csm-account-field">Name<input type="text" value={profileNameDraft} onChange={(event) => setProfileNameDraft(event.target.value)} maxLength="40" aria-describedby="display-name-help" /></label>
+                      <button type="submit" className="csm-primary-button" disabled={nameCooldownRemaining > 0 || !profileNameDraft.trim() || profileNameDraft.trim() === displayName}>Save name</button>
+                    </form>
+                    <div id="display-name-help" className={`csm-account-help ${nameCooldownRemaining > 0 ? 'is-locked' : ''}`}>{nameCooldownRemaining > 0 ? `Name changes are locked for ${nameCooldownDays} more day${nameCooldownDays === 1 ? '' : 's'}.` : 'You can change your display name once every 7 days.'}</div>
+                  </section>
+
+                  <section className="csm-account-card csm-account-avatar-card">
+                    <div className="csm-account-card-heading"><div><span className="csm-kicker">PROFILE IMAGE</span><h2>Choose an avatar</h2></div><span className="csm-account-status">Preset collection</span></div>
+                    <div className="csm-account-avatar-grid">{avatarOptions.map(avatar => <button key={avatar.id} type="button" className={`csm-account-avatar-option ${profile.avatar === avatar.id ? 'selected' : ''}`} onClick={() => handleChooseAvatar(avatar.id)} aria-label={`Use ${avatar.label} avatar`} aria-pressed={profile.avatar === avatar.id}><span style={{ background: avatar.background }}>{avatar.initials}</span><small>{avatar.label}</small></button>)}</div>
+                    <p className="csm-account-help">Choose one of the pre-made avatars. A database-backed upload option can be added later.</p>
+                  </section>
+
+                  <section className="csm-account-card csm-account-security-card">
+                    <div className="csm-account-card-heading"><div><span className="csm-kicker">SECURITY</span><h2>Password</h2></div><span className="csm-account-placeholder-badge">Placeholder</span></div>
+                    <div className="csm-account-security-row"><span className="csm-account-security-icon">•••</span><div><strong>Reset your password</strong><p>Password reset will be connected once the account database and email service are available.</p></div><button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(true)}>Reset password</button></div>
+                  </section>
+                  <section className="csm-account-card csm-account-policy-card">
+                    <div className="csm-account-card-heading"><div><span className="csm-kicker">PRIVACY &amp; POLICY</span><h2>Your data in Co-StudyMaxx</h2></div><span className="csm-account-placeholder-badge">Placeholder</span></div>
+                    <div className="csm-policy-list">
+                      <div className="csm-policy-item"><strong>Browser-only profile data</strong><p>Your username, display name, avatar choice, and preferences are currently saved in this browser until a database is connected.</p></div>
+                      <div className="csm-policy-item"><strong>Study activity</strong><p>The Home activity list only records the Library materials you open so you can return to your latest study work.</p></div>
+                      <div className="csm-policy-item"><strong>Future policy links</strong><p>Privacy policy, terms, account deletion, and data export links will be connected here when the backend is ready.</p></div>
+                    </div>
+                    <div className="csm-policy-actions"><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Privacy policy placeholder — backend connection pending')}>View privacy policy</button><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Data export placeholder — backend connection pending')}>Data export</button></div>
+                  </section>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW B: REVIEWER LIBRARY (Pure Creation & Management)
+                ======================================================== */}
+            {activeTab === 'library' && (
+              <div className="csm-library-screen custom-scroll">
+                <div className="csm-library-header">
+                  <div>
+                    <span className="csm-kicker">YOUR STUDY DESK</span>
+                    <h1>Reviewer Library</h1>
+                    <p>Build focused reviewers, keep your notes together, and pick up where you left off.</p>
+                  </div>
+                  <div className="csm-library-header-actions">
+                    <button type="button" className="csm-primary-button" onClick={handleOpenCreateFolderInfo}><IconPlus /> New deck</button>
+                  </div>
+                </div>
+
+                <div className="csm-library-overview">
+                  <div className="csm-library-overview-card"><span><IconLibrary /></span><div><small>Total decks</small><strong>{totalReviewers}</strong></div></div>
+                  <div className="csm-library-overview-card"><span><IconCards /></span><div><small>Bombcards</small><strong>{totalBombCards}</strong></div></div>
+                  <div className="csm-library-overview-card"><span><IconPdf /></span><div><small>PDF notes</small><strong>{totalDocuments}</strong></div></div>
+                </div>
+
+                {selectedDeckForFolderView && currentSelectedDeck ? (
+                  <div className="csm-library-detail animate-fadeIn">
+                    <div className="csm-library-detail-header">
+                      <div className="csm-library-detail-heading">
+                        <button type="button" className="csm-library-back" onClick={() => setSelectedDeckForFolderView(null)} title="Back to Reviewer Library" aria-label="Back to Reviewer Library"><IconArrowLeft /></button>
+                        <div>
+                          <span className="csm-kicker">REVIEWER DECK</span>
+                          <h1>{currentSelectedDeck.code || currentSelectedDeck.title}</h1>
+                          <p>{currentSelectedDeck.subject || 'Information Technology'} · Updated {currentSelectedDeck.lastModified || 'recently'}</p>
+                        </div>
+                      </div>
+                      <div className="csm-library-detail-actions">
+                        <DeckCardActions deck={currentSelectedDeck} />
+                        <button type="button" className="csm-secondary-button" onClick={() => handleOpenDeckStudy(currentSelectedDeck)}>Study deck</button>
+                        <button type="button" className="csm-primary-button" onClick={() => handleOpenDeckStudy(currentSelectedDeck, 'game')}>Play Bomb Mode <span>→</span></button>
+                      </div>
+                    </div>
+
+                    <div className="csm-library-detail-stats">
+                      <div className="csm-library-detail-stat accent"><small>Bombcards</small><strong>{currentSelectedDeck.cards?.length || 0}</strong></div>
+                      <div className="csm-library-detail-stat"><small>PDF notes</small><strong>{currentSelectedDeck.documents?.length || 0}</strong></div>
+                      <div className="csm-library-detail-stat"><small>Study status</small><strong>{currentSelectedDeck.cards?.length ? 'Ready' : 'Needs cards'}</strong></div>
+                    </div>
+
+                    <section className="csm-library-content-section">
+                      <div className="csm-library-section-heading">
+                        <div className="csm-library-section-heading-left"><span className="csm-kicker">PRACTICE SET</span><span className="csm-library-count-pill">{currentSelectedDeck.cards?.length || 0} cards</span></div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentSelectedDeck.id]);
+                              setCreatorTargetDeckId(currentSelectedDeck.id);
+                              setActiveTab('creator');
+                            }}
+                          >
+                            <IconPlus /> Create Bombcards
+                          </button>
+                          {currentSelectedDeck.cards?.length > 3 && (
+                            <button type="button" onClick={() => setShowAllBombcards(prev => !prev)}>
+                              {showAllBombcards ? 'Show less' : 'Show all'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {(!currentSelectedDeck.cards || currentSelectedDeck.cards.length === 0) ? (
+                        <div className="csm-library-empty">
+                          <strong>Your Bombcard set is empty</strong>
+                          <p>Add your first question manually or explore reviewer tools to start building this set.</p>
+                          <button
+                            type="button"
+                            className="csm-primary-button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentSelectedDeck.id]);
+                              setCreatorTargetDeckId(currentSelectedDeck.id);
+                              setActiveTab('creator');
+                            }}
+                          >
+                            <IconPlus /> Create Bombcards
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="csm-library-bombcard-grid">
+                          {visibleCards.map((card, idx) => {
+                            const cardId = card.id || `${currentSelectedDeck.id}-card-${idx}`;
+                            const isRevealed = revealedLibraryCards.includes(cardId);
+                            const materialMenuOpen = openMaterialMenuId === cardId;
+                            return (
+                              <article key={cardId} className={`csm-library-bombcard ${isRevealed ? 'revealed' : ''}`}>
+                                <div className="csm-library-bombcard-top">
+                                  <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>
+                                  <div className="csm-material-actions">
+                                    <button
+                                      type="button"
+                                      className="csm-material-menu-trigger"
+                                      aria-label={`Card options for ${idx + 1}`}
+                                      aria-expanded={materialMenuOpen}
+                                      onClick={() => setOpenMaterialMenuId(materialMenuOpen ? null : cardId)}
+                                    >
+                                      •••
+                                    </button>
+                                    {materialMenuOpen && (
+                                      <div className="csm-material-menu">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            toggleLibraryCardAnswer(cardId);
+                                            setOpenMaterialMenuId(null);
+                                          }}
+                                        >
+                                          {isRevealed ? 'Hide answer' : 'Reveal answer'}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setOpenMaterialMenuId(null);
+                                            setSelectedDeckIds([currentSelectedDeck.id]);
+                                            setCreatorTargetDeckId(currentSelectedDeck.id);
+                                            setActiveTab('creator');
+                                          }}
+                                        >
+                                          <IconEdit /> Create cards
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <p className="csm-library-bombcard-prompt">{card.prompt}</p>
+                                {isRevealed && <p className="csm-library-bombcard-answer">{card.correctAnswer || 'Answer not saved yet.'}</p>}
+                                <div className="csm-library-bombcard-footer"><small>{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</small><button type="button" className="csm-library-reveal" onClick={() => toggleLibraryCardAnswer(cardId)}>{isRevealed ? 'Hide answer' : 'Reveal answer'}</button></div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </section>
+
+                    <section className="csm-library-content-section">
+                      <div className="csm-library-section-heading"><div className="csm-library-section-heading-left"><span className="csm-kicker">REFERENCE NOTES</span><span className="csm-library-count-pill">{currentSelectedDeck.documents?.length || 0} PDFs</span></div><button type="button" onClick={(e) => handleOpenAddMaterialPopup(currentSelectedDeck, e)}><IconPlus /> Add PDF</button></div>
+                      <div className="csm-library-documents">
+                        {(!currentSelectedDeck.documents || currentSelectedDeck.documents.length === 0) ? (
+                          <div className="csm-library-empty-row">No documents attached yet. Upload lecture notes or slides to keep them beside this reviewer.</div>
+                        ) : currentSelectedDeck.documents.map((doc) => {
+                          const docMenuId = `doc-${doc.id}`;
+                          const documentMenuOpen = openMaterialMenuId === docMenuId;
+                          return (
+                            <div key={doc.id} className="csm-library-document">
+                              <div className="csm-library-document-main"><span className="csm-library-document-icon">PDF</span><div className="csm-library-document-copy"><button type="button" onClick={() => handleOpenDocument(currentSelectedDeck, doc)}>{doc.title}</button><small>PDF reference · Click to open in PDF Tools</small></div></div>
+                              <div className="csm-material-actions"><button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}>•••</button>{documentMenuOpen && <div className="csm-material-menu"><button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button><button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button></div>}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  </div>
+                ) : (
+                  <div className="csm-library-main animate-fadeIn">
+                    <div className="csm-library-toolbar">
+                      <label className="csm-library-search"><IconSearch /><input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search decks by title or subject" aria-label="Search decks by title or subject" /></label>
+                      <label className="csm-library-filter"><span>Filter</span><select value={librarySubjectFilter} onChange={(e) => setLibrarySubjectFilter(e.target.value)} aria-label="Filter decks by subject">{librarySubjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label>
+                    </div>
+
+                    <section className="csm-library-list-section">
+                      <div className="csm-library-section-heading"><div><h2>Recently updated</h2><span>{recentDecks.length} deck{recentDecks.length === 1 ? '' : 's'} · last 7 days</span></div><button type="button" onClick={() => setCollapseRecent(prev => !prev)}>{collapseRecent ? 'Show section' : 'Collapse section'}</button></div>
+                      {!collapseRecent && (recentDecks.length ? <div className="csm-library-deck-grid">{recentDecks.map(renderLibraryDeckCard)}</div> : <div className="csm-library-empty"><strong>{olderDecks.length ? 'No recently updated decks' : 'No decks match your search'}</strong><p>{olderDecks.length ? 'Your matching reviewers are listed below.' : 'Try another title or subject, or create a fresh reviewer.'}</p><button type="button" className="csm-primary-button" onClick={handleOpenCreateFolderInfo}><IconPlus /> Add a deck</button></div>)}
+                    </section>
+
+                    {olderDecks.length > 0 && <section className="csm-library-list-section mt-6">
+                      <div className="csm-library-section-heading"><div><h2>More reviewers</h2><span>{olderDecks.length} deck{olderDecks.length === 1 ? '' : 's'} · older than a week</span></div><button type="button" onClick={() => setCollapseOlder(prev => !prev)}>{collapseOlder ? 'Show section' : 'Collapse section'}</button></div>
+                      {!collapseOlder && <div className="csm-library-deck-grid">{olderDecks.map(renderLibraryDeckCard)}</div>}
+                    </section>}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW B2: STUDY (Active Review of Bombcards)
+                ======================================================== */}
+            {activeTab === 'flashcards' && (
+              <div className="csm-screen csm-flashcards-screen custom-scroll">
+                <div className="csm-page-head">
+                  <div>
+                    <span className="csm-kicker">ACTIVE REVIEW</span>
+                    <h1>Study Bombcards</h1>
+                    <p>Recall first, reveal the answer when you’re ready. Focus on understanding before moving forward.</p>
+                  </div>
+                  <div className="csm-page-actions">
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      onClick={() => {
+                        setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
+                        setActiveTab('creator');
+                      }}
+                    >
+                      <IconPlus className="w-3.5 h-3.5 mr-1.5 text-[#f04824]" /> Create Bombcards
+                    </button>
+                    <button type="button" className="csm-primary-button" onClick={() => setActiveTab('game')}>
+                      Play Bomb Mode <span>→</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="csm-viewer-toolbar">
+                  <label>
+                    Reviewing deck
+                    <select
+                      value={activeFlashcardDeck?.id || ''}
+                      onChange={(e) => {
+                        setSelectedDeckIds([e.target.value]);
+                        setFlashcardIndex(0);
+                        setFlashcardFlipped(false);
+                      }}
+                    >
+                      {decks.map(deck => (
+                        <option key={deck.id} value={deck.id}>
+                          {deck.code} — {deck.title || deck.subject} ({deck.cards?.length || 0} cards)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <span className="csm-viewer-progress">
+                    Card {flashcards.length ? Math.min(flashcardIndex + 1, flashcards.length) : 0} of {flashcards.length}
+                  </span>
+                </div>
+                <div className="csm-viewer-layout">
+                  <section className="csm-flashcard-panel">
+                    <div className="csm-flashcard-progress">
+                      <span style={{ width: `${flashcards.length ? ((flashcardIndex + 1) / flashcards.length) * 100 : 0}%` }} />
+                    </div>
+                    {flashcards.length > 0 ? (
+                      <button
+                        type="button"
+                        className={`csm-flashcard ${flashcardFlipped ? 'is-flipped' : ''}`}
+                        onClick={() => setFlashcardFlipped(value => !value)}
+                        aria-label="Flip flashcard"
+                      >
+                        <span className="csm-flashcard-side-label">{flashcardFlipped ? 'ANSWER' : 'PROMPT'}</span>
+                        <strong>{flashcardFlipped ? (activeFlashcard?.correctAnswer || 'No answer saved yet') : (activeFlashcard?.prompt || 'No cards in this deck yet.')}</strong>
+                        {flashcardFlipped && activeFlashcard?.explanation && <p>{activeFlashcard.explanation}</p>}
+                        <small>{flashcardFlipped ? 'Click or press Space to see prompt' : 'Click or press Space to reveal answer'} &bull; &larr; &rarr; to navigate</small>
+                      </button>
+                    ) : (
+                      <div className="csm-flashcard flex flex-col items-center justify-center p-8 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#f04824] flex items-center justify-center mb-3">
+                          <IconCards className="w-6 h-6" />
+                        </div>
+                        <strong className="text-lg text-slate-800">No Bombcards in this deck yet</strong>
+                        <p className="text-xs text-slate-400 mt-1 mb-4">Add your first question to start studying this reviewer.</p>
+                        <button
+                          type="button"
+                          className="csm-primary-button"
+                          onClick={() => {
+                            setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
+                            setActiveTab('creator');
+                          }}
+                        >
+                          <IconPlus className="w-3.5 h-3.5 mr-1" /> Create Bombcards
+                        </button>
+                      </div>
+                    )}
+                    <div className="csm-viewer-controls">
+                      <button
+                        type="button"
+                        className="csm-secondary-button"
+                        onClick={() => { setFlashcardIndex(index => Math.max(0, index - 1)); setFlashcardFlipped(false); }}
+                        disabled={flashcardIndex === 0}
+                      >
+                        ← Previous
+                      </button>
+                      <button
+                        type="button"
+                        className="csm-primary-button"
+                        onClick={() => { setFlashcardIndex(index => Math.min(Math.max(flashcards.length - 1, 0), index + 1)); setFlashcardFlipped(false); }}
+                        disabled={!flashcards.length || flashcardIndex >= flashcards.length - 1}
+                      >
+                        Next card →
+                      </button>
+                    </div>
+                  </section>
+                  <aside className="csm-review-summary">
+                    <span className="csm-kicker">SESSION SUMMARY</span>
+                    <h2>{activeFlashcardDeck?.code || 'Your deck'}</h2>
+                    <div className="csm-summary-stat"><strong>{flashcards.length}</strong><span>cards in deck</span></div>
+                    <div className="csm-summary-stat"><strong>86%</strong><span>last accuracy</span></div>
+                    <div className="csm-summary-stat"><strong>3</strong><span>missed to revisit</span></div>
+                    <button type="button" className="csm-text-button" onClick={() => setActiveTab('game')}>Practice missed cards <span>→</span></button>
+                  </aside>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW B3: CREATE BOMBCARDS (Dedicated Full Page Experience)
+                ======================================================== */}
+            {activeTab === 'creator' && (() => {
+              const currentTargetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
+              const deckCards = currentTargetDeck?.cards || [];
+              return (
+                <div className="csm-screen csm-creator-screen custom-scroll">
+                  {/* Page Header */}
+                  <div className="csm-page-head">
+                    <div>
+                      <span className="csm-kicker">BOMBCARD AUTHORING</span>
+                      <h1>Create Bombcards</h1>
+                      <p>Draft new study questions manually or prepare materials for your reviewer decks.</p>
+                    </div>
+                    <div className="csm-page-actions">
+                      <button
+                        type="button"
+                        className="csm-secondary-button"
+                        onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      >
+                        Back to Library
+                      </button>
+                      <button
+                        type="button"
+                        className="csm-primary-button"
+                        onClick={() => setActiveTab('flashcards')}
+                      >
+                        Go to Study <span>→</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Creation Options Header Banner */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    {/* Option A: Create Bombcards Manually (ACTIVE & AVAILABLE) */}
+                    <div className="bg-white p-5 rounded-2xl border-2 border-[#f04824] shadow-sm flex items-start gap-4 transition-all">
+                      <div className="w-11 h-11 rounded-xl bg-orange-50 text-[#f04824] border border-orange-100 flex items-center justify-center flex-shrink-0">
+                        <IconCards className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-sm font-extrabold text-slate-900">Create Bombcards Manually</h3>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-[#f04824]">Active Mode</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Write custom questions, correct answers, and optional hints directly into your selected reviewer deck.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Option B: Generate AI Bombcards (COMING SOON / DISABLED) */}
+                    <div className="bg-white/70 p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-start gap-4 relative overflow-hidden select-none cursor-not-allowed">
+                      <div className="opacity-35 blur-[1.2px] flex items-start gap-4 w-full pointer-events-none">
+                        <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center flex-shrink-0">
+                          <IconSparkles className="w-6 h-6" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="text-sm font-extrabold text-slate-900">Generate AI Bombcards</h3>
+                          </div>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            Automatically extract key question-and-answer pairs from uploaded lecture notes and PDFs.
+                          </p>
+                        </div>
+                      </div>
+                      {/* Prominent Coming Soon badge overlay */}
+                      <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] flex items-center justify-center">
+                        <span className="px-3.5 py-1.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider rounded-full shadow-md border border-slate-700/40 flex items-center gap-1.5">
+                          <svg className="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                          Coming Soon
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Manual Creation Workspace Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    {/* Left Column: Authoring Form */}
+                    <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                      <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
+                        <div>
+                          <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block">MANUAL AUTHORING</span>
+                          <h2 className="text-base font-extrabold text-slate-900">Card Specifications</h2>
+                        </div>
+                        <span className="text-xs text-slate-400 font-semibold">
+                          Deck: <b className="text-slate-800">{currentTargetDeck?.code || 'None'}</b>
+                        </span>
+                      </div>
+
+                      {/* 1. Target Deck Selection */}
+                      <label className="block mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Target Reviewer Deck *</span>
+                        <select
+                          value={creatorTargetDeckId}
+                          onChange={(e) => setCreatorTargetDeckId(e.target.value)}
+                          className="w-full h-10 px-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all cursor-pointer"
+                        >
+                          {decks.map(d => (
+                            <option key={d.id} value={d.id}>
+                              {d.code} — {d.title || d.subject} ({d.cards?.length || 0} cards)
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {/* 2. Format Toggle */}
+                      <div className="mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Format</span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setCreatorType('MULTIPLE_CHOICE')}
+                            className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              creatorType === 'MULTIPLE_CHOICE'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Multiple Choice
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCreatorType('IDENTIFICATION')}
+                            className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              creatorType === 'IDENTIFICATION'
+                                ? 'bg-slate-900 text-white shadow-sm'
+                                : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            Identification
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 3. Question Prompt */}
+                      <label className="block mb-4">
+                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Prompt *</span>
+                        <textarea
+                          value={creatorPrompt}
+                          onChange={(e) => setCreatorPrompt(e.target.value)}
+                          placeholder="e.g. Which SQL command removes all rows from a table without logging individual row deletions?"
+                          rows="3"
+                          className="w-full p-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-[#f04824] focus:bg-white resize-none transition-all leading-relaxed"
+                        />
+                      </label>
+
+                      {/* 4. Answer Area */}
+                      {creatorType === 'MULTIPLE_CHOICE' ? (
+                        <div className="mb-4 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">Answer Options *</span>
+                            <span className="text-[11px] text-slate-400 font-medium">Select radio to set the correct answer</span>
+                          </div>
+                          {creatorOptions.map((opt, idx) => (
+                            <div key={idx} className="flex items-center gap-2.5">
+                              <input
+                                type="radio"
+                                name="creatorRadioCorrect"
+                                checked={creatorCorrectIndex === idx}
+                                onChange={() => setCreatorCorrectIndex(idx)}
+                                className="w-4 h-4 text-[#f04824] accent-[#f04824] cursor-pointer"
+                                title="Designate as correct answer"
+                              />
+                              <input
+                                type="text"
+                                value={opt}
+                                onChange={(e) => {
+                                  const updated = [...creatorOptions];
+                                  updated[idx] = e.target.value;
+                                  setCreatorOptions(updated);
+                                }}
+                                placeholder={`Option ${String.fromCharCode(65 + idx)}${idx === creatorCorrectIndex ? ' (Correct Answer)' : ''}`}
+                                className={`flex-1 h-9 px-3 bg-[#f8f9fa] border rounded-xl text-xs text-slate-800 outline-none focus:bg-white transition-all ${
+                                  creatorCorrectIndex === idx
+                                    ? 'border-[#f04824] bg-orange-50/20 font-bold'
+                                    : 'border-slate-200 focus:border-slate-400'
+                                }`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mb-4 space-y-3">
+                          <label className="block">
+                            <span className="text-xs font-bold text-slate-700 block mb-1.5">Correct Answer *</span>
+                            <input
+                              type="text"
+                              value={creatorAnswer}
+                              onChange={(e) => setCreatorAnswer(e.target.value)}
+                              placeholder="e.g. TRUNCATE"
+                              className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-xs font-bold text-slate-500 block mb-1.5">Accepted Alternates (Optional)</span>
+                            <input
+                              type="text"
+                              value={creatorAlternates}
+                              onChange={(e) => setCreatorAlternates(e.target.value)}
+                              placeholder="e.g. truncate, TRUNCATE TABLE"
+                              className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {/* 5. Optional Hint */}
+                      <label className="block mb-6">
+                        <span className="text-xs font-bold text-slate-500 block mb-1.5">Study Hint / Tag (Optional)</span>
+                        <input
+                          type="text"
+                          value={creatorHint}
+                          onChange={(e) => setCreatorHint(e.target.value)}
+                          placeholder="e.g. DDL Command, Fast Erase, Chapter 2"
+                          className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                        />
+                      </label>
+
+                      {/* Form Actions Footer */}
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCreatorPrompt('');
+                            setCreatorHint('');
+                            setCreatorOptions(['', '', '', '']);
+                            setCreatorAnswer('');
+                            setCreatorAlternates('');
+                          }}
+                          className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                          Clear fields
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveBombcard}
+                          className="csm-primary-button"
+                        >
+                          <IconPlus /> Add Bombcard
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Live Card Preview & Existing Cards in Deck */}
+                    <div className="lg:col-span-5 space-y-5">
+                      {/* Live Card Preview */}
+                      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                          <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider">LIVE PREVIEW</span>
+                          <span className="text-[11px] font-bold text-slate-500">
+                            {creatorType === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
+                          </span>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-[#fbfcfd] to-[#f4f7fb] border border-slate-200/90 rounded-xl min-h-[160px] flex flex-col justify-between">
+                          <div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                              {currentTargetDeck?.code || 'Deck'} • Question Preview
+                            </span>
+                            <p className="text-xs font-bold text-slate-800 leading-relaxed">
+                              {creatorPrompt.trim() || 'Your question prompt will appear here as you type...'}
+                            </p>
+                            {creatorHint.trim() && (
+                              <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                                Hint: {creatorHint}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-200/80">
+                            <span className="text-[10px] font-bold text-[#f04824] uppercase tracking-wider block mb-1">
+                              Correct Answer
+                            </span>
+                            <span className="text-xs font-extrabold text-slate-900 bg-white px-2.5 py-1 rounded-md border border-slate-200 inline-block">
+                              {creatorType === 'MULTIPLE_CHOICE'
+                                ? (creatorOptions[creatorCorrectIndex]?.trim() || `Option ${String.fromCharCode(65 + creatorCorrectIndex)} (Designated)`)
+                                : (creatorAnswer.trim() || 'Answer not specified yet')}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Cards in Deck Overview */}
+                      <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <IconCards className="w-4 h-4 text-slate-600" />
+                            <h3 className="text-xs font-extrabold text-slate-900">
+                              Cards in {currentTargetDeck?.code}
+                            </h3>
+                          </div>
+                          <span className="text-xs font-extrabold text-[#f04824] bg-orange-50 px-2 py-0.5 rounded-full">
+                            {deckCards.length} cards
+                          </span>
+                        </div>
+                        {deckCards.length === 0 ? (
+                          <p className="text-xs text-slate-400 italic py-3 text-center">
+                            No cards in this deck yet. Use the form to add your first card!
+                          </p>
+                        ) : (
+                          <div className="space-y-2 max-h-56 overflow-y-auto custom-scroll pr-1">
+                            {deckCards.map((card, idx) => (
+                              <div
+                                key={card.id || idx}
+                                className="p-2.5 bg-[#f8f9fa] border border-slate-200/80 rounded-xl text-xs flex items-start justify-between gap-2"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <span className="text-[10px] font-bold text-slate-400 block">
+                                    #{idx + 1} • {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                                  </span>
+                                  <p className="font-semibold text-slate-800 truncate mt-0.5">{card.prompt}</p>
+                                </div>
+                                <span className="text-[10px] font-extrabold text-[#f04824] bg-white border border-slate-200 px-2 py-0.5 rounded whitespace-nowrap">
+                                  {card.correctAnswer || 'Answer'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedDeckIds([currentTargetDeck.id]);
+                              setActiveTab('flashcards');
+                            }}
+                            className="text-xs font-extrabold text-[#f04824] hover:underline cursor-pointer flex items-center gap-1"
+                          >
+                            <span>Review deck in Study</span>
+                            <span>→</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ========================================================
+                VIEW B4: PDF HIGHLIGHTER
+                ======================================================== */}
+            {activeTab === 'highlighter' && (
+              <div className="csm-screen csm-highlighter-screen custom-scroll">
+                <div className="csm-page-head"><div><span className="csm-kicker">PDF STUDY TOOL</span><h1>Highlight your notes</h1><p>Mark the ideas you want to turn into future flashcards.</p></div><div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button><button type="button" className="csm-primary-button" onClick={() => { showChangeConfirmation('Highlights saved', 'Your saved study notes are ready to use in your reviewer.'); setActiveTab('creator'); }}>Save highlights</button></div></div>
+                <div className="csm-highlighter-layout">
+                  <section className="csm-pdf-card">
+                    <div className="csm-pdf-toolbar"><div><strong>ITE 292 B1 - Normalization Rules.pdf</strong><span>Page 3 of 8 - 1.2 MB</span></div><div className="csm-pdf-tools"><button type="button" className="csm-pdf-tool active" onClick={() => setHighlightColor('#f5a23a')} style={{ color: '#f5a23a' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => setHighlightColor('#8dc7ef')} style={{ color: '#8dc7ef' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => setHighlightColor('#a8d8a8')} style={{ color: '#a8d8a8' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => triggerToast('PDF uploaded')}>Upload</button></div></div>
+                    <div className="csm-pdf-page"><span className="csm-pdf-page-number">3</span><h2>Database Normalization</h2><p>Normalization organizes data in a database to reduce redundancy and improve data integrity. Each normal form introduces rules that make a schema easier to maintain.</p><p><mark style={{ background: highlightColor }}>A relation is in third normal form when it is already in 2NF and no non-key attribute depends transitively on the primary key.</mark></p><p>Use the smallest useful set of tables, connect them with keys, and make each fact live in one place.</p><div className="csm-pdf-note">Key idea: transitive dependencies are the focus of 3NF.</div></div>
+                    <div className="csm-pdf-pagination"><button type="button" className="csm-secondary-button">Previous page</button><span>Page 3 / 8</span><button type="button" className="csm-secondary-button">Next page</button></div>
+                  </section>
+                  <aside className="csm-highlights-card"><div className="csm-card-heading"><div><span className="csm-kicker">SAVED HIGHLIGHTS</span><h2>{highlights.length} study notes</h2></div><button type="button" className="csm-row-menu" onClick={handleClearHighlights} aria-label="Clear highlights">Clear</button></div>{highlights.map(item => <div key={item.id} className="csm-highlight-item"><i style={{ background: item.color }} /><p>{item.text}</p><button type="button" className="csm-row-menu" onClick={() => handleRemoveHighlight(item.id)} aria-label={`Delete highlight ${item.id}`}>x</button></div>)}<button type="button" className="csm-add-highlight" onClick={() => setHighlights(list => [...list, { id: Date.now(), text: 'New highlighted note from this page.', color: highlightColor }])}>+ Add highlighted note</button></aside>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW C: GAME MODE SECTION (Lobby & Launch Configuration)
+                ======================================================== */}
+            {activeTab === 'game' && (
+              <div className="game-view custom-scroll">
+                <header className="game-view-header">
+                  <span className="game-view-eyebrow">YOUR STUDY DESK</span>
+                  <h1 className="game-view-title">Enter Bomb Mode</h1>
+                  <p className="game-view-subtitle">Pick a deck, customize your game rules, and start playing.</p>
+                </header>
+
+                <div className="game-layout">
+                  <div className="game-left-column">
+                    <section className="game-section-card">
+                      <h2 className="game-section-title">Select a BombCard Deck</h2>
+                      <p className="game-section-subtitle">Choose one deck from your library to play.</p>
+
+                      <div className="game-deck-selector">
+                        <span className="game-deck-icon" aria-hidden="true">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 7.5h6l1.7 2H21v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <path d="M3 7.5V5a2 2 0 0 1 2-2h4l1.7 2H19a2 2 0 0 1 2 2v2.5" />
+                          </svg>
+                        </span>
+                        <span className="game-deck-copy">
+                          <span className="game-deck-name">{activeGameDeck?.code || activeGameDeck?.title || 'No deck selected'}</span>
+                          <span className="game-deck-meta">{activeGameDeck?.cards?.length || 0} Bombcards &bull; Last studied 2h ago</span>
+                        </span>
+                        <span className="game-deck-select-wrap">
+                          <select
+                            className="game-deck-select"
+                            value={activeGameDeck?.id || ''}
+                            onChange={(e) => setSelectedDeckIds([e.target.value])}
+                            aria-label="Change deck"
+                          >
+                            {decks.map(deck => <option key={deck.id} value={deck.id}>{deck.code}</option>)}
+                          </select>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </span>
+                      </div>
+                    </section>
+
+                    <section className="game-section-card game-settings-card">
+                      <h2 className="game-section-title">Game Settings</h2>
+                      <p className="game-section-subtitle">Customize how you want to play.</p>
+
+                      <div className="game-settings-grid">
+                        <div className="game-setting lives">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Lives</h3>
+                            <p className="game-setting-help">How many mistakes before the game ends.</p>
+                            <div className="game-options">
+                              {[1, 2, 3].map(value => <button key={value} type="button" className={`game-option ${healthSetting === value ? 'selected' : ''}`} onClick={() => setHealthSetting(value)}>{value}</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting time">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Time per Card</h3>
+                            <p className="game-setting-help">Time you have to answer each card.</p>
+                            <div className="game-options">
+                              {[15, 30, 45].map(value => <button key={value} type="button" className={`game-option ${countdownSpeed === value ? 'selected' : ''}`} onClick={() => setCountdownSpeed(value)}>{value}s</button>)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting order">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Card Order</h3>
+                            <p className="game-setting-help">The order in which cards will appear.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${questionOrder === 'SHUFFLE' ? 'selected' : ''}`} onClick={() => setQuestionOrder('SHUFFLE')}>Randomized</button>
+                              <button type="button" className={`game-option ${questionOrder === 'CHRONO' ? 'selected' : ''}`} onClick={() => setQuestionOrder('CHRONO')}>Sequential</button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="game-setting type">
+                          <span className="game-setting-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg>
+                          </span>
+                          <div className="game-setting-content">
+                            <h3 className="game-setting-name">Test Type</h3>
+                            <p className="game-setting-help">Which card type to include in the game.</p>
+                            <div className="game-options">
+                              <button type="button" className={`game-option ${gameFormat === 'MCQ' ? 'selected' : ''}`} onClick={() => setGameFormat('MCQ')}>MCQ</button>
+                              <button type="button" className={`game-option ${gameFormat === 'ID' ? 'selected' : ''}`} onClick={() => setGameFormat('ID')}>ID</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <aside className="game-summary">
+                    <h2 className="game-summary-title">
+                      <span>{activeGameDeckCodeParts.slice(0, -1).join(' ')}</span>
+                      <span>{activeGameDeckCodeParts[activeGameDeckCodeParts.length - 1]}</span>
+                    </h2>
+                    <p className="game-summary-count">{selectedTotalCards} BombCards</p>
+                    <img className="game-summary-mascot" src="csm-sidebar-logo.png" alt="Co-StudyMaxx bomb mascot" />
+
+                    <div className="game-summary-rules">
+                      <div className="game-summary-rule lives">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.7S3 15.5 3 9.2A4.7 4.7 0 0 1 7.7 4c1.7 0 3.3.9 4.3 2.2A5.2 5.2 0 0 1 16.3 4 4.7 4.7 0 0 1 21 9.2c0 6.3-9 11.5-9 11.5Z" /></svg></span>
+                        <span className="game-summary-rule-label">Lives</span><span className="game-summary-rule-value">{healthSetting}</span>
+                      </div>
+                      <div className="game-summary-rule time">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 1.5M9 3h6" /></svg></span>
+                        <span className="game-summary-rule-label">Time per Card</span><span className="game-summary-rule-value">{countdownSpeed}s</span>
+                      </div>
+                      <div className="game-summary-rule order">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m7 7 5-4 5 4M17 17l-5 4-5-4M12 3v7M12 14v7M4 12h16" /></svg></span>
+                        <span className="game-summary-rule-label">Order</span><span className="game-summary-rule-value">{questionOrder === 'SHUFFLE' ? 'Randomized' : 'Sequential'}</span>
+                      </div>
+                      <div className="game-summary-rule type">
+                        <span className="game-summary-rule-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 5 5M10.5 7v7M7 10.5h7" /></svg></span>
+                        <span className="game-summary-rule-label">Test Type</span><span className="game-summary-rule-value">{gameFormat === 'MCQ' ? 'MCQ' : gameFormat === 'ID' ? 'ID' : 'All Cards'}</span>
+                      </div>
+                    </div>
+
+                    <button className="game-launch-button" type="button" onClick={handleLaunchArena} disabled={selectedTotalCards === 0}>
+                      Start Bomb Mode <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12h15M13 6l6 6-6 6" /></svg>
+                    </button>
+                  </aside>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                VIEW D: ACTIVE WORD BOMB ARENA (Full Screen Drill)
+                ======================================================== */}
+            {activeTab === 'arena' && (
+              <div className="h-full bg-[#0d0b09] text-white p-4 md:p-6 flex flex-col justify-between relative overflow-y-auto custom-scroll">
+
+                {/* 1. TOP ARENA HUD */}
+                <header className="w-full max-w-4xl mx-auto bg-[#181818] border border-[#2e2e2e] rounded-2xl px-4 py-3 flex items-center justify-between shadow-xl mb-4">
+                  {/* Left: Exit to Lobby & Deck Name */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setActiveTab('game')}
+                      className="w-9 h-9 rounded-xl bg-[#222222] hover:bg-[#f04824] hover:text-white border border-[#333333] flex items-center justify-center text-zinc-300 transition-colors"
+                      title="Exit to Game Lobby"
+                    >
+                      <IconArrowLeft />
+                    </button>
+                    <div>
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-400 block leading-tight">ACTIVE DRILL RUN</span>
+                      <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                        Combined Run ({arenaDeckQueue.length} Questions)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Center: Question Progress */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-zinc-300 bg-[#222222] border border-[#333333] px-2.5 py-0.5 rounded-full">
+                      Q {arenaQIndex + 1} of {arenaDeckQueue.length}
+                    </span>
+                    <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#f04824]/20 border border-[#f04824]/50 text-[#f04824]">
+                      {activeArenaQ ? (activeArenaQ.type === 'MULTIPLE_CHOICE' ? 'MULTIPLE CHOICE' : 'IDENTIFICATION') : ''}
+                    </span>
+                  </div>
+
+                  {/* Right: Sound, Lives & Score */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setSoundMuted(sound.toggleMute())}
+                      className="w-8 h-8 rounded-lg bg-[#222222] border border-[#333333] flex items-center justify-center text-zinc-400 hover:text-white"
+                      title={soundMuted ? "Unmute Sound" : "Mute Sound"}
+                    >
+                      <IconSpeaker muted={soundMuted} />
+                    </button>
+
+                    {/* Lives Tray */}
+                    <div className="flex items-center gap-1.5">
+                      {Array.from({ length: healthSetting }).map((_, i) => (
+                        <MiniBombIcon key={i} active={arenaLives > i} />
+                      ))}
+                    </div>
+
+                    {/* Score */}
+                    <div className="text-right pl-2 border-l border-[#2e2e2e]">
+                      <div className="text-sm sm:text-base font-extrabold text-white leading-tight">
+                        {arenaScore.toLocaleString()} <span className="text-[10px] text-[#f04824]">PTS</span>
+                      </div>
+                      {arenaStreak > 1 && (
+                        <div className="inline-flex items-center gap-1 text-[10px] font-extrabold text-[#f04824] bg-[#2a1309] border border-[#f04824]/40 px-1.5 rounded">
+                          x{arenaStreak} STREAK
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </header>
+
+                {/* 2. CENTRAL BOMB STAGE */}
+                <div className="flex-1 flex flex-col items-center justify-center my-auto w-full max-w-2xl mx-auto">
+
+                  {/* Animated SVG Bomb Mascot */}
+                  <div className={`relative transition-transform duration-150 ${isArenaDanger ? 'animate-shake-danger' : ''
+                    }`}>
+                    {/* Glow Aura */}
+                    <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isArenaDanger
+                      ? 'bg-red-600/40 opacity-100'
+                      : 'bg-[#f04824]/20 opacity-70'
+                      }`} />
+
+                    <svg width="170" height="170" viewBox="0 0 200 200" className="relative z-10 drop-shadow-2xl">
+                      <defs>
+                        <radialGradient id="arenaBombBody" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stopColor="#2e2a28" />
+                          <stop offset="45%" stopColor="#141110" />
+                          <stop offset="100%" stopColor="#050403" />
+                        </radialGradient>
+                        <radialGradient id="arenaBombDangerBody" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stopColor="#4a1515" />
+                          <stop offset="50%" stopColor="#240808" />
+                          <stop offset="100%" stopColor="#0a0202" />
+                        </radialGradient>
+                        <radialGradient id="arenaSpark" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="#ffffff" />
+                          <stop offset="40%" stopColor="#fef08a" />
+                          <stop offset="80%" stopColor="#f04824" />
+                          <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                      </defs>
+
+                      {/* Fuse */}
+                      <path
+                        d="M 100 42 C 100 25, 125 32, 132 15"
+                        fill="none"
+                        stroke={isArenaDanger ? "#ef4444" : "#ca8a04"}
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                      />
+
+                      {/* Fuse Spark */}
+                      <g transform="translate(132, 15)">
+                        <circle cx="0" cy="0" r="10" fill="url(#arenaSpark)" className="animate-spark-pulse" />
+                        <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={isArenaDanger ? "#f87171" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
+                        <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
+                      </g>
+
+                      {/* Cap & Horns */}
+                      <rect x="86" y="38" width="28" height="12" rx="4" fill="#3f3f46" stroke="#18181b" strokeWidth="2" />
+                      <path d="M 52 75 C 38 48, 48 30, 68 46 C 60 56, 56 68, 52 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
+                      <path d="M 148 75 C 162 48, 152 30, 132 46 C 140 56, 144 68, 148 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
+
+                      {/* Sphere */}
+                      <circle
+                        cx="100"
+                        cy="116"
+                        r="74"
+                        fill={isArenaDanger ? "url(#arenaBombDangerBody)" : "url(#arenaBombBody)"}
+                        stroke={isArenaDanger ? "#ef4444" : "#2e2a28"}
+                        strokeWidth="3.5"
+                      />
+
+                      {/* Eyes & Mouth */}
+                      {isArenaDanger ? (
+                        <g fill="#ef4444">
+                          <circle cx="82" cy="108" r="8" />
+                          <circle cx="118" cy="108" r="8" />
+                          <circle cx="82" cy="108" r="3" fill="#ffffff" />
+                          <circle cx="118" cy="108" r="3" fill="#ffffff" />
+                          <path d="M 80 136 Q 90 126 100 136 T 120 136" fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" />
+                        </g>
+                      ) : (
+                        <g>
+                          <circle cx="82" cy="108" r="7.5" fill="#ffffff" />
+                          <circle cx="118" cy="108" r="7.5" fill="#ffffff" />
+                          <circle cx="84" cy="107" r="2.5" fill="#0f0d0c" />
+                          <circle cx="120" cy="107" r="2.5" fill="#0f0d0c" />
+                          <rect x="85" y="130" width="30" height="10" rx="5" fill="#242220" stroke="#3d3835" strokeWidth="1.5" />
+                          <line x1="95" y1="130" x2="95" y2="140" stroke="#3d3835" strokeWidth="1.5" />
+                          <line x1="105" y1="130" x2="105" y2="140" stroke="#3d3835" strokeWidth="1.5" />
+                        </g>
+                      )}
+                    </svg>
+                  </div>
+
+                  {/* Real-time Dynamic Countdown Bar */}
+                  <div className="w-full max-w-md mt-2 flex flex-col items-center">
+                    <div className="w-full flex items-center justify-between text-xs font-bold tracking-wider mb-1 px-1">
+                      <span className={isArenaDanger ? 'text-red-400 animate-pulse' : 'text-zinc-400'}>
+                        {isArenaDanger ? 'WARNING: FUSE DETONATING' : 'FUSE TIMER'}
+                      </span>
+                      <span className={`text-base font-extrabold ${isArenaDanger ? 'text-red-500 scale-110' : 'text-[#f04824]'}`}>
+                        {arenaTimeRemaining.toFixed(1)}s
+                      </span>
+                    </div>
+                    <div className="w-full h-2.5 bg-[#181818] border border-[#2e2e2e] rounded-full overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-75 ${isArenaDanger
+                          ? 'bg-gradient-to-r from-red-600 to-rose-400 shadow-[0_0_12px_rgba(239,68,68,0.8)]'
+                          : 'bg-gradient-to-r from-[#c84e10] to-[#f04824] shadow-[0_0_8px_rgba(240,72,36,0.6)]'
+                          }`}
+                        style={{ width: `${fusePercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 3. ACTIVE QUESTION CARD (High Contrast Pure White) */}
+                  {activeArenaQ && (
+                    <div className="w-full max-w-2xl mt-4 mb-5 bg-white text-slate-900 rounded-2xl p-5 sm:p-6 shadow-2xl border-2 border-slate-200 text-center relative overflow-hidden">
+                      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#c84e10] via-[#f04824] to-[#ff6b4a]" />
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                        Prompt #{arenaQIndex + 1} &bull; {activeArenaQ.hint}
+                      </div>
+                      <h2 className="text-base sm:text-xl font-extrabold tracking-tight leading-snug text-slate-900">
+                        {activeArenaQ.prompt}
+                      </h2>
+                    </div>
+                  )}
+
+                  {/* 4. DUAL INPUT ZONE */}
+                  {activeArenaQ && activeArenaQ.type === 'MULTIPLE_CHOICE' ? (
+                    <div className="w-full max-w-2xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {activeArenaQ.options.map((opt, idx) => {
+                        const letter = String.fromCharCode(65 + idx);
+                        const isSelected = arenaSelectedChoice === idx;
+                        const isRight = idx === activeArenaQ.correctIndex;
+
+                        let btnStyle = "bg-[#181818] border-[#2e2e2e] text-zinc-200 hover:border-[#f04824] hover:bg-[#1f1f1f]";
+                        if (isSelected) {
+                          btnStyle = isRight
+                            ? "bg-emerald-600 border-emerald-400 text-white shadow-[0_0_20px_rgba(16,185,129,0.5)]"
+                            : "bg-red-700 border-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]";
+                        }
+
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => handleAnswerMCQ(idx)}
+                            disabled={arenaIsAnswering}
+                            className={`p-4 rounded-xl border text-left flex items-center gap-3 font-semibold text-sm transition-all duration-150 ${btnStyle}`}
+                          >
+                            <span className="w-7 h-7 rounded-lg bg-[#252525] border border-[#383838] flex items-center justify-center font-bold text-xs text-[#f04824]">
+                              {letter}
+                            </span>
+                            <span className="flex-1">{opt}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="w-full max-w-2xl bg-[#181818] border border-[#2e2e2e] rounded-2xl p-4 shadow-xl">
+                      <div className="flex items-center justify-between text-xs font-bold text-zinc-400 mb-2">
+                        <span>TYPE-TO-DEFUSE ANSWER</span>
+                        <span className="text-[#f04824] bg-orange-950/40 border border-[#f04824]/40 px-2 py-0.5 rounded">
+                          {activeArenaQ ? activeArenaQ.hint : ''}
+                        </span>
+                      </div>
+                      <form onSubmit={handleAnswerID} className="flex gap-2">
+                        <input
+                          ref={idInputRef}
+                          type="text"
+                          value={arenaIdInput}
+                          onChange={(e) => setArenaIdInput(e.target.value)}
+                          placeholder="Type answer to defuse..."
+                          disabled={arenaIsAnswering}
+                          className="flex-1 h-12 px-4 bg-[#0a0705] border-2 border-[#333333] focus:border-[#f04824] rounded-xl text-base text-white outline-none"
+                        />
+                        <button
+                          type="submit"
+                          disabled={arenaIsAnswering || !arenaIdInput.trim()}
+                          className="h-12 px-6 bg-[#f04824] hover:bg-[#e03e1b] disabled:bg-zinc-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-md"
+                        >
+                          DEFUSE
+                        </button>
+                      </form>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* 5. END OF RUN OVERLAY MODAL */}
+                {arenaStatus !== 'PLAYING' && (
+                  <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="w-full max-w-lg bg-[#141211] border border-[#2e2e2e] rounded-[28px] p-6 sm:p-8 shadow-2xl flex flex-col max-h-[90vh]">
+
+                      {/* Header */}
+                      <div className="text-center mb-6">
+                        <div className={`w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center ${arenaStatus === 'DEFUSED' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse'
+                          }`}>
+                          <IconBomb />
+                        </div>
+                        <h3 className={`text-2xl font-black tracking-tight ${arenaStatus === 'DEFUSED' ? 'text-emerald-400' : 'text-red-500'
+                          }`}>
+                          {arenaStatus === 'DEFUSED' ? 'DRILL DEFUSED!' : 'DETONATED!'}
+                        </h3>
+                        <p className="text-xs text-zinc-400 mt-1">
+                          {arenaStatus === 'DEFUSED' ? 'All questions cleared successfully.' : 'Fuse ran out or lives expired.'}
+                        </p>
+                      </div>
+
+                      {/* Stats */}
+                      <div className="grid grid-cols-3 gap-2 bg-[#1c1917] border border-[#2e2e2e] p-3 rounded-xl mb-4 text-center">
+                        <div>
+                          <div className="text-[10px] text-zinc-400 uppercase">Final Score</div>
+                          <div className="text-base font-black text-white">{arenaScore.toLocaleString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-zinc-400 uppercase">Accuracy</div>
+                          <div className="text-base font-black text-emerald-400">
+                            {arenaHistory.length > 0 ? Math.round((arenaHistory.filter(h => h.isRight).length / arenaHistory.length) * 100) : 0}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-zinc-400 uppercase">Max Streak</div>
+                          <div className="text-base font-black text-[#f04824]">{arenaMaxStreak}x</div>
+                        </div>
+                      </div>
+
+                      {/* Review Breakdown */}
+                      <div className="flex-1 overflow-y-auto custom-scroll space-y-2 mb-6 pr-1">
+                        {arenaHistory.map((item, idx) => (
+                          <div key={idx} className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 ${item.isRight ? 'bg-emerald-950/20 border-emerald-900/40 text-emerald-200' : 'bg-red-950/20 border-red-900/40 text-red-200'
+                            }`}>
+                            <div className="flex-1">
+                              <span className="font-bold block text-white">{item.prompt}</span>
+                              <span className="text-[11px] opacity-80">
+                                Ans: {item.userAns} {!item.isRight && `• Correct: ${item.correctAns}`}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${item.isRight ? 'bg-emerald-500/30 text-emerald-300' : 'bg-red-500/30 text-red-300'
+                              }`}>
+                              {item.isRight ? 'PASS' : 'FAIL'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleLaunchArena}
+                          className="flex-1 h-11 bg-[#f04824] hover:bg-[#e03e1b] text-white font-bold text-xs rounded-xl transition-colors"
+                        >
+                          Replay Run
+                        </button>
+                        <button
+                          onClick={() => setActiveTab('game')}
+                          className="flex-1 h-11 bg-[#222222] hover:bg-[#2a2a2a] text-zinc-300 font-bold text-xs rounded-xl border border-[#333333] transition-colors"
+                        >
+                          Return to Lobby
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+          </main>
+
+          {folderInfoModalOpen && (
+            <div className="csm-modal-backdrop" role="presentation" onClick={() => setFolderInfoModalOpen(false)}>
+              <form className="csm-deck-form-modal" role="dialog" aria-modal="true" aria-labelledby="deck-form-title" onSubmit={handleSaveFolderInfo} onClick={(e) => e.stopPropagation()}>
+                <div className="csm-form-modal-header">
+                  <div><span className="csm-kicker">{targetFolderForEdit ? 'EDIT DECK' : 'NEW DECK'}</span><h2 id="deck-form-title">{targetFolderForEdit ? 'Edit deck details' : 'Add a deck'}</h2></div>
+                  <button type="button" className="csm-form-modal-close" onClick={() => setFolderInfoModalOpen(false)} aria-label="Close">×</button>
+                </div>
+                <p className="csm-form-modal-help">Keep your study materials organized by title and subject.</p>
+                <label className="csm-modal-field">Deck title<input autoFocus type="text" value={folderNameInput} onChange={(e) => setFolderNameInput(e.target.value)} placeholder="e.g. ITE 292 B1" required /></label>
+                <label className="csm-modal-field">Subject<input type="text" value={folderDescInput} onChange={(e) => setFolderDescInput(e.target.value)} placeholder="e.g. Information Technology" /></label>
+                <div className="csm-delete-actions"><button type="button" className="csm-secondary-button" onClick={() => setFolderInfoModalOpen(false)}>Cancel</button><button type="submit" className="csm-primary-button">{targetFolderForEdit ? 'Save changes' : 'Add deck'}</button></div>
+              </form>
+            </div>
+          )}
+
+          {deleteDeckTarget && (
+            <div className="csm-modal-backdrop" role="presentation" onClick={() => setDeleteDeckTarget(null)}>
+              <div className="csm-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-deck-title" onClick={(e) => e.stopPropagation()}>
+                <div className="csm-delete-icon"><IconTrash /></div>
+                <span className="csm-kicker">DELETE DECK</span>
+                <h2 id="delete-deck-title">Delete “{deleteDeckTarget.code || deleteDeckTarget.title}”?</h2>
+                <p>This will permanently remove the deck and its cards. This action cannot be undone.</p>
+                <div className="csm-delete-actions">
+                  <button type="button" className="csm-secondary-button" onClick={() => setDeleteDeckTarget(null)}>Cancel</button>
+                  <button type="button" className="csm-danger-button" onClick={confirmDeleteFolder}>Delete deck</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {deleteConfirmation && (
+            <div className="csm-modal-backdrop" role="presentation" onClick={() => setDeleteConfirmation(null)}>
+              <div className="csm-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirmation-title" onClick={(e) => e.stopPropagation()}>
+                <div className="csm-delete-icon"><IconTrash /></div>
+                <span className="csm-kicker">CONFIRM DELETION</span>
+                <h2 id="delete-confirmation-title">{deleteConfirmation.title}</h2>
+                <p>{deleteConfirmation.message}</p>
+                <div className="csm-delete-actions"><button type="button" className="csm-secondary-button" onClick={() => setDeleteConfirmation(null)}>Cancel</button><button type="button" className="csm-danger-button" onClick={confirmDeleteAction}>{deleteConfirmation.confirmLabel}</button></div>
+              </div>
+            </div>
+          )}
+
+          {changeConfirmation && (
+            <div className="csm-modal-backdrop" role="presentation" onClick={() => setChangeConfirmation(null)}>
+              <div className="csm-change-modal" role="dialog" aria-modal="true" aria-labelledby="change-confirmation-title" onClick={(e) => e.stopPropagation()}>
+                <div className="csm-change-icon" aria-hidden="true">✓</div>
+                <span className="csm-kicker">CHANGE CONFIRMED</span>
+                <h2 id="change-confirmation-title">{changeConfirmation.title}</h2>
+                <p>{changeConfirmation.message}</p>
+                <button type="button" className="csm-primary-button" onClick={() => setChangeConfirmation(null)}>Done</button>
+              </div>
+            </div>
+          )}
+
+          {passwordResetModalOpen && (
+            <div className="csm-modal-backdrop" role="presentation" onClick={() => setPasswordResetModalOpen(false)}>
+              <div className="csm-password-modal" role="dialog" aria-modal="true" aria-labelledby="password-reset-title" onClick={(e) => e.stopPropagation()}>
+                <div className="csm-password-icon" aria-hidden="true">•••</div>
+                <span className="csm-kicker">PASSWORD RESET</span>
+                <h2 id="password-reset-title">Reset password placeholder</h2>
+                <p>Password reset is ready for the account flow, but it needs the database and email service before it can send a real reset link.</p>
+                <button type="button" className="csm-primary-button" onClick={() => { setPasswordResetModalOpen(false); triggerToast('Password reset placeholder acknowledged'); }}>Got it</button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              POPUP: ADD MATERIAL (VAIA Hierarchy + CSM Design Premise)
+              ======================================================== */}
+          {isAddMaterialPopupOpen && (
+            <div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+              onClick={() => setIsAddMaterialPopupOpen(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md bg-white rounded-[26px] p-6 sm:p-7 shadow-2xl border border-slate-200 flex flex-col relative"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block">ADD MATERIAL</span>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                      {targetDeckForAddMaterial ? (targetDeckForAddMaterial.code || targetDeckForAddMaterial.title) : 'Reviewer Materials'}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setIsAddMaterialPopupOpen(false)}
+                    className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors cursor-pointer text-xl"
+                    title="Close"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={addMaterialFileInputRef}
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  multiple
+                  onChange={(e) => handleAddMaterialDirectUpload(e.target.files)}
+                  className="hidden"
+                />
+
+                {/* 1. Primary Upload / Drag File Area */}
+                <div className="mt-5">
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingAddMaterialFile(true); }}
+                    onDragLeave={() => setIsDraggingAddMaterialFile(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingAddMaterialFile(false);
+                      handleAddMaterialDirectUpload(e.dataTransfer.files);
+                    }}
+                    onClick={() => addMaterialFileInputRef.current?.click()}
+                    className={`p-6 sm:p-7 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer flex flex-col items-center justify-center ${isDraggingAddMaterialFile
+                        ? 'border-[#f04824] bg-orange-50/60 shadow-inner'
+                        : 'border-slate-300/80 bg-[#f8f9fa] hover:bg-[#fff9f8] hover:border-[#f04824]/50'
+                      }`}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 shadow-sm flex items-center justify-center text-[#f04824] mb-3">
+                      <IconUpload className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-black text-slate-900">Drag or upload file here</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Supported format — PDF documents & lecture slides
+                    </p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        addMaterialFileInputRef.current?.click();
+                      }}
+                      className="mt-4 h-9 px-5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-bold rounded-full inline-flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                    >
+                      <IconUpload className="w-3.5 h-3.5 text-[#f04824]" />
+                      <span>Upload File</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Divider with 'OR' */}
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 border-t border-slate-200/90" />
+                  <span className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase">OR</span>
+                  <div className="flex-1 border-t border-slate-200/90" />
+                </div>
+
+                {/* 2 & 3. Options Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Option 2: Create Bombcards Manually */}
+                  <div
+                    onClick={handleChooseManualCreation}
+                    className="bg-[#f8f9fa] hover:bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group text-left"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center mb-3 group-hover:bg-[#f04824] transition-colors shadow-sm">
+                      <IconCards className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-slate-900 group-hover:text-[#f04824] transition-colors">
+                        Create Bombcards Manually
+                      </h4>
+                      <p className="text-[11px] text-slate-400 mt-0.5">
+                        Create your own Bombcards
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Option 3: Generate AI Bombcards (COMING SOON / DISABLED) */}
+                  <div
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    className="bg-[#f8f9fa] border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden select-none cursor-not-allowed group"
+                    title="Coming soon"
+                  >
+                    {/* Visually blurred / reduced emphasis content */}
+                    <div className="opacity-35 blur-[1.5px] flex flex-col pointer-events-none">
+                      <div className="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-600 flex items-center justify-center mb-3">
+                        <IconSparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">
+                          Generate AI Bombcards
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Generate flashcards with AI
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Prominent COMING SOON Badge Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
+                      <span className="px-3 py-1 bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md border border-slate-700/30">
+                        Coming Soon
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              DRAWER / MODAL: BOMBCARD & DECK AUTHORING WORKSHOP
+              ======================================================== */}
+          {isDeckEditorOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="w-full max-w-2xl bg-white rounded-[26px] p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh]">
+
+                {/* Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#f04824] uppercase tracking-wider block">ADD MATERIAL</span>
+                    <h3 className="text-xl font-extrabold text-slate-900">
+                      {editingDeck ? (editingDeck.code || editingDeck.title) : 'Reviewer Materials'}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Target Folder: <span className="font-semibold text-slate-700">{editingDeck?.code} - {editingDeck?.title || editingDeck?.subject}</span>
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsDeckEditorOpen(false)}
+                    className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 transition-colors"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+                {/* Body Form */}
+                <div className="flex-1 overflow-y-auto custom-scroll py-4 space-y-5 pr-1">
+
+                  {/* Section 1: Import PDFs */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-2">
+                        <IconPdf />
+                        <span className="text-xs font-bold text-slate-800">
+                          Import PDFs ({editorDocuments.length})
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => pdfInputRef.current?.click()}
+                        className="h-7 px-3 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200/90 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                      >
+                        <IconPlus className="w-3 h-3 text-[#f04824]" />
+                        <span>Browse PDF</span>
+                      </button>
+                    </div>
+
+                    <input
+                      ref={pdfInputRef}
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      multiple
+                      onChange={handlePdfUpload}
+                      className="hidden"
+                    />
+
+                    {/* Drag & Drop Upload Zone */}
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setIsDraggingPdf(true); }}
+                      onDragLeave={() => setIsDraggingPdf(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingPdf(false);
+                        const files = Array.from(e.dataTransfer.files || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
+                        if (files.length > 0) {
+                          const newDocs = files.map(file => ({
+                            id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+                            title: file.name
+                          }));
+                          setEditorDocuments(prev => [...prev, ...newDocs]);
+                          triggerToast(`Imported ${files.length} PDF file${files.length > 1 ? 's' : ''}`);
+                        } else {
+                          triggerToast('Please drop PDF files only');
+                        }
+                      }}
+                      onClick={() => pdfInputRef.current?.click()}
+                      className={`p-5 rounded-xl border-2 border-dashed transition-all text-center cursor-pointer ${isDraggingPdf ? 'border-[#f04824] bg-orange-50/50' : 'border-slate-300/80 bg-white/70 hover:bg-white hover:border-[#f04824]/50'
+                        }`}
+                    >
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <svg className="w-7 h-7 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <p className="text-xs font-bold text-slate-700 mt-1">Click to browse or drag & drop PDF files</p>
+                        <p className="text-[11px] text-slate-400">Attach lecture modules, handouts, or notes</p>
+                      </div>
+                    </div>
+
+                    {/* Attached PDFs List */}
+                    {editorDocuments.length > 0 && (
+                      <div className="mt-3 space-y-1.5 max-h-36 overflow-y-auto custom-scroll pr-1">
+                        {editorDocuments.map(doc => (
+                          <div key={doc.id} className="p-2.5 bg-white border border-slate-200/90 rounded-xl flex items-center justify-between text-xs hover:border-slate-300 transition-colors">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+                              <IconPdf />
+                              <span className="font-bold text-slate-800 truncate">{doc.title}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDocFromEditor(doc.id)}
+                              className="text-slate-400 hover:text-red-500 p-1 rounded hover:bg-slate-100 transition-colors"
+                              title="Remove PDF"
+                            >
+                              <IconTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Sub-Form: Add New BombCard */}
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <span className="text-[11px] font-bold text-[#f04824] uppercase tracking-wider block mb-2">
+                      + Add Question Pair (BombCard)
+                    </span>
+
+                    {/* Question Type Toggle */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setNewQType('MULTIPLE_CHOICE')}
+                        className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${newQType === 'MULTIPLE_CHOICE' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                          }`}
+                      >
+                        Multiple Choice
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewQType('IDENTIFICATION')}
+                        className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${newQType === 'IDENTIFICATION' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                          }`}
+                      >
+                        Identification
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      <input
+                        type="text"
+                        value={newQPrompt}
+                        onChange={(e) => setNewQPrompt(e.target.value)}
+                        placeholder="Enter Question / Prompt..."
+                        className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#f04824]"
+                      />
+
+                      <input
+                        type="text"
+                        value={newQHint}
+                        onChange={(e) => setNewQHint(e.target.value)}
+                        placeholder="Optional Hint / Module Tag (e.g. 4 Letters, Chapter 1)..."
+                        className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#f04824]"
+                      />
+
+                      {/* Mode A: MCQ 4 Options with Radio Key */}
+                      {newQType === 'MULTIPLE_CHOICE' ? (
+                        <div className="space-y-1.5 pt-1">
+                          <span className="text-[11px] font-medium text-slate-500 block">Select radio to designate the correct answer:</span>
+                          {newQOptions.map((opt, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input
+                                type="radio"
+                                name="correctKey"
+                                checked={newQCorrectIndex === i}
+                                onChange={() => setNewQCorrectIndex(i)}
+                                className="w-4 h-4 text-[#f04824] focus:ring-[#f04824] cursor-pointer"
+                              />
+                              <span className="text-xs font-bold text-slate-400 w-4">{String.fromCharCode(65 + i)}</span>
+                              <input
+                                type="text"
+                                value={opt}
+                                onChange={(e) => {
+                                  const copy = [...newQOptions];
+                                  copy[i] = e.target.value;
+                                  setNewQOptions(copy);
+                                }}
+                                placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                                className="flex-1 h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#f04824]"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* Mode B: Identification Single & Alternates */
+                        <div className="space-y-2 pt-1">
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-500 block mb-1">Target Answer:</label>
+                            <input
+                              type="text"
+                              value={newQAnswer}
+                              onChange={(e) => setNewQAnswer(e.target.value)}
+                              placeholder="e.g. Star"
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#f04824]"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[11px] font-medium text-slate-500 block mb-1">Alternate acceptable answers (comma-separated):</label>
+                            <input
+                              type="text"
+                              value={newQAlternates}
+                              onChange={(e) => setNewQAlternates(e.target.value)}
+                              placeholder="e.g. star, star topology"
+                              className="w-full h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-[#f04824]"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={handleAddQuestionToEditor}
+                        className="mt-2 h-8 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        + Append Card to Deck
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Existing BombCards in this Deck */}
+                  <div>
+                    <span className="text-xs font-bold text-slate-700 block mb-2">
+                      Questions in this Deck ({editorCards.length})
+                    </span>
+                    <div className="space-y-2 max-h-48 overflow-y-auto custom-scroll pr-1">
+                      {editorCards.length === 0 ? (
+                        <div className="text-xs text-slate-400 italic py-2">No cards added yet.</div>
+                      ) : (
+                        editorCards.map((c, idx) => (
+                          <div key={c.id} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                            <div className="flex-1 pr-2">
+                              <span className="font-bold text-slate-900 block">Q{idx + 1}: {c.prompt}</span>
+                              <span className="text-[11px] text-slate-500 ">
+                                Ans: {c.correctAnswer} &bull; Type: {c.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleRemoveCardFromEditor(c.id)}
+                              className="text-rose-500 hover:text-rose-700 font-bold p-1"
+                              title="Remove Card"
+                            >
+                              <IconTrash />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Footer Actions */}
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setIsDeckEditorOpen(false)}
+                    className="h-10 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveDeck}
+                    className="h-10 px-5 bg-[#f04824] hover:bg-[#e03e1b] text-white text-xs font-bold rounded-xl shadow-md transition-colors"
+                  >
+                    Save Materials
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
