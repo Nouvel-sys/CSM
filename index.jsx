@@ -382,6 +382,112 @@ const INITIAL_DECKS = [
 // ========================================================
 // 4. MAIN APP CONTAINER & STATE CONTROLLER
 // ========================================================
+function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelection }) {
+  const [pdf, setPdf] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
+  const [stageWidth, setStageWidth] = useState(760);
+  const stageRef = useRef(null);
+  const paperRef = useRef(null);
+  const canvasRef = useRef(null);
+  const textLayerRef = useRef(null);
+
+  useEffect(() => {
+    let current = true;
+    let task = null;
+    setPdf(null); setLoadError(''); setPageSize({ width: 0, height: 0 });
+    if (!document?.url) return () => { current = false; };
+    setLoading(true);
+    (async () => {
+      try {
+        const pdfjsLib = window.pdfjsLib || await window.pdfjsReady;
+        if (!current) return;
+        if (!pdfjsLib) throw new Error('The PDF text tools could not load. Check your connection and try again.');
+        task = pdfjsLib.getDocument({ url: document.url, withCredentials: true });
+        const value = await task.promise;
+        if (current) { setPdf(value); onPageCount(value.numPages); }
+      } catch (error) { if (current) setLoadError(error?.message || 'This PDF could not be opened.'); }
+      finally { if (current) setLoading(false); }
+    })();
+    return () => { current = false; task?.destroy(); };
+  }, [document?.url]);
+
+  useEffect(() => {
+    const node = stageRef.current;
+    if (!node || !window.ResizeObserver) return;
+    const observer = new ResizeObserver(entries => setStageWidth(Math.max(320, entries[0].contentRect.width - 44)));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [document?.url]);
+
+  useEffect(() => {
+    let current = true;
+    let renderTask = null;
+    let textTask = null;
+    const render = async () => {
+      if (!pdf || !canvasRef.current || !textLayerRef.current) return;
+      setLoading(true); setLoadError('');
+      try {
+        const page = await pdf.getPage(pageNumber);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(1.65, stageWidth / baseViewport.width);
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        const context = canvas.getContext('2d', { alpha: false });
+        const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = `${viewport.width}px`; canvas.style.height = `${viewport.height}px`;
+        const layer = textLayerRef.current;
+        layer.innerHTML = ''; layer.style.width = `${viewport.width}px`; layer.style.height = `${viewport.height}px`;
+        setPageSize({ width: viewport.width, height: viewport.height });
+        renderTask = page.render({ canvasContext: context, viewport, transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0] });
+        await renderTask.promise;
+        if (!current) return;
+        const textContent = await page.getTextContent();
+        textTask = new window.pdfjsLib.TextLayer({ textContentSource: textContent, container: layer, viewport });
+        await textTask.render();
+      } catch (error) {
+        if (current && error?.name !== 'RenderingCancelledException') setLoadError(error?.message || 'This page could not be rendered.');
+      } finally { if (current) setLoading(false); }
+    };
+    render();
+    return () => { current = false; renderTask?.cancel(); textTask?.cancel?.(); };
+  }, [pdf, pageNumber, stageWidth, highlights]);
+
+  const captureSelection = () => {
+    const selection = window.getSelection();
+    const text = selection?.toString().replace(/\s+/g, ' ').trim();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    if (!text || !range || !textLayerRef.current?.contains(range.commonAncestorContainer)) return;
+    const paper = paperRef.current?.getBoundingClientRect();
+    if (!paper?.width || !paper?.height) return;
+    const rectangles = Array.from(range.getClientRects()).map(rect => ({
+      x: Math.max(0, (rect.left - paper.left) / paper.width),
+      y: Math.max(0, (rect.top - paper.top) / paper.height),
+      width: Math.min(rect.width / paper.width, 1),
+      height: Math.min(rect.height / paper.height, 1)
+    })).filter(rect => rect.width > 0 && rect.height > 0);
+    if (rectangles.length) onSelection({ text, page: pageNumber, selection: rectangles });
+  };
+
+  return (
+    <div className="csm-pdf-stage" ref={stageRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+      {!document && <div className="csm-pdf-empty"><span className="csm-pdf-empty-icon">PDF</span><strong>Choose a reviewer PDF to begin</strong><p>Open a saved document from your Library. Select text to save it as a note or build a Bombcard.</p></div>}
+      {document && loading && <div className="csm-pdf-loading"><span className="csm-spinner" />Loading page…</div>}
+      {document && loadError && <div className="csm-pdf-load-error"><strong>We couldn’t display this PDF</strong><p>{loadError}</p><a href={document.url} target="_blank" rel="noreferrer">Open the PDF in a new tab</a></div>}
+      {document && !loadError && <div className="csm-pdf-paper-wrap" style={{ minHeight: Math.max(420, pageSize.height + 36) }}>
+        <div className="csm-pdf-paper" ref={paperRef} style={{ width: pageSize.width || 'auto', height: pageSize.height || 'auto' }}>
+          <canvas ref={canvasRef} aria-hidden="true" />
+          <div className="csm-pdf-saved-marks" aria-hidden="true">{highlights.filter(item => Number(item.page) === Number(pageNumber)).flatMap(item => (item.selection || []).map((rect, index) => <i key={`${item.id}-${index}`} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%`, backgroundColor: item.color }} />))}</div>
+          <div className="textLayer csm-pdf-text-layer" ref={textLayerRef} aria-label={`Selectable PDF page ${pageNumber}`} />
+        </div>
+      </div>}
+    </div>
+  );
+}
+
 function App() {
   // Navigation: 'home' | 'library' | 'game' | 'arena' | 'account'
   const requestedScreen = new URLSearchParams(window.location.search).get('screen');
@@ -392,20 +498,13 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [changeConfirmation, setChangeConfirmation] = useState(null);
   const defaultProfile = { displayName: 'Gavin Dave', username: 'gavin_dave', avatar: 'ember', nameChangedAt: null };
-  const [profile, setProfile] = useState(() => {
-    try {
-      const savedProfile = window.localStorage.getItem('csm-profile');
-      const parsedProfile = savedProfile ? JSON.parse(savedProfile) : {};
-      const savedValues = parsedProfile && typeof parsedProfile === 'object' ? parsedProfile : {};
-      const { email: legacyEmail, ...profileValues } = savedValues;
-      return { ...defaultProfile, ...profileValues, username: profileValues.username || (typeof legacyEmail === 'string' && legacyEmail ? legacyEmail.split('@')[0] : defaultProfile.username) };
-    } catch (error) {
-      return defaultProfile;
-    }
-  });
+  const [profile, setProfile] = useState(() => ({ ...defaultProfile, ...(window.CSM?.initial?.profile || {}) }));
   const [profileNameDraft, setProfileNameDraft] = useState(() => profile.displayName);
   const [profileClock, setProfileClock] = useState(Date.now());
   const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
+  const [currentPasswordDraft, setCurrentPasswordDraft] = useState('');
+  const [newPasswordDraft, setNewPasswordDraft] = useState('');
+  const [confirmPasswordDraft, setConfirmPasswordDraft] = useState('');
   const [accountSection, setAccountSection] = useState('profile');
   const [chatMessages, setChatMessages] = useState([
     { id: 'welcome', role: 'assistant', text: 'Hi, I’m MAXX! Choose any topic below for instant guidance on your reviewers, flashcards, or Bomb Mode:' }
@@ -425,8 +524,12 @@ function App() {
     } catch { }
   }, [chatCollapsed]);
 
-  const [decks, setDecks] = useState(INITIAL_DECKS);
+  const [decks, setDecks] = useState(() => window.CSM?.initial?.decks || []);
+  const [accountStats, setAccountStats] = useState(() => window.CSM?.initial?.stats || {});
+  const [studyProgress, setStudyProgress] = useState(() => window.CSM?.initial?.studyProgress || []);
+  const [arenaSessions, setArenaSessions] = useState(() => window.CSM?.initial?.sessions || []);
   const [recentActivities, setRecentActivities] = useState(() => {
+    if (window.CSM?.initial) return window.CSM.initial.activities || [];
     const defaultActivities = [
       { id: 'activity-1', material: 'ITE 292 B1', mode: 'Reviewer library', accuracy: '—', status: 'Viewed', timestamp: Date.now() - 2 * 60 * 60 * 1000, deckId: 'deck-2', screen: 'library' },
       { id: 'activity-2', material: 'ITE 083', mode: 'Reviewer library', accuracy: '—', status: 'Viewed', timestamp: Date.now() - 24 * 60 * 60 * 1000, deckId: 'deck-3', screen: 'library' },
@@ -440,6 +543,13 @@ function App() {
       return defaultActivities;
     }
   });
+
+  const refreshWorkspace = async () => {
+    const data = await CSM.api('workspace');
+    setProfile(data.profile); setDecks(data.decks); setRecentActivities(data.activities);
+    setAccountStats(data.stats); setStudyProgress(data.studyProgress); setArenaSessions(data.sessions);
+    return data;
+  };
 
   // --- Library Workshop State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -474,7 +584,7 @@ function App() {
   const [newQAlternates, setNewQAlternates] = useState('');
 
   // --- Dedicated Create Bombcards Page Form State ---
-  const [creatorTargetDeckId, setCreatorTargetDeckId] = useState('deck-2');
+  const [creatorTargetDeckId, setCreatorTargetDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
   const [creatorType, setCreatorType] = useState('MULTIPLE_CHOICE');
   const [creatorPrompt, setCreatorPrompt] = useState('');
   const [creatorHint, setCreatorHint] = useState('');
@@ -483,7 +593,7 @@ function App() {
   const [creatorAnswer, setCreatorAnswer] = useState('');
   const [creatorAlternates, setCreatorAlternates] = useState('');
 
-  const handleSaveBombcard = () => {
+  const handleSaveBombcard = async () => {
     if (!creatorPrompt.trim()) {
       triggerToast('Please enter a question prompt.');
       return;
@@ -523,15 +633,10 @@ function App() {
       })
     };
 
-    setDecks(prevDecks => prevDecks.map(deck => {
-      if (deck.id === targetDeck.id) {
-        return {
-          ...deck,
-          cards: [...(deck.cards || []), newCard]
-        };
-      }
-      return deck;
-    }));
+    try {
+      await CSM.api('cards', 'POST', { ...newCard, deckId: targetDeck.id });
+      await refreshWorkspace();
+    } catch (error) { triggerToast(error.message); return; }
 
     recordActivity({
       material: targetDeck.code || targetDeck.title,
@@ -551,7 +656,7 @@ function App() {
 
   // --- Bombstyle Arena State Controller ---
       const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'gameplay' | 'results' | 'review_missed'
-      const [bombstyleDeckId, setBombstyleDeckId] = useState('deck-2');
+      const [bombstyleDeckId, setBombstyleDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
       const [bombstyleDifficulty, setBombstyleDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
       const [bombstyleQueue, setBombstyleQueue] = useState([]);
       const [bombstyleIndex, setBombstyleIndex] = useState(0);
@@ -564,19 +669,25 @@ function App() {
       const [bombstyleMissedCards, setBombstyleMissedCards] = useState([]);
       const [bombstyleStartTime, setBombstyleStartTime] = useState(null);
       const [bombstyleDurationSeconds, setBombstyleDurationSeconds] = useState(0);
+      const [bombstyleSessionId, setBombstyleSessionId] = useState(null);
       const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
       const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
       const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
       const [shareToast, setShareToast] = useState('');
-      const [selectedDeckIds, setSelectedDeckIds] = useState(['deck-2']);
+  const [selectedDeckIds, setSelectedDeckIds] = useState(() => [window.CSM?.initial?.decks?.[0]?.id].filter(Boolean));
       const [soundMuted, setSoundMuted] = useState(false);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [highlightColor, setHighlightColor] = useState('#f5a23a');
-  const [highlights, setHighlights] = useState([
-    { id: 1, text: 'Normalization reduces data redundancy.', color: '#f5a23a' },
-    { id: 2, text: 'A transaction is atomic when it completes fully or not at all.', color: '#8dc7ef' }
-  ]);
+  const [highlights, setHighlights] = useState([]);
+  const [activeDocument, setActiveDocument] = useState(null);
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [pdfSelection, setPdfSelection] = useState(null);
+  const [pdfCardComposerOpen, setPdfCardComposerOpen] = useState(false);
+  const [pdfSelectionRole, setPdfSelectionRole] = useState('question');
+  const [pdfCounterpart, setPdfCounterpart] = useState('');
+  const [pdfSaving, setPdfSaving] = useState(false);
 
   useEffect(() => {
     const closeDeckMenuOnOutsideClick = (event) => {
@@ -606,6 +717,10 @@ function App() {
   const activeFlashcardDeck = useMemo(() => decks.find(d => d.id === selectedDeckIds[0]) || decks[0], [decks, selectedDeckIds]);
   const flashcards = activeFlashcardDeck?.cards || [];
   const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
+  const flipFlashcard = () => {
+    if (!flashcardFlipped && activeFlashcard?.id) CSM.api('study/progress', 'POST', { bombcardId: activeFlashcard.id, result: 'seen' }).then(() => CSM.api('study/progress').then(setStudyProgress)).catch(error => console.warn('Study progress was not saved:', error));
+    setFlashcardFlipped(value => !value);
+  };
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
   const displayName = profile.displayName || defaultProfile.displayName;
@@ -638,18 +753,10 @@ function App() {
     return () => window.clearInterval(profileClockTimer);
   }, []);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem('csm-recent-activities', JSON.stringify(recentActivities));
-    } catch (error) {
-      // Recent activity is a browser-only placeholder until the activity API is connected.
-    }
-  }, [recentActivities]);
-
   const recordActivity = ({ material, mode, accuracy = '—', status = 'In progress', deckId = null, screen = 'library' }) => {
-    if (screen !== 'library') return;
-    const activity = { id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, material, mode, accuracy, status, timestamp: Date.now(), deckId, screen };
-    setRecentActivities(prev => [activity, ...prev.filter(item => !(item.material === material && item.mode === mode && item.deckId === deckId))].slice(0, 10));
+    if (!['library', 'flashcards', 'highlighter', 'game', 'creator'].includes(screen)) return;
+    CSM.api('activity', 'POST', { material, mode, status, deckId, screen })
+      .then(() => refreshWorkspace()).catch(error => console.warn('Could not save study activity:', error));
   };
 
   const formatActivityTime = (timestamp) => {
@@ -726,51 +833,33 @@ function App() {
     setFolderInfoModalOpen(true);
   };
 
-  const handleSaveFolderInfo = (e) => {
+  const handleSaveFolderInfo = async (e) => {
     if (e) e.preventDefault();
     if (!folderNameInput.trim()) {
       triggerToast('Please enter a deck title');
       return;
     }
 
+    try {
+    const savedDeck = await CSM.api('decks', targetFolderForEdit ? 'PATCH' : 'POST', {
+      ...(targetFolderForEdit ? { id: targetFolderForEdit.id } : {}),
+      title: folderNameInput.trim(), subject: folderDescInput.trim(), category: targetFolderForEdit?.category || 'Recent'
+    });
+    await refreshWorkspace();
     if (targetFolderForEdit) {
       // Edit ONLY folder name & description (NOT content)
-      setDecks(prev => prev.map(d => {
-        if (d.id === targetFolderForEdit.id) {
-          return {
-            ...d,
-            code: folderNameInput.trim(),
-            title: folderNameInput.trim(),
-            subject: folderDescInput.trim() || 'Information Technology',
-            lastModified: 'Just now'
-          };
-        }
-        return d;
-      }));
       triggerToast(`Updated folder "${folderNameInput.trim()}"`);
       showChangeConfirmation('Deck updated', `Your changes to "${folderNameInput.trim()}" were saved.`);
     } else {
       // Create new folder
-      const newDeck = {
-        id: 'deck-' + Date.now(),
-        code: folderNameInput.trim(),
-        title: folderNameInput.trim(),
-        subject: folderDescInput.trim() || 'Information Technology',
-        owner: 'Gavin Dave',
-        lastModified: 'Just now',
-        category: 'Recent',
-        section: 'recent',
-        cards: [],
-        documents: []
-      };
-      setDecks(prev => [newDeck, ...prev]);
-      setSelectedDeckIds(prev => [...prev, newDeck.id]);
+      setSelectedDeckIds(prev => [...prev, savedDeck.id]);
       triggerToast(`Created new folder "${folderNameInput.trim()}"`);
       showChangeConfirmation('Deck created', `"${folderNameInput.trim()}" is ready for your study materials.`);
     }
 
     setFolderInfoModalOpen(false);
     setTargetFolderForEdit(null);
+    } catch (error) { triggerToast(error.message); }
   };
 
   const handleDeleteFolder = (deckId, e) => {
@@ -789,11 +878,9 @@ function App() {
       title: `Remove "${document.title}"?`,
       message: 'This PDF will be removed from the reviewer. You can upload it again later if needed.',
       confirmLabel: 'Remove PDF',
-      action: () => {
-        setDecks(prev => prev.map(item => item.id === deckId
-          ? { ...item, documents: (item.documents || []).filter(doc => doc.id !== docId), lastModified: 'Just now' }
-          : item
-        ));
+      action: async () => {
+        try { await CSM.api('documents', 'DELETE', { id: docId }); await refreshWorkspace(); }
+        catch (error) { triggerToast(error.message); return; }
         triggerToast('Document removed from this reviewer');
         showChangeConfirmation('PDF removed', 'The document was removed from this reviewer.');
       }
@@ -809,6 +896,10 @@ function App() {
 
   const handleOpenDocument = (deck, document) => {
     setSelectedDeckIds([deck.id]);
+    setActiveDocument({ ...document, deckId: deck.id });
+    setHighlights([]);
+    setPdfPage(1); setPdfPageCount(0); setPdfSelection(null); setPdfCardComposerOpen(false); setPdfCounterpart('');
+    CSM.api('highlights&documentId=' + encodeURIComponent(document.id)).then(setHighlights).catch(error => triggerToast(error.message));
     recordActivity({ material: document.title, mode: 'PDF Tools', deckId: deck.id, screen: 'highlighter', status: 'In progress' });
     setActiveTab('highlighter');
     triggerToast(`Opening "${document.title}"...`);
@@ -841,11 +932,12 @@ function App() {
     setRevealedLibraryCards(prev => prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]);
   };
 
-  const confirmDeleteFolder = () => {
+  const confirmDeleteFolder = async () => {
     if (!deleteDeckTarget) return;
     const deckId = deleteDeckTarget.id;
     const name = deleteDeckTarget.code || deleteDeckTarget.title || 'this deck';
-    setDecks(prev => prev.filter(d => d.id !== deckId));
+    try { await CSM.api('decks', 'DELETE', { id: deckId }); await refreshWorkspace(); }
+    catch (error) { triggerToast(error.message); return; }
     setSelectedDeckIds(prev => prev.filter(id => id !== deckId));
     if (selectedDeckForFolderView && selectedDeckForFolderView.id === deckId) {
       setSelectedDeckForFolderView(null);
@@ -911,16 +1003,12 @@ function App() {
     setChangeConfirmation({ title, message });
   };
 
-  const persistProfile = (nextProfile) => {
-    setProfile(nextProfile);
-    try {
-      window.localStorage.setItem('csm-profile', JSON.stringify(nextProfile));
-    } catch (error) {
-      // Local storage is only a placeholder until the account API is connected.
-    }
+  const persistProfile = async (nextProfile) => {
+    try { const saved = await CSM.api('profile', 'PATCH', { displayName: nextProfile.displayName, avatar: nextProfile.avatar }); setProfile(saved); return saved; }
+    catch (error) { triggerToast(error.message); return null; }
   };
 
-  const handleSaveDisplayName = (event) => {
+  const handleSaveDisplayName = async (event) => {
     event.preventDefault();
     const nextName = profileNameDraft.trim();
     if (!nextName) {
@@ -935,15 +1023,26 @@ function App() {
       triggerToast('Your display name is already up to date');
       return;
     }
-    persistProfile({ ...profile, displayName: nextName, nameChangedAt: Date.now() });
+    if (!await persistProfile({ ...profile, displayName: nextName })) return;
     showChangeConfirmation('Display name updated', `Your name is now "${nextName}". You can change it again in 7 days.`);
   };
 
-  const handleChooseAvatar = (avatarId) => {
+  const handleChooseAvatar = async (avatarId) => {
     if (avatarId === profile.avatar) return;
     const avatar = avatarOptions.find(item => item.id === avatarId);
-    persistProfile({ ...profile, avatar: avatarId });
+    if (!await persistProfile({ ...profile, avatar: avatarId })) return;
     showChangeConfirmation('Avatar updated', `${avatar?.label || 'Your new avatar'} is now set on your profile.`);
+  };
+
+  const handleChangePassword = async (event) => {
+    event.preventDefault();
+    if (newPasswordDraft.length < 8 || newPasswordDraft.length > 72) return triggerToast('Use a password between 8 and 72 characters.');
+    if (newPasswordDraft !== confirmPasswordDraft) return triggerToast('The new passwords do not match.');
+    try {
+      await CSM.api('auth/password', 'POST', { currentPassword: currentPasswordDraft, newPassword: newPasswordDraft });
+      setPasswordResetModalOpen(false); setCurrentPasswordDraft(''); setNewPasswordDraft(''); setConfirmPasswordDraft('');
+      triggerToast('Password updated.');
+    } catch (error) { triggerToast(error.message); }
   };
 
   const FIXED_CHAT_TOPICS = [
@@ -959,14 +1058,14 @@ function App() {
     {
       id: 'weakest-topics',
       title: 'Show my weakest topics',
-      getAnswer: () => 'Your dashboard shows 86% average accuracy. Focus on missed cards in your latest sessions, then test yourself in Bomb Mode under time pressure to solidify retention.',
+      getAnswer: () => `Your saved Arena accuracy is ${accountStats.accuracy || 0}%. Focus on missed Bombcards in your recent sessions, then practice the cards you find challenging.`,
       actionLabel: 'Review Cards',
       actionTab: 'flashcards'
     },
     {
       id: 'bomb-mode',
       title: 'How does BombStyle mode work?',
-      getAnswer: () => 'Bomb Mode turns your selected deck into an arcade countdown drill. You set your lives and time limit, then defuse cards before the fuse runs out!',
+      getAnswer: () => 'Bombstyle gives the whole round one countdown. Correct answers add 8 seconds; wrong answers subtract 5 seconds.',
       actionLabel: 'Enter Bomb Mode',
       actionTab: 'game'
     },
@@ -1057,8 +1156,7 @@ function App() {
       message: 'This will remove every saved highlight from the current study page.',
       confirmLabel: 'Clear highlights',
       action: () => {
-        setHighlights([]);
-        showChangeConfirmation('Highlights cleared', 'All saved highlights were removed from this study page.');
+        CSM.api('highlights', 'DELETE', { documentId: activeDocument?.id }).then(() => { setHighlights([]); showChangeConfirmation('Highlights cleared', 'All saved highlights were removed from this study page.'); }).catch(error => triggerToast(error.message));
       }
     });
   };
@@ -1070,10 +1168,50 @@ function App() {
       message: `The saved note${highlight?.text ? ` “${highlight.text}”` : ''} will be removed.`,
       confirmLabel: 'Delete highlight',
       action: () => {
-        setHighlights(list => list.filter(note => note.id !== highlightId));
-        showChangeConfirmation('Highlight deleted', 'The saved highlight was removed.');
+        CSM.api('highlights', 'DELETE', { documentId: activeDocument?.id, id: highlightId }).then(() => { setHighlights(list => list.filter(note => note.id !== highlightId)); showChangeConfirmation('Highlight deleted', 'The saved highlight was removed.'); }).catch(error => triggerToast(error.message));
       }
     });
+  };
+
+  const handlePdfTextSelection = (selection) => {
+    setPdfSelection(selection);
+    setPdfSelectionRole('question');
+    setPdfCounterpart('');
+    setPdfCardComposerOpen(false);
+  };
+
+  const savePdfSelection = async () => {
+    if (!activeDocument || !pdfSelection) return triggerToast('Select some PDF text first.');
+    setPdfSaving(true);
+    try {
+      const note = await CSM.api('highlights', 'POST', {
+        documentId: activeDocument.id, text: pdfSelection.text, page: pdfSelection.page,
+        color: highlightColor, purpose: 'note', selection: pdfSelection.selection
+      });
+      setHighlights(items => [...items, note]);
+      setPdfSelection(null); setPdfCardComposerOpen(false); window.getSelection()?.removeAllRanges();
+      triggerToast('PDF highlight saved.');
+    } catch (error) { triggerToast(error.message); }
+    finally { setPdfSaving(false); }
+  };
+
+  const createPdfBombcard = async () => {
+    if (!activeDocument || !pdfSelection) return triggerToast('Select some PDF text first.');
+    if (!pdfCounterpart.trim()) return triggerToast(pdfSelectionRole === 'question' ? 'Add the answer for this question.' : 'Add the question for this answer.');
+    setPdfSaving(true);
+    try {
+      const result = await CSM.api('highlights/card', 'POST', {
+        documentId: activeDocument.id, text: pdfSelection.text, page: pdfSelection.page,
+        color: highlightColor, purpose: pdfSelectionRole, selection: pdfSelection.selection,
+        counterpart: pdfCounterpart.trim()
+      });
+      setHighlights(items => [...items, result.highlight]);
+      setPdfSelection(null); setPdfCardComposerOpen(false); setPdfCounterpart(''); window.getSelection()?.removeAllRanges();
+      try { await refreshWorkspace(); } catch (refreshError) { console.warn('The new Bombcard was saved, but the reviewer list could not refresh:', refreshError); }
+      const reviewerName = decks.find(deck => deck.id === activeDocument.deckId)?.title || 'your reviewer';
+      triggerToast(`Bombcard created in ${reviewerName}.`);
+    } catch (error) { triggerToast(error.message); }
+    finally { setPdfSaving(false); }
   };
 
   // ========================================================
@@ -1086,7 +1224,7 @@ function App() {
     setIsAddMaterialPopupOpen(true);
   };
 
-  const handleAddMaterialDirectUpload = (filesToUpload) => {
+  const handleAddMaterialDirectUpload = async (filesToUpload) => {
     const files = Array.from(filesToUpload || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (files.length === 0) {
       triggerToast('Please upload PDF files');
@@ -1095,21 +1233,10 @@ function App() {
     const target = targetDeckForAddMaterial || currentSelectedDeck;
     if (!target) return;
 
-    const newDocs = files.map(file => ({
-      id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-      title: file.name
-    }));
-
-    setDecks(prev => prev.map(d => {
-      if (d.id === target.id) {
-        return {
-          ...d,
-          documents: [...(d.documents || []), ...newDocs],
-          lastModified: 'Just now'
-        };
-      }
-      return d;
-    }));
+    try {
+      for (const file of files) await CSM.upload(target.id, file);
+      await refreshWorkspace();
+    } catch (error) { triggerToast(error.message); return; }
 
     triggerToast(`Uploaded ${files.length} document${files.length > 1 ? 's' : ''} to ${target.code || target.title}`);
     showChangeConfirmation('PDF uploaded', `${files.length} document${files.length > 1 ? 's were' : ' was'} added to "${target.code || target.title}".`);
@@ -1153,7 +1280,7 @@ function App() {
     if (files.length === 0) return;
     const newDocs = files.map(file => ({
       id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-      title: file.name
+      title: file.name, file
     }));
     setEditorDocuments(prev => [...prev, ...newDocs]);
     triggerToast(`Imported ${files.length} PDF file${files.length > 1 ? 's' : ''}`);
@@ -1234,41 +1361,23 @@ function App() {
     });
   };
 
-  const handleSaveDeck = () => {
-    if (editingDeck) {
-      // Update existing deck's cards and documents (subject code and subject name are not edited here)
-      setDecks(prev => prev.map(d => {
-        if (d.id === editingDeck.id) {
-          return {
-            ...d,
-            cards: editorCards,
-            documents: editorDocuments,
-            lastModified: 'Just now'
-          };
-        }
-        return d;
-      }));
-      triggerToast(`Saved materials for "${editingDeck.code || editingDeck.title}"`);
-      showChangeConfirmation('Materials saved', `The cards and documents in "${editingDeck.code || editingDeck.title}" were updated.`);
-    } else {
-      // Create fresh fallback
-      const newDeck = {
-        id: 'deck-' + Date.now(),
-        code: editorCode || 'NEW DECK',
-        title: editorTitle || 'New Reviewer',
-        subject: editorSubject || 'Information Technology',
-        owner: 'Gavin Dave',
-        lastModified: 'Just now',
-        category: 'Midterms',
-        cards: editorCards,
-        documents: editorDocuments
-      };
-      setDecks(prev => [newDeck, ...prev]);
-      triggerToast(`Created new reviewer materials`);
-      showChangeConfirmation('Reviewer created', `Your new reviewer "${editorTitle || editorCode || 'New Reviewer'}" is ready.`);
-    }
-
-    setIsDeckEditorOpen(false);
+  const handleSaveDeck = async () => {
+    const title = (editorTitle || editorCode || 'New Reviewer').trim();
+    try {
+      const saved = await CSM.api('decks', editingDeck ? 'PATCH' : 'POST', {
+        ...(editingDeck ? { id: editingDeck.id } : {}), title,
+        subject: editorSubject || 'Information Technology', category: editingDeck?.category || 'Recent', cards: editorCards
+      });
+      const savedDocs = new Set(editorDocuments.filter(doc => !doc.file).map(doc => doc.id));
+      if (editingDeck) for (const doc of editingDeck.documents || []) {
+        if (!savedDocs.has(doc.id)) await CSM.api('documents', 'DELETE', { id: doc.id });
+      }
+      for (const doc of editorDocuments) if (doc.file) await CSM.upload(saved.id, doc.file);
+      await refreshWorkspace();
+      triggerToast(editingDeck ? `Saved materials for "${title}"` : 'Created new reviewer materials');
+      showChangeConfirmation(editingDeck ? 'Materials saved' : 'Reviewer created', `"${title}" is ready for your study materials.`);
+      setIsDeckEditorOpen(false);
+    } catch (error) { triggerToast(error.message); }
   };
 
   // ========================================================
@@ -1304,7 +1413,7 @@ function App() {
         if (BOMBSTYLE_DIFFICULTIES[diff]) setBombstyleDifficulty(diff);
       };
 
-      const handleStartBombstyle = (customCardQueue = null) => {
+      const handleStartBombstyle = async (customCardQueue = null) => {
         const deck = bombstyleActiveDeck;
         let cardsToUse = customCardQueue ? [...customCardQueue] : (deck ? [...(deck.cards || [])] : []);
 
@@ -1313,8 +1422,10 @@ function App() {
           return;
         }
 
-        // Shuffle cards for a true recall test
-        cardsToUse = [...cardsToUse].sort(() => Math.random() - 0.5);
+        try {
+        const session = await CSM.api('arena/start', 'POST', { deckId: deck.id, difficulty: bombstyleDifficulty });
+        setBombstyleSessionId(session.id);
+        cardsToUse = session.queue || cardsToUse;
 
         setBombstyleQueue(cardsToUse);
         setBombstyleIndex(0);
@@ -1338,11 +1449,27 @@ function App() {
           screen: 'arena',
           status: 'In progress'
         });
+        } catch (error) { triggerToast(error.message); }
       };
+
+      useEffect(() => {
+        CSM.api('arena/active').then(session => {
+          if (!session || session.status !== 'active') return;
+          setBombstyleSessionId(session.id); setBombstyleDeckId(session.deckId); setBombstyleDifficulty(session.difficulty);
+          const restoredQueue = session.queue || [];
+          setBombstyleQueue(restoredQueue); setBombstyleIndex(session.index || 0);
+          const restoredAnswers = (session.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
+          setBombstyleHistory(restoredAnswers); setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
+          setBombstyleTimeRemaining(session.remainingMs / 1000); setBombstyleStreak(session.streak || 0);
+          setBombstyleMaxStreak(session.maxStreak || 0); setBombstyleCorrectCount(session.correct || 0);
+          setBombstyleStartTime(Date.now() - (session.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
+          setBombstyleExitModalOpen(!!session.paused);
+        }).catch(error => console.warn('Could not restore the active Arena session:', error));
+      }, []);
 
       // Countdown Timer for Bombstyle
       useEffect(() => {
-        if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleFeedback || bombstyleExitModalOpen) {
+        if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleExitModalOpen) {
           if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
           return;
         }
@@ -1355,7 +1482,7 @@ function App() {
               handleBombstyleTimeout();
               return 0;
             }
-            // Warning tick sound when fuse is dangerously low (< 5s)
+            // Brief warning ticks when the session timer is nearly out.
             if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
               sound.tick();
             }
@@ -1373,14 +1500,17 @@ function App() {
         setBombstyleRevealed(true);
       };
 
-      const handleBombstyleDecision = (knewIt) => {
+      const handleBombstyleDecision = async (knewIt) => {
         if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
         bombstyleAnswerSubmittedRef.current = true;
+        let serverResult;
+        try { serverResult = await CSM.api('arena/answer', 'POST', { id: bombstyleSessionId, position: bombstyleIndex, result: knewIt ? 'correct' : 'wrong' }); }
+        catch (error) { bombstyleAnswerSubmittedRef.current = false; triggerToast(error.message); return; }
+        setBombstyleTimeRemaining(Math.max(0, serverResult.remainingMs / 1000));
 
         if (knewIt) {
           sound.correct();
           setBombstyleFeedback('defused');
-          setBombstyleTimeRemaining(prev => +(prev + 8).toFixed(1));
           const nextStreak = bombstyleStreak + 1;
           setBombstyleStreak(nextStreak);
           if (nextStreak > bombstyleMaxStreak) setBombstyleMaxStreak(nextStreak);
@@ -1395,15 +1525,12 @@ function App() {
             }
           ]);
 
-          setTimeout(() => {
-            advanceBombstyleCard();
-          }, 600);
+          setTimeout(() => serverResult.status === 'active' ? advanceBombstyleCard() : finishBombstyleSession(), 600);
         } else {
           sound.wrong();
           sound.detonation();
           setBombstyleFeedback('exploded');
-          const nextTime = Math.max(0, +(bombstyleTimeRemaining - 5).toFixed(1));
-          setBombstyleTimeRemaining(nextTime);
+          const nextTime = Math.max(0, serverResult.remainingMs / 1000);
           setBombstyleStreak(0);
           setBombstyleHistory(prev => [
             ...prev,
@@ -1417,7 +1544,7 @@ function App() {
           setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
 
           setTimeout(() => {
-            if (nextTime <= 0) {
+            if (serverResult.status !== 'active' || nextTime <= 0) {
               finishBombstyleSession();
             } else {
               advanceBombstyleCard();
@@ -1426,14 +1553,15 @@ function App() {
         }
       };
 
-      const handleBombstyleTimeout = () => {
+      const handleBombstyleTimeout = async () => {
         if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
         bombstyleAnswerSubmittedRef.current = true;
         sound.wrong();
         sound.detonation();
-        setBombstyleFeedback('exploded');
-        setBombstyleRevealed(true);
-        setBombstyleTimeRemaining(0);
+        let serverResult;
+        try { serverResult = bombstyleSessionId ? await CSM.api('arena/session&id=' + bombstyleSessionId) : null; }
+        catch (error) { console.warn(error); }
+        setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleTimeRemaining(0);
         setBombstyleStreak(0);
         setBombstyleHistory(prev => [
           ...prev,
@@ -1468,6 +1596,7 @@ function App() {
         setBombstyleDurationSeconds(duration);
         setBombstyleFeedback(null);
         setBombstylePhase('results');
+        refreshWorkspace().catch(error => console.warn('Could not refresh Arena results:', error));
       };
 
       const handleStudyMissedDeck = () => {
@@ -1485,7 +1614,8 @@ function App() {
           if (activeTab === 'arena') {
             if (bombstylePhase === 'gameplay' && !bombstyleFeedback) {
               if (e.key === 'Escape') {
-                setBombstylePhase('select_deck');
+                CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }).catch(() => {});
+                setBombstyleExitModalOpen(true);
                 return;
               }
               if (!bombstyleRevealed) {
@@ -1508,7 +1638,7 @@ function App() {
           if (activeTab === 'flashcards') {
             if (e.code === 'Space') {
               e.preventDefault();
-              setFlashcardFlipped(f => !f);
+              flipFlashcard();
             } else if (e.key === 'ArrowLeft') {
               e.preventDefault();
               setFlashcardIndex(idx => Math.max(0, idx - 1));
@@ -1821,9 +1951,10 @@ function App() {
                     <button
                       type="button"
                       className="csm-account-dropdown-item danger"
-                      onClick={() => {
+                      onClick={async () => {
                         setAccountMenuOpen(false);
-                        window.location.href = 'login.html';
+                        try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin'); }
+                        catch (error) { triggerToast(error.message); }
                       }}
                     >
                       <IconLogout />
@@ -1899,7 +2030,7 @@ function App() {
                   </span>
                   <span className="home-stat-copy">
                     <span className="home-stat-label">STUDY STREAK</span>
-                    <span className="home-stat-value">7 days</span>
+                    <span className="home-stat-value">{accountStats.studyDays || 0} days</span>
                     <span className="home-stat-description"><b className="csm-trend up">↑ 2 days</b> personal best</span>
                   </span>
                 </div>
@@ -1909,7 +2040,7 @@ function App() {
                   </span>
                   <span className="home-stat-copy">
                     <span className="home-stat-label">AVG. ACCURACY</span>
-                    <span className="home-stat-value">86%</span>
+                    <span className="home-stat-value">{accountStats.accuracy || 0}%</span>
                     <span className="home-stat-description"><b className="csm-trend up">↑ 5%</b> than last week</span>
                   </span>
                 </div>
@@ -1924,8 +2055,8 @@ function App() {
                 </section>
                 <section className="csm-detail-card">
                   <div className="csm-card-heading"><div><span className="csm-kicker">FOCUS PLAN</span><h2>Study streak</h2></div><span className="csm-detail-menu">•••</span></div>
-                  <div className="csm-progress-ring"><strong>7</strong><small>days</small></div>
-                  <div className="csm-progress-track"><span style={{ width: '70%' }} /></div>
+                  <div className="csm-progress-ring"><strong>{accountStats.studyDays || 0}</strong><small>days</small></div>
+                  <div className="csm-progress-track"><span style={{ width: `${Math.min(100, (accountStats.studyDays || 0) * 10)}%` }} /></div>
                   <div className="csm-progress-labels"><span>3 days to goal</span><b>10 day goal</b></div>
                   <p className="csm-card-note">Keep your momentum going. A short review today protects your streak.</p>
                 </section>
@@ -1939,11 +2070,7 @@ function App() {
               <section className="csm-activity-card">
                 <div className="csm-card-heading"><div><span className="csm-kicker">ACTIVITY</span><h2>Recent study sessions</h2></div><button type="button" className="csm-outline-button" onClick={() => setActiveTab('library')}>View library <span>→</span></button></div>
                 <div className="csm-table-wrap"><table className="csm-table"><thead><tr><th><input type="checkbox" aria-label="Select all sessions" /></th><th>Material</th><th>Mode</th><th>Accuracy</th><th>Status</th><th>Last studied</th><th /></tr></thead><tbody>
-                  {[
-                    ['ITE 292 B1', 'BombStyle quiz', '92%', 'Completed', 'Today, 9:15 AM', 'deck-2'],
-                    ['ITE 083', 'Flashcards', '81%', 'In progress', 'Yesterday, 4:20 PM', 'deck-3'],
-                    ['ITE 001', 'Missed questions', '74%', 'Needs review', 'Sep 14, 2026', 'deck-1']
-                  ].map(([name, mode, accuracy, status, date, id]) => <tr key={id}><td><input type="checkbox" aria-label={`Select ${name}`} /></td><td><button className="csm-table-material" type="button" onClick={() => { setSelectedDeckForFolderView(decks.find(d => d.id === id) || null); setActiveTab('library'); }}><span className="csm-material-icon">▦</span><strong>{name}</strong></button></td><td>{mode}</td><td><strong>{accuracy}</strong></td><td><span className={`csm-status ${status === 'Completed' ? 'done' : status === 'In progress' ? 'progress' : 'review'}`}><i />{status}</span></td><td>{date}</td><td><button type="button" className="csm-row-menu" aria-label={`More actions for ${name}`}>•••</button></td></tr>)}
+                  {recentActivities.slice(0, 8).map(activity => [activity.material, activity.mode, activity.accuracy || '—', activity.status, formatActivityTime(activity.timestamp), activity.deckId || activity.id]).map(([name, mode, accuracy, status, date, id]) => <tr key={id}><td><input type="checkbox" aria-label={`Select ${name}`} /></td><td><button className="csm-table-material" type="button" onClick={() => openRecentActivity(recentActivities.find(item => item.id === id) || recentActivities[0])}><span className="csm-material-icon">▦</span><strong>{name}</strong></button></td><td>{mode}</td><td><strong>{accuracy}</strong></td><td><span className={`csm-status ${status === 'Completed' ? 'done' : status === 'In progress' ? 'progress' : 'review'}`}><i />{status}</span></td><td>{date}</td><td><button type="button" className="csm-row-menu" aria-label={`More actions for ${name}`}>•••</button></td></tr>)}
                 </tbody></table></div>
               </section>
 
@@ -1987,7 +2114,7 @@ function App() {
                       </svg>
                     </span>
                     <h3 className="home-tool-title">Bombstyle Arena</h3>
-                    <p className="home-tool-description">Pressure-based recall.<br />Defuse cards before fuse detonates.</p>
+                    <p className="home-tool-description">Pressure-based recall.<br />One countdown for the entire round.</p>
                     <button className="home-tool-button" type="button" onClick={handleOpenGameMode}>
                       <span>Enter Arena</span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -2145,7 +2272,7 @@ function App() {
             <div className={`csm-account-layout account-section-${accountSection}`}>
               <section className="csm-account-card csm-account-summary">
                 <div className="csm-account-summary-top"><span className="csm-account-avatar-large" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span><div><span className="csm-kicker">STUDY PROFILE</span><h2>{displayName}</h2><p>@{profile.username || defaultProfile.username}</p></div></div>
-                <div className="csm-account-summary-note"><span>Local placeholder</span><p>Your profile changes are currently saved in this browser. They will connect to your account once the database is added.</p></div>
+                <div className="csm-account-summary-note"><span>Private study profile</span><p>Your profile, reviewers, and study progress are saved to your account and follow you across devices.</p></div>
                 <div className="csm-account-summary-stats"><div><strong>{totalReviewers}</strong><span>reviewers</span></div><div><strong>{totalBombCards}</strong><span>Bombcards</span></div><div><strong>{totalDocuments}</strong><span>PDF notes</span></div></div>
               </section>
 
@@ -2166,17 +2293,17 @@ function App() {
               </section>
 
               <section className="csm-account-card csm-account-security-card">
-                <div className="csm-account-card-heading"><div><span className="csm-kicker">SECURITY</span><h2>Password</h2></div><span className="csm-account-placeholder-badge">Placeholder</span></div>
-                <div className="csm-account-security-row"><span className="csm-account-security-icon">•••</span><div><strong>Reset your password</strong><p>Password reset will be connected once the account database and email service are available.</p></div><button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(true)}>Reset password</button></div>
+                <div className="csm-account-card-heading"><div><span className="csm-kicker">SECURITY</span><h2>Password</h2></div><span className="csm-account-placeholder-badge">Protected</span></div>
+                <div className="csm-account-security-row"><span className="csm-account-security-icon">•••</span><div><strong>Change your password</strong><p>Verify your current password to set a new one. Email recovery is not configured.</p></div><button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(true)}>Change password</button></div>
               </section>
               <section className="csm-account-card csm-account-policy-card">
-                <div className="csm-account-card-heading"><div><span className="csm-kicker">PRIVACY &amp; POLICY</span><h2>Your data in Co-StudyMaxx</h2></div><span className="csm-account-placeholder-badge">Placeholder</span></div>
+                <div className="csm-account-card-heading"><div><span className="csm-kicker">PRIVACY &amp; POLICY</span><h2>Your data in Co-StudyMaxx</h2></div><span className="csm-account-placeholder-badge">Account data</span></div>
                 <div className="csm-policy-list">
-                  <div className="csm-policy-item"><strong>Browser-only profile data</strong><p>Your username, display name, avatar choice, and preferences are currently saved in this browser until a database is connected.</p></div>
+                  <div className="csm-policy-item"><strong>Account data</strong><p>Your account, profile, reviewer content, uploaded materials, and study results are stored in the private workspace database. Chat panel collapse remains a browser-only preference.</p></div>
                   <div className="csm-policy-item"><strong>Study activity</strong><p>The Home activity list only records the Library materials you open so you can return to your latest study work.</p></div>
                   <div className="csm-policy-item"><strong>Future policy links</strong><p>Privacy policy, terms, account deletion, and data export links will be connected here when the backend is ready.</p></div>
                 </div>
-                <div className="csm-policy-actions"><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Privacy policy placeholder — backend connection pending')}>View privacy policy</button><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Data export placeholder — backend connection pending')}>Data export</button></div>
+                <div className="csm-policy-actions"><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Privacy policy is not configured yet.')}>View privacy policy</button><button type="button" className="csm-secondary-button" onClick={async () => { try { CSM.download(await CSM.api('account/export'), 'co-studymaxx-export.json'); } catch (error) { triggerToast(error.message); } }}>Export my data</button></div>
               </section>
             </div>
           </div>
@@ -2418,7 +2545,7 @@ function App() {
                   <button
                     type="button"
                     className={`csm-flashcard ${flashcardFlipped ? 'is-flipped' : ''}`}
-                    onClick={() => setFlashcardFlipped(value => !value)}
+                    onClick={flipFlashcard}
                     aria-label="Flip flashcard"
                   >
                     <span className="csm-flashcard-side-label">{flashcardFlipped ? 'ANSWER' : 'PROMPT'}</span>
@@ -2468,7 +2595,7 @@ function App() {
                 <span className="csm-kicker">SESSION SUMMARY</span>
                 <h2>{activeFlashcardDeck?.code || 'Your deck'}</h2>
                 <div className="csm-summary-stat"><strong>{flashcards.length}</strong><span>cards in deck</span></div>
-                <div className="csm-summary-stat"><strong>86%</strong><span>last accuracy</span></div>
+                <div className="csm-summary-stat"><strong>{accountStats.accuracy || 0}%</strong><span>average accuracy</span></div>
                 <div className="csm-summary-stat"><strong>3</strong><span>missed to revisit</span></div>
                 <button type="button" className="csm-text-button" onClick={() => setActiveTab('game')}>Practice missed cards <span>→</span></button>
               </aside>
@@ -2816,14 +2943,30 @@ function App() {
                 ======================================================== */}
         {activeTab === 'highlighter' && (
           <div className="csm-screen csm-highlighter-screen custom-scroll">
-            <div className="csm-page-head"><div><span className="csm-kicker">PDF STUDY TOOL</span><h1>Highlight your notes</h1><p>Mark the ideas you want to turn into future flashcards.</p></div><div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button><button type="button" className="csm-primary-button" onClick={() => { showChangeConfirmation('Highlights saved', 'Your saved study notes are ready to use in your reviewer.'); setActiveTab('creator'); }}>Save highlights</button></div></div>
+            <div className="csm-page-head csm-pdf-page-head"><div><span className="csm-kicker">PDF STUDY TOOL</span><h1>Highlight your notes</h1><p>Select a passage, save it as a study note, or turn it into a Bombcard.</p></div><div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button></div></div>
             <div className="csm-highlighter-layout">
               <section className="csm-pdf-card">
-                <div className="csm-pdf-toolbar"><div><strong>ITE 292 B1 - Normalization Rules.pdf</strong><span>Page 3 of 8 - 1.2 MB</span></div><div className="csm-pdf-tools"><button type="button" className="csm-pdf-tool active" onClick={() => setHighlightColor('#f5a23a')} style={{ color: '#f5a23a' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => setHighlightColor('#8dc7ef')} style={{ color: '#8dc7ef' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => setHighlightColor('#a8d8a8')} style={{ color: '#a8d8a8' }}>●</button><button type="button" className="csm-pdf-tool" onClick={() => triggerToast('PDF uploaded')}>Upload</button></div></div>
-                <div className="csm-pdf-page"><span className="csm-pdf-page-number">3</span><h2>Database Normalization</h2><p>Normalization organizes data in a database to reduce redundancy and improve data integrity. Each normal form introduces rules that make a schema easier to maintain.</p><p><mark style={{ background: highlightColor }}>A relation is in third normal form when it is already in 2NF and no non-key attribute depends transitively on the primary key.</mark></p><p>Use the smallest useful set of tables, connect them with keys, and make each fact live in one place.</p><div className="csm-pdf-note">Key idea: transitive dependencies are the focus of 3NF.</div></div>
-                <div className="csm-pdf-pagination"><button type="button" className="csm-secondary-button">Previous page</button><span>Page 3 / 8</span><button type="button" className="csm-secondary-button">Next page</button></div>
+                <div className="csm-pdf-toolbar">
+                  <div className="csm-pdf-document-title"><strong>{activeDocument?.title || 'Choose a PDF to study'}</strong><span>{activeDocument ? `${decks.find(deck => deck.id === activeDocument.deckId)?.title || 'Your reviewer'} · private to your account` : 'Choose from your saved reviewer documents'}</span></div>
+                  <div className="csm-pdf-tools">
+                    {!activeDocument && <select className="csm-pdf-document-select" value="" aria-label="Choose a PDF" onChange={event => { const found = decks.flatMap(deck => (deck.documents || []).map(document => ({ deck, document }))).find(item => item.document.id === event.target.value); if (found) handleOpenDocument(found.deck, found.document); }}><option value="">Choose PDF…</option>{decks.flatMap(deck => (deck.documents || []).map(document => <option key={document.id} value={document.id}>{document.title} · {deck.title}</option>))}</select>}
+                    {['#f5a23a', '#8dc7ef', '#a8d8a8'].map((color, index) => <button key={color} type="button" className={`csm-pdf-color ${highlightColor === color ? 'active' : ''}`} onClick={() => setHighlightColor(color)} aria-label={['Orange', 'Blue', 'Green'][index] + ' highlight color'} aria-pressed={highlightColor === color} style={{ '--swatch': color }} />)}
+                    {activeDocument && <a className="csm-pdf-open-link" href={activeDocument.url} target="_blank" rel="noreferrer">Open PDF ↗</a>}
+                  </div>
+                </div>
+                <div className="csm-pdf-instructions"><span className="csm-pdf-instructions-icon">✦</span><span>Drag across text in the page. Then choose whether to save a note or make a question-and-answer Bombcard.</span></div>
+                <PdfStudyViewer document={activeDocument} pageNumber={pdfPage} onPageCount={setPdfPageCount} highlights={highlights} onSelection={handlePdfTextSelection} />
+                <div className="csm-pdf-pagination"><button type="button" className="csm-secondary-button" onClick={() => setPdfPage(page => Math.max(1, page - 1))} disabled={!activeDocument || pdfPage <= 1}>← Previous</button><label>Page <input type="number" min="1" max={pdfPageCount || 1} value={pdfPage} onChange={event => { const page = Number(event.target.value); if (Number.isInteger(page) && page > 0 && page <= pdfPageCount) setPdfPage(page); }} disabled={!activeDocument || !pdfPageCount} /> <span>of {pdfPageCount || '—'}</span></label><button type="button" className="csm-secondary-button" onClick={() => setPdfPage(page => Math.min(pdfPageCount, page + 1))} disabled={!activeDocument || !pdfPageCount || pdfPage >= pdfPageCount}>Next →</button></div>
               </section>
-              <aside className="csm-highlights-card"><div className="csm-card-heading"><div><span className="csm-kicker">SAVED HIGHLIGHTS</span><h2>{highlights.length} study notes</h2></div><button type="button" className="csm-row-menu" onClick={handleClearHighlights} aria-label="Clear highlights">Clear</button></div>{highlights.map(item => <div key={item.id} className="csm-highlight-item"><i style={{ background: item.color }} /><p>{item.text}</p><button type="button" className="csm-row-menu" onClick={() => handleRemoveHighlight(item.id)} aria-label={`Delete highlight ${item.id}`}>x</button></div>)}<button type="button" className="csm-add-highlight" onClick={() => setHighlights(list => [...list, { id: Date.now(), text: 'New highlighted note from this page.', color: highlightColor }])}>+ Add highlighted note</button></aside>
+              <aside className="csm-highlights-card csm-pdf-notes-panel">
+                <div className="csm-pdf-notes-heading"><div><span className="csm-kicker">YOUR PDF NOTES</span><h2>{highlights.length} saved {highlights.length === 1 ? 'highlight' : 'highlights'}</h2></div><button type="button" className="csm-row-menu" onClick={handleClearHighlights} aria-label="Clear all highlights" disabled={!activeDocument || !highlights.length}>Clear</button></div>
+                {pdfSelection && <section className="csm-pdf-selection-card"><div className="csm-pdf-selection-label"><span className="csm-selection-dot" style={{ background: highlightColor }} />SELECTED TEXT · PAGE {pdfSelection.page}</div><blockquote>“{pdfSelection.text}”</blockquote><div className="csm-pdf-selection-actions"><button type="button" className="csm-secondary-button" onClick={savePdfSelection} disabled={pdfSaving}>Save highlight</button><button type="button" className="csm-primary-button" onClick={() => { setPdfCardComposerOpen(value => !value); setPdfCounterpart(''); }} disabled={pdfSaving}>{pdfCardComposerOpen ? 'Close card form' : 'Make a Bombcard'}</button></div>
+                  {pdfCardComposerOpen && <div className="csm-pdf-card-composer"><strong>Use this excerpt as the…</strong><div className="csm-pdf-role-switch" role="group" aria-label="Choose how to use selected text"><button type="button" className={pdfSelectionRole === 'question' ? 'active' : ''} onClick={() => { setPdfSelectionRole('question'); setPdfCounterpart(''); }}>Question</button><button type="button" className={pdfSelectionRole === 'answer' ? 'active' : ''} onClick={() => { setPdfSelectionRole('answer'); setPdfCounterpart(''); }}>Answer</button></div><label htmlFor="pdf-card-counterpart">{pdfSelectionRole === 'question' ? 'Write the answer' : 'Write the question'}</label><textarea id="pdf-card-counterpart" rows="3" maxLength="10000" value={pdfCounterpart} onChange={event => setPdfCounterpart(event.target.value)} placeholder={pdfSelectionRole === 'question' ? 'Enter the correct answer…' : 'Enter a question for this answer…'} /><small>This creates an Identification Bombcard in the reviewer that contains this PDF.</small><button type="button" className="csm-primary-button csm-pdf-create-card" onClick={createPdfBombcard} disabled={pdfSaving || !pdfCounterpart.trim()}>{pdfSaving ? 'Saving…' : 'Create Bombcard'}</button></div>}
+                </section>}
+                {!pdfSelection && <div className="csm-pdf-selection-empty"><span>✦</span><strong>Select text in the PDF</strong><p>Your selection will appear here. Save it as a color highlight or use it to create a question-and-answer Bombcard.</p></div>}
+                <div className="csm-pdf-saved-list">{highlights.map(item => <article key={item.id} className="csm-pdf-saved-item"><div className="csm-pdf-saved-item-top"><span className="csm-pdf-note-tag" style={{ '--swatch': item.color }}>{item.purpose === 'question' ? 'Question card' : item.purpose === 'answer' ? 'Answer card' : 'Study note'}</span><button type="button" className="csm-row-menu" onClick={() => handleRemoveHighlight(item.id)} aria-label={`Delete highlight ${item.id}`}>×</button></div><p>{item.text}</p><button type="button" className="csm-pdf-page-jump" onClick={() => setPdfPage(Number(item.page) || 1)}>Go to page {item.page}{item.cardId ? ' · linked Bombcard' : ''}</button></article>)}</div>
+                {!!highlights.length && <button type="button" className="csm-add-highlight" onClick={handleClearHighlights}>Clear all saved highlights</button>}
+              </aside>
             </div>
           </div>
         )}
@@ -2841,7 +2984,7 @@ function App() {
                       <div>
                         <span className="csm-kicker">ARENA • BOMBSTYLE</span>
                         <h1>Bombstyle Arena</h1>
-                        <p>Test your Bombcards under pressure. Active recall, countdown fuse, zero hesitation. Choose a deck to start.</p>
+                        <p>Test your Bombcards under pressure. Active recall and one countdown for the whole round. Choose a deck to start.</p>
                       </div>
                     </div>
 
@@ -3049,7 +3192,7 @@ function App() {
                           className="csm-secondary-button"
                           style={{ height: '34px', width: '34px', padding: 0 }}
                           title="Exit Run to Arena Hub"
-                          onClick={() => setBombstyleExitModalOpen(true)}
+                          onClick={async () => { try { await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(true); }}
                         >
                           <IconArrowLeft />
                         </button>
@@ -3441,18 +3584,19 @@ function App() {
 </main>
 
       {bombstyleExitModalOpen && (
-        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={() => setBombstyleExitModalOpen(false)}>
+        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={async () => { try { await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(false); }}>
           <div className="csm-bombstyle-exit-modal" role="dialog" aria-modal="true" aria-labelledby="bombstyle-exit-title" aria-describedby="bombstyle-exit-description" onClick={(event) => event.stopPropagation()}>
             <div className="csm-bombstyle-exit-icon" aria-hidden="true"><IconArrowLeft /></div>
             <span className="csm-kicker">LEAVE SESSION?</span>
             <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
-            <p id="bombstyle-exit-description">Are you sure you want to exit this session? Your current progress will be lost.</p>
+            <p id="bombstyle-exit-description">Your answers are saved. Exit this session and return to the Arena?</p>
             <div className="csm-bombstyle-exit-actions">
-              <button type="button" className="csm-secondary-button" autoFocus onClick={() => setBombstyleExitModalOpen(false)}>Cancel</button>
+              <button type="button" className="csm-secondary-button" autoFocus onClick={async () => { try { await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(false); }}>Cancel</button>
               <button
                 type="button"
                 className="csm-danger-button"
-                onClick={() => {
+                onClick={async () => {
+                  try { await CSM.api('arena/abandon', 'POST', { id: bombstyleSessionId }); await refreshWorkspace(); } catch (error) { triggerToast(error.message); }
                   setBombstyleExitModalOpen(false);
                   setBombstyleFeedback(null);
                   setBombstyleRevealed(false);
@@ -3523,13 +3667,17 @@ function App() {
 
       {passwordResetModalOpen && (
         <div className="csm-modal-backdrop" role="presentation" onClick={() => setPasswordResetModalOpen(false)}>
-          <div className="csm-password-modal" role="dialog" aria-modal="true" aria-labelledby="password-reset-title" onClick={(e) => e.stopPropagation()}>
+          <form className="csm-password-modal" role="dialog" aria-modal="true" aria-labelledby="password-reset-title" onSubmit={handleChangePassword} onClick={(e) => e.stopPropagation()}>
             <div className="csm-password-icon" aria-hidden="true">•••</div>
             <span className="csm-kicker">PASSWORD RESET</span>
-            <h2 id="password-reset-title">Reset password placeholder</h2>
-            <p>Password reset is ready for the account flow, but it needs the database and email service before it can send a real reset link.</p>
-            <button type="button" className="csm-primary-button" onClick={() => { setPasswordResetModalOpen(false); triggerToast('Password reset placeholder acknowledged'); }}>Got it</button>
-          </div>
+            <h2 id="password-reset-title">Change password</h2>
+            <p>Confirm your current password, then choose a new one.</p>
+            <input type="password" autoComplete="current-password" required minLength={8} maxLength={72} placeholder="Current password" value={currentPasswordDraft} onChange={event => setCurrentPasswordDraft(event.target.value)} />
+            <input type="password" autoComplete="new-password" required minLength={8} maxLength={72} placeholder="New password (8–72 characters)" value={newPasswordDraft} onChange={event => setNewPasswordDraft(event.target.value)} />
+            <input type="password" autoComplete="new-password" required minLength={8} maxLength={72} placeholder="Confirm new password" value={confirmPasswordDraft} onChange={event => setConfirmPasswordDraft(event.target.value)} />
+            <button type="submit" className="csm-primary-button">Update password</button>
+            <button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(false)}>Cancel</button>
+          </form>
         </div>
       )}
 
@@ -3738,7 +3886,7 @@ function App() {
                     if (files.length > 0) {
                       const newDocs = files.map(file => ({
                         id: 'doc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
-                        title: file.name
+                        title: file.name, file
                       }));
                       setEditorDocuments(prev => [...prev, ...newDocs]);
                       triggerToast(`Imported ${files.length} PDF file${files.length > 1 ? 's' : ''}`);
@@ -3947,4 +4095,11 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, document.getElementById('root'));
+CSM.api('auth/session').then(async session => {
+  if (!session.authenticated) { window.location.replace('login.html?mode=signin'); return; }
+  CSM.initial = await CSM.api('workspace');
+  ReactDOM.render(<App />, document.getElementById('root'));
+}).catch(error => {
+  const root = document.getElementById('root');
+  root.innerHTML = `<div style="margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:16px system-ui"><h2>Workspace unavailable</h2><p>${String(error.message || 'Could not load your account data.').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</p><button onclick="location.href='login.html'">Back to sign in</button></div>`;
+});

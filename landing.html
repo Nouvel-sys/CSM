@@ -91,38 +91,7 @@
       }, [authMode, authBusy]);
       const handleAuthSubmit = (event) => {
         event.preventDefault();
-        if (authBusy) return;
-        const formData = new FormData(event.currentTarget);
-        const username = String(formData.get('username') || '').trim();
-        const password = String(formData.get('password') || '');
-        const confirmPassword = String(formData.get('confirmPassword') || '');
-        if (username.length < 3) {
-          setAuthError('Use at least 3 characters for your username or email.');
-          return;
-        }
-        if (password.length < 6) {
-          setAuthError('Your password needs at least 6 characters.');
-          return;
-        }
-        if (authMode === 'register' && password !== confirmPassword) {
-          setAuthError('Your passwords do not match yet.');
-          return;
-        }
-        setAuthBusy(true);
-        window.setTimeout(() => {
-          const displayName = username.includes('@') ? username.split('@')[0] : username;
-          try {
-            const savedProfile = JSON.parse(window.localStorage.getItem('csm-profile') || '{}');
-            window.localStorage.setItem('csm-profile', JSON.stringify({ ...savedProfile, displayName: savedProfile.displayName || displayName, username: displayName }));
-            window.localStorage.setItem('csm-auth-session', JSON.stringify({ username: displayName, signedInAt: Date.now() }));
-          } catch (error) {
-            // The workspace can still be opened when storage is unavailable.
-          }
-          setAuthBusy(false);
-          setAuthMode(null);
-          setAuthError('');
-          onAuthenticated();
-        }, 420);
+        window.location.assign(`login.html?mode=${authMode === 'register' ? 'register' : 'signin'}`);
       };
       useEffect(() => {
         document.body.classList.add('csm-landing-mode');

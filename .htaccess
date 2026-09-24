@@ -1,0 +1,8 @@
+Options -Indexes
+DirectoryIndex index.html
+RewriteEngine On
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(?:server|classes|database|tests|docs|test-results|storage)(?:/|$) - [F,L,NC]
+<FilesMatch "^(?:config.*|.*\.sql|.*\.log|.*\.md|.*\.py|package\.json)$">
+  Require all denied
+</FilesMatch>

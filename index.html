@@ -74,6 +74,13 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script type="module">
+    window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs').then(pdfjsLib => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs';
+      window.pdfjsLib = pdfjsLib;
+      return pdfjsLib;
+    }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
+  </script>
 
   <link rel="stylesheet" href="index.css">
 </head>
@@ -82,6 +89,7 @@
   <div class="outer-glow-backdrop"></div>
   <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden"></div>
 
+  <script src="api.js"></script>
   <script type="text/babel" src="index.jsx"></script>
 </body>
 

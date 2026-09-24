@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Co-Studymaxx — Study Reviewer & Countdown Quiz System",
   "scripts": {
-    "start": "python -m http.server 8080",
-    "serve": "python -m http.server 8080"
+    "start": "php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php",
+    "serve": "php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php"
   },
   "keywords": [],
   "author": "",

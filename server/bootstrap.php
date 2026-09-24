@@ -1,0 +1,49 @@
+<?php
+declare(strict_types=1);
+date_default_timezone_set('UTC');ini_set('display_errors','0');
+foreach(glob(dirname(__DIR__).'/classes/*.php') as $classFile)require_once $classFile;
+function respond($data,int $status=200):void{http_response_code($status);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);exit;}
+function fail(int $status,string $message):void{if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();respond(['error'=>$message],$status);}
+set_exception_handler(function(Throwable $error){if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();error_log((string)$error);fail(500,'The server could not complete the request. Please try again.');});
+if(!is_file(__DIR__.'/config.local.php'))fail(503,'Server setup is incomplete. Copy server/config.example.php to config.local.php and configure MySQL.');
+$config=require __DIR__.'/config.local.php';$database=new Database($config);$db=$database->getConnection();
+$users=new User($database);$decksService=new Deck($database);$bombcardsService=new Bombcard($database);$materialsService=new Material($database);$progressService=new StudyProgress($database);$bombstyleService=new BombstyleSession($database);
+function query(string $sql,array $params=[]):PDOStatement{global $database;return $database->query($sql,$params);}
+function uid():string{return bin2hex(random_bytes(16));}
+function now_ms():int{return (int)floor(microtime(true)*1000);}
+function timestamp_ms(?string $date):?int{return $date?(int)round(strtotime($date.' UTC')*1000):null;}
+function input():array{if((int)($_SERVER['CONTENT_LENGTH']??0)>2*1024*1024)fail(413,'Request too large.');try{$value=json_decode(file_get_contents('php://input'),true,64,JSON_THROW_ON_ERROR);}catch(JsonException $e){fail(400,'Invalid JSON.');}if(!is_array($value))fail(400,'Expected a JSON object.');return $value;}
+function text_length(string $value):int{return function_exists('mb_strlen')?mb_strlen($value,'UTF-8'):strlen($value);}
+function field(array $data,string $key,int $max,bool $required=true):string{$value=$data[$key]??'';if(!is_string($value))fail(422,"$key must be text.");$value=trim($value);if(($required&&$value==='')||text_length($value)>$max)fail(422,"Invalid $key (maximum $max characters).");return $value;}
+function selection_json(array $data):?string{$selection=$data['selection']??null;if($selection===null)return null;if(!is_array($selection)||count($selection)>300)fail(422,'Invalid PDF selection.');$clean=[];foreach($selection as $rect){if(!is_array($rect))fail(422,'Invalid PDF selection.');$values=[];foreach(['x','y','width','height'] as $key){$value=$rect[$key]??null;if(!is_numeric($value)||!is_finite((float)$value))fail(422,'Invalid PDF selection.');$values[$key]=(float)$value;}if($values['x']<0||$values['y']<0||$values['width']<=0||$values['height']<=0||$values['x']+$values['width']>1.02||$values['y']+$values['height']>1.02)fail(422,'PDF selection is outside the page.');$clean[]=$values;}if(!$clean)fail(422,'Select text in the PDF first.');return json_encode($clean,JSON_THROW_ON_ERROR);}
+function id_field(array $data,string $key='id'):string{$id=field($data,$key,32);if(!preg_match('/^[a-f0-9]{32}$/D',$id))fail(422,"Invalid $key.");return $id;}
+function password_value(array $data,string $key):string{$value=$data[$key]??null;if(!is_string($value)||strlen($value)<8||strlen($value)>72||str_contains($value,"\0"))fail(422,'Passwords must contain 8–72 bytes.');return $value;}
+function owned_deck(string $id,string $user):array{global $decksService;$row=$decksService->owned($id,$user);if(!$row)fail(404,'Reviewer not found.');return $row;}
+function owned_document(string $id,string $user):array{global $materialsService;$row=$materialsService->owned($id,$user);if(!$row)fail(404,'Material not found.');return $row;}
+class DatabaseSessionHandler implements SessionHandlerInterface{
+ public function open($path,$name):bool{return true;}public function close():bool{return true;}
+ public function read($id):string{$row=query('SELECT payload FROM web_sessions WHERE id=? AND expires_at>?',[$id,time()])->fetch();return $row?(string)$row['payload']:'';}
+ public function write($id,$data):bool{query('INSERT INTO web_sessions (id,payload,expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE payload=VALUES(payload),expires_at=VALUES(expires_at)',[$id,$data,$_SESSION['expires_at']??time()+7200]);return true;}
+ public function destroy($id):bool{query('DELETE FROM web_sessions WHERE id=?',[$id]);return true;}public function gc($lifetime):int{return query('DELETE FROM web_sessions WHERE expires_at<?',[time()])->rowCount();}
+}
+session_set_save_handler(new DatabaseSessionHandler(),true);ini_set('session.use_only_cookies','1');ini_set('session.use_strict_mode','1');session_name('csm_session');
+session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);session_start();
+if(($_SESSION['expires_at']??PHP_INT_MAX)<=time()){$_SESSION=[];session_regenerate_id(true);}$_SESSION['csrf']=$_SESSION['csrf']??bin2hex(random_bytes(32));
+function csrf():void{if(!hash_equals($_SESSION['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']??''))fail(403,'Invalid CSRF token. Reload and try again.');}
+function user_id():string{$id=$_SESSION['user_id']??'';$row=$id?query('SELECT auth_version FROM users WHERE id=?',[$id])->fetch():false;if(!$row||(int)$row['auth_version']!==($_SESSION['auth_version']??0))fail(401,'Please sign in.');return $id;}
+function profile(string $user):array{global $users;return $users->profile($user);}
+function activity(string $user,?string $deck,string $material,string $mode,string $screen,string $status,?float $accuracy=null):void{query('INSERT INTO study_activity (id,user_id,deck_id,material,mode,screen,status,accuracy) VALUES (?,?,?,?,?,?,?,?)',[uid(),$user,$deck,$material,$mode,$screen,$status,$accuracy]);}
+function card_data(array $row):array{$opts=query('SELECT * FROM card_options WHERE card_id=? ORDER BY position',[$row['id']])->fetchAll();$correct=0;foreach($opts as $i=>$option)if((int)$option['is_correct']===1)$correct=$i;return ['id'=>$row['id'],'type'=>$row['type'],'prompt'=>$row['prompt'],'hint'=>$row['hint'],'correctAnswer'=>$row['correct_answer'],'alternates'=>$row['alternates'],'explanation'=>$row['explanation'],'options'=>array_column($opts,'answer_text'),'correctIndex'=>$correct];}
+function deck_data(array $row):array{global $bombcardsService,$materialsService;$cards=array_map('card_data',$bombcardsService->forDeck($row['id']));$docs=$materialsService->byDeck($row['id']);foreach($docs as &$doc){$doc['deckId']=$row['id'];$doc['url']='api/index.php?r=documents/file&id='.$doc['id'];}return ['id'=>$row['id'],'code'=>$row['title'],'title'=>$row['title'],'subject'=>$row['subject'],'category'=>$row['category'],'owner'=>'You','lastModified'=>$row['updated_at'],'section'=>strtotime($row['updated_at'])>time()-604800?'recent':'older','cards'=>$cards,'documents'=>$docs];}
+function save_card(array $data,string $deck,?string $id=null,int $position=0):string{global $bombcardsService;return $bombcardsService->save($data,$deck,$id,$position);}
+function workspace(string $user):array{
+ global $decksService,$progressService,$bombstyleService,$users;
+ $decks=array_map('deck_data',$decksService->allForUser($user));
+ $activities=query('SELECT id,deck_id AS deckId,material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC LIMIT 100',[$user])->fetchAll();
+ foreach($activities as &$a){$a['timestamp']=timestamp_ms($a['created_at']);$a['accuracy']=$a['accuracy']===null?'—':round((float)$a['accuracy']).'%';}
+ $stats=query("SELECT COALESCE(MAX(max_streak),0) bestStreak,COALESCE(SUM(correct_count),0) correctCount,COALESCE(SUM(current_index),0) answerCount FROM arena_sessions WHERE user_id=? AND status<>'active'",[$user])->fetch();
+ $stats['accuracy']=(int)$stats['answerCount']?round(100*$stats['correctCount']/$stats['answerCount']):0;$stats['decks']=count($decks);$stats['cards']=array_sum(array_map(fn($d)=>count($d['cards']),$decks));$stats['documents']=array_sum(array_map(fn($d)=>count($d['documents']),$decks));
+ $days=query('SELECT DISTINCT DATE(created_at) FROM study_activity WHERE user_id=? ORDER BY DATE(created_at) DESC',[$user])->fetchAll(PDO::FETCH_COLUMN);$streak=0;$day=gmdate('Y-m-d');if(!in_array($day,$days,true))$day=gmdate('Y-m-d',time()-86400);while(in_array($day,$days,true)){$streak++;$day=gmdate('Y-m-d',strtotime($day)-86400);}$stats['studyDays']=$streak;
+ $sessions=$bombstyleService->history($user);$sessions=array_map(fn($s)=>['id'=>$s['id'],'deckId'=>$s['deck_id'],'title'=>$s['deck_title'],'difficulty'=>$s['difficulty'],'status'=>$s['status'],'correctCount'=>(int)$s['correct_count'],'answered'=>(int)$s['current_index'],'bestStreak'=>(int)$s['max_streak'],'started_at'=>$s['started_at'],'ended_at'=>$s['ended_at']],$sessions);
+ return ['profile'=>$users->profile($user),'decks'=>$decks,'activities'=>$activities,'stats'=>$stats,'sessions'=>$sessions,'studyProgress'=>$progressService->forUser($user)];
+}

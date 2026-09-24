@@ -1,0 +1,9 @@
+window.CSM = {
+ csrf: '',
+ async api(route,method='GET',data){const headers={Accept:'application/json'};if(method!=='GET')headers['X-CSRF-Token']=this.csrf;const form=data instanceof FormData;if(data&&!form)headers['Content-Type']='application/json';const response=await fetch('api/index.php?r='+route,{method,credentials:'same-origin',headers,body:data?(form?data:JSON.stringify(data)):undefined,cache:'no-store'});const body=await response.text();let result;try{result=body?JSON.parse(body):{};}catch(_){const suffix=response.status?` (HTTP ${response.status})`:'';throw new Error(`The PHP endpoint returned a non-JSON response${suffix}. Make sure this site is being served by PHP, then check the PHP error log if the problem continues.`);}if(!response.ok){if(response.status===401&&!route.startsWith('auth/'))location.replace('login.html');throw new Error(result.error||'Request failed ('+response.status+').');}if(result?.csrf)this.csrf=result.csrf;return result;},
+ async upload(deckId,file){const body=new FormData();body.append('deckId',deckId);body.append('file',file);return this.api('documents','POST',body);},
+ download(data,name){const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);},
+ cleanLegacyAuth(){try{const keys=['csm-account','csm-auth-session','csm-remembered-session'];if(keys.some(k=>localStorage.getItem(k)))localStorage.setItem('csm-legacy-notice','true');keys.forEach(k=>localStorage.removeItem(k));}catch(_){}},
+ exportLegacy(){const data={note:'Unverified browser data. Not automatically assigned to an account.'};for(const key of ['csm-profile','csm-recent-activities'])try{data[key]=JSON.parse(localStorage.getItem(key)||'null');}catch(_){}this.download(data,'co-studymaxx-old-browser-data.json');}
+};
+CSM.cleanLegacyAuth();

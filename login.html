@@ -233,6 +233,13 @@
       .form-footer { margin-top: 29px; font-size: 10px; }
       .form-footer button { font-size: 10px; }
     }
+
+    /* Keep the brand illustration inside the clipped split-panel at every desktop size. */
+    @media (min-width: 761px) {
+      .brand-mascot { left: auto; right: 12px; bottom: 10px; width: clamp(145px, 18vw, 220px); max-height: 34%; object-fit: contain; }
+    }
+    .brand-mascot { display: block; }
+    .brand-mascot[hidden] { display: none; }
   </style>
 </head>
 <body>
@@ -269,13 +276,17 @@
 
           <form class="auth-form" id="auth-form" novalidate>
             <div class="field">
-              <label for="username">Username</label>
-              <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" required>
+              <label for="username" id="username-label">Username or email</label>
+              <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username or email" required>
+            </div>
+            <div class="field" id="email-field" hidden>
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
             </div>
             <div class="field">
               <label for="password">Password</label>
               <div class="password-wrap">
-                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" required>
+                <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
                 <button class="password-toggle" type="button" data-toggle-password="password">Show</button>
               </div>
             </div>
@@ -292,6 +303,8 @@
             <div class="form-error" id="form-error" role="alert" hidden></div>
             <button class="submit-button" id="submit-button" type="submit">Sign in <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
           </form>
+
+          <p id="legacy-data-notice" hidden style="margin-top:18px;padding:12px;border:1px solid #f6c7ba;border-radius:12px;background:#fff6f3;color:#5f4a45;font-size:12px;line-height:1.5">This browser had an old demo profile. Its plaintext sign-in data was removed for security. Your saved profile and recent activity remain in this browser only; export them before switching devices. <button type="button" id="export-legacy-data" style="color:#d93b1d;font-weight:700;text-decoration:underline">Download browser data</button></p>
 
           <div class="form-footer"><span id="switch-copy">Don’t have an account yet?</span> <button type="button" id="switch-button">Create account</button><span class="footer-divider" id="footer-divider"> · </span><button class="forgot-placeholder" type="button" id="forgot-bottom">Forgot password?</button></div>
         </div>
@@ -317,7 +330,10 @@
     </div>
   </div>
 
+  <script src="api.js"></script>
   <script>
+    // Retained only as migration history; the following browser-only demo auth is intentionally disabled.
+    if (false) {
     const params = new URLSearchParams(window.location.search);
     let mode = params.get('mode') === 'register' ? 'register' : 'signin';
     const form = document.getElementById('auth-form');
@@ -379,12 +395,7 @@
     }
 
     function readLocalAccount() {
-      try {
-        const account = JSON.parse(window.localStorage.getItem('csm-account') || 'null');
-        return account && typeof account === 'object' ? account : null;
-      } catch (error) {
-        return null;
-      }
+      return null;
     }
 
     function showLoading(titleText, copyText) {
@@ -440,11 +451,6 @@
       submitButton.innerHTML = 'Opening your workspace…';
       window.setTimeout(() => {
         const displayName = username;
-        try {
-          const savedProfile = JSON.parse(window.localStorage.getItem('csm-profile') || '{}');
-          window.localStorage.setItem('csm-profile', JSON.stringify({ ...savedProfile, displayName: savedProfile.displayName || displayName, username: displayName }));
-          window.localStorage.setItem('csm-auth-session', JSON.stringify({ username: displayName, signedInAt: Date.now() }));
-        } catch (error) {}
         document.getElementById('success-copy').textContent = mode === 'register' ? 'Your account is set up. Jump into your workspace and start your next reviewer.' : 'You’re signed in. Jump back into your workspace and keep your momentum going.';
         successModal.hidden = false;
         submitButton.disabled = false;
@@ -474,11 +480,6 @@
       if (mode === 'register') {
         showLoading('Creating your account…', 'Saving your study profile so you can sign in securely.');
         window.setTimeout(() => {
-          try {
-            window.localStorage.setItem('csm-account', JSON.stringify({ username, password, createdAt: Date.now() }));
-            const savedProfile = JSON.parse(window.localStorage.getItem('csm-profile') || '{}');
-            window.localStorage.setItem('csm-profile', JSON.stringify({ ...savedProfile, displayName: username, username }));
-          } catch (error) {}
           submitButton.disabled = false;
           form.reset();
           usernameInput.value = username;
@@ -496,16 +497,6 @@
       showLoading('Logging you in…', 'Checking your account and preparing your workspace.');
       window.setTimeout(() => {
         const signedInAt = Date.now();
-        try {
-          const savedProfile = JSON.parse(window.localStorage.getItem('csm-profile') || '{}');
-          window.localStorage.setItem('csm-profile', JSON.stringify({ ...savedProfile, displayName: username, username }));
-          window.localStorage.setItem('csm-auth-session', JSON.stringify({ username, signedInAt }));
-          if (remember) {
-            window.localStorage.setItem('csm-remembered-session', JSON.stringify({ username, signedInAt, expiresAt: signedInAt + (30 * 24 * 60 * 60 * 1000) }));
-          } else {
-            window.localStorage.removeItem('csm-remembered-session');
-          }
-        } catch (error) {}
         submitButton.disabled = false;
         showSuccess('You’re signed in.', 'Your workspace is ready. Continue when you’re ready to study.', 'Continue to workspace', 'workspace');
       }, 900);
@@ -523,13 +514,87 @@
       window.location.href = 'index.html?screen=home';
     });
 
-    try {
-      const remembered = JSON.parse(window.localStorage.getItem('csm-remembered-session') || 'null');
-      if (mode === 'signin' && remembered && remembered.expiresAt > Date.now()) window.location.href = 'index.html?screen=home';
-      if (remembered && remembered.expiresAt <= Date.now()) window.localStorage.removeItem('csm-remembered-session');
-    } catch (error) {}
-
     setMode(mode, false, false);
+    }
+  </script>
+  <script>
+    // Replace the legacy demo handlers above: credentials now travel only to the PHP API.
+    (() => {
+      const oldForm = document.getElementById('auth-form');
+      const form = oldForm.cloneNode(true);
+      oldForm.replaceWith(form);
+      const byId = id => document.getElementById(id);
+      let mode = new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'signin';
+      const error = byId('form-error'), submit = byId('submit-button');
+      const success = byId('success-modal'), loading = byId('auth-loading');
+      const arrow = '<svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+      const setMode = value => {
+        mode = value;
+        const register = mode === 'register';
+        byId('form-title').textContent = register ? 'Create Your Account' : 'Log in to your account';
+        byId('form-description').textContent = register ? 'Build reviewers, play timed quizzes, and keep your study space private.' : 'Pick up where your next focused study session starts.';
+        byId('username-label').textContent = register ? 'Username' : 'Username or email';
+        byId('confirm-field').hidden = !register;
+        byId('confirm-password').required = register;
+        byId('email-field').hidden = !register;
+        byId('email').required = register;
+        byId('auth-meta').hidden = register;
+        byId('forgot-bottom').hidden = register;
+        byId('footer-divider').hidden = register;
+        byId('submit-button').innerHTML = `${register ? 'Create account' : 'Sign in'} ${arrow}`;
+        byId('switch-copy').textContent = register ? 'Already have an account?' : 'Don’t have an account yet?';
+        byId('switch-button').textContent = register ? 'Sign in' : 'Create account';
+        document.querySelectorAll('[data-mode-button]').forEach(button => {
+          button.classList.toggle('is-active', button.dataset.modeButton === mode);
+          button.setAttribute('aria-selected', String(button.dataset.modeButton === mode));
+        });
+        error.hidden = true;
+        history.replaceState({}, '', `login.html?mode=${mode}`);
+      };
+      const showError = message => { error.textContent = message; error.hidden = false; };
+      document.querySelectorAll('[data-mode-button]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.modeButton)));
+      byId('switch-button').addEventListener('click', () => setMode(mode === 'signin' ? 'register' : 'signin'));
+      document.querySelectorAll('[data-toggle-password]').forEach(button => button.addEventListener('click', () => {
+        const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
+        input.type = visible ? 'password' : 'text'; button.textContent = visible ? 'Show' : 'Hide';
+      }));
+      byId('forgot-bottom').addEventListener('click', () => showError('Password recovery is not configured yet. Contact your workspace administrator.'));
+      byId('continue-button').addEventListener('click', () => location.replace('index.html?screen=home'));
+      if (localStorage.getItem('csm-legacy-notice') === 'true') {
+        byId('legacy-data-notice').hidden = false;
+        byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
+      }
+      form.addEventListener('submit', async event => {
+        event.preventDefault(); if (submit.disabled) return;
+        const data = new FormData(form), username = String(data.get('username') || '').trim();
+        const password = String(data.get('password') || ''), email = String(data.get('email') || '').trim();
+        if (!username) return showError('Enter your username or email.');
+        if (password.length < 8) return showError('Your password needs at least 8 characters.');
+        if (mode === 'register' && password !== String(data.get('confirmPassword') || '')) return showError('Your passwords do not match yet.');
+        if (mode === 'register' && !email) return showError('Enter a valid email address.');
+        submit.disabled = true; error.hidden = true; loading.hidden = false;
+        byId('loading-title').textContent = mode === 'register' ? 'Creating your account…' : 'Logging you in…';
+        byId('loading-copy').textContent = mode === 'register' ? 'Saving your profile securely.' : 'Checking your account and loading your workspace.';
+        try {
+          await CSM.api('auth/session');
+          if (mode === 'register') {
+            await CSM.api('auth/register', 'POST', { username, email, password });
+            loading.hidden = true;
+            setMode('signin'); form.reset(); byId('username').value = username;
+            showError('Account created. Sign in with your new credentials.');
+            return;
+          }
+          await CSM.api('auth/login', 'POST', { username, password, remember: data.get('remember') === 'on' });
+          loading.hidden = true; byId('success-title').textContent = 'You’re signed in.';
+          byId('success-copy').textContent = 'Your workspace is ready. Loading your saved reviewers…';
+          success.hidden = false;
+          window.setTimeout(() => location.replace('index.html?screen=home'), 900);
+        } catch (failure) { loading.hidden = true; showError(failure.message); }
+        finally { submit.disabled = false; }
+      });
+      setMode(mode);
+      CSM.api('auth/session').then(session => { if (session.authenticated) location.replace('index.html?screen=home'); }).catch(() => {});
+    })();
   </script>
 </body>
 </html>

@@ -1,0 +1,5 @@
+server/config.local.php
+storage/
+test-results/
+__pycache__/
+*.log
