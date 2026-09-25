@@ -37,4 +37,51 @@ if(in_array('highlights',$highlightTables,true)){
     $foreign=$db->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='highlights' AND COLUMN_NAME='card_id' AND REFERENCED_TABLE_NAME='cards'")->fetchColumn();
     if(!$foreign)$db->exec('ALTER TABLE highlights ADD CONSTRAINT fk_highlights_card FOREIGN KEY(card_id) REFERENCES cards(id) ON DELETE SET NULL');
 }
+$userColumns=array_column($db->query('SHOW COLUMNS FROM users')->fetchAll(),'Field');
+if(!in_array('role',$userColumns,true)){$db->exec("ALTER TABLE users ADD COLUMN role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user' AFTER auth_version");echo "Added default user roles; existing accounts remain regular users.\n";}
+if(!in_array('locked_until',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN locked_until DATETIME(3) NULL AFTER role');echo "Added temporary account-lock status.\n";}
+$deckColumns=array_column($db->query('SHOW COLUMNS FROM decks')->fetchAll(),'Field');
+if(!in_array('moderation_status',$deckColumns,true)){$db->exec("ALTER TABLE decks ADD COLUMN moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible' AFTER category");echo "Added moderation visibility without changing existing decks.\n";}
+$db->exec("CREATE TABLE IF NOT EXISTS deck_reports (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,deck_id CHAR(32) NOT NULL,flagged_by_user_id CHAR(32) NULL,
+ reason VARCHAR(1000) NOT NULL,status ENUM('open','dismissed','actioned') NOT NULL DEFAULT 'open',
+ moderation_action ENUM('hide','restore') NULL,moderation_reason VARCHAR(1000) NULL,reviewed_by_user_id CHAR(32) NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),reviewed_at DATETIME(3) NULL,
+ INDEX(status,created_at),INDEX(deck_id,status),
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE,
+ FOREIGN KEY(flagged_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+ FOREIGN KEY(reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$db->exec("CREATE TABLE IF NOT EXISTS user_notifications (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,deck_id CHAR(32) NULL,
+ notification_type VARCHAR(40) NOT NULL,title VARCHAR(160) NOT NULL,message VARCHAR(1000) NOT NULL,
+ read_at DATETIME(3) NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$db->exec("CREATE TABLE IF NOT EXISTS security_events (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,actor_user_id CHAR(32) NULL,target_user_id CHAR(32) NULL,
+ target_type ENUM('user','deck','system') NOT NULL DEFAULT 'user',target_id CHAR(32) NULL,
+ event_code VARCHAR(64) NOT NULL,ip_hash CHAR(64) NULL,details_json LONGTEXT NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),INDEX(created_at),INDEX(event_code,created_at),INDEX(target_user_id,created_at),INDEX idx_security_target(target_type,target_id),
+ FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL,FOREIGN KEY(target_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$securityColumns=array_column($db->query('SHOW COLUMNS FROM security_events')->fetchAll(),'Field');
+if(!in_array('target_type',$securityColumns,true)){$db->exec("ALTER TABLE security_events ADD COLUMN target_type ENUM('user','deck','system') NOT NULL DEFAULT 'user' AFTER target_user_id");echo "Added typed audit targets.\n";}
+if(!in_array('target_id',$securityColumns,true)){$db->exec('ALTER TABLE security_events ADD COLUMN target_id CHAR(32) NULL AFTER target_type');$db->exec("UPDATE security_events SET target_id=target_user_id WHERE target_type='user'");echo "Added generic audit target IDs while preserving existing user event rows.\n";}
+$securityIndexes=$db->query('SHOW INDEX FROM security_events')->fetchAll();
+if(!in_array('idx_security_target',array_column($securityIndexes,'Key_name'),true))$db->exec('ALTER TABLE security_events ADD INDEX idx_security_target(target_type,target_id)');
+$db->exec("CREATE TABLE IF NOT EXISTS system_settings (
+ setting_key VARCHAR(64) PRIMARY KEY,value_text VARCHAR(255) NOT NULL,updated_by_user_id CHAR(32) NULL,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ FOREIGN KEY(updated_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$db->exec("INSERT IGNORE INTO system_settings(setting_key,value_text) VALUES ('maintenance_mode','0'),('storage_limit_bytes','10737418240')");
+$db->exec("CREATE TABLE IF NOT EXISTS user_active_tabs (
+ user_id CHAR(32) NOT NULL,browser_hash CHAR(64) NOT NULL,active_tab_hash CHAR(64) NOT NULL,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ PRIMARY KEY(user_id,browser_hash),INDEX(updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+echo "Admin schema is ready (roles, lock state, deck moderation queue, user notifications, security events, system settings, browser-scoped active tabs). Existing user/content rows were preserved.\n";
 echo "Migration complete. No tables or existing user data were dropped.\n";

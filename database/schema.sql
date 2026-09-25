@@ -3,6 +3,7 @@ SET NAMES utf8mb4;
 CREATE TABLE users (
  id CHAR(32) PRIMARY KEY, username VARCHAR(24) NOT NULL UNIQUE,
  email VARCHAR(254) NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, auth_version INT NOT NULL DEFAULT 1,
+ role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user', locked_until DATETIME(3) NULL,
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE profiles (
@@ -11,6 +12,11 @@ CREATE TABLE profiles (
  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE web_sessions (id VARCHAR(128) PRIMARY KEY,payload MEDIUMBLOB NOT NULL,expires_at BIGINT NOT NULL,INDEX(expires_at)) ENGINE=InnoDB;
+CREATE TABLE user_active_tabs (
+ user_id CHAR(32) NOT NULL,browser_hash CHAR(64) NOT NULL,active_tab_hash CHAR(64) NOT NULL,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ PRIMARY KEY(user_id,browser_hash),INDEX(updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE auth_attempts (bucket CHAR(64) PRIMARY KEY,attempts INT NOT NULL DEFAULT 0,window_start BIGINT NOT NULL,INDEX(window_start)) ENGINE=InnoDB;
 CREATE TABLE password_reset_tokens (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,token_hash CHAR(64) NOT NULL UNIQUE,
@@ -19,7 +25,7 @@ CREATE TABLE password_reset_tokens (
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE decks (
- id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,title VARCHAR(160) NOT NULL,subject VARCHAR(160) NOT NULL DEFAULT '',category VARCHAR(80) NOT NULL DEFAULT 'Recent',
+ id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,title VARCHAR(160) NOT NULL,subject VARCHAR(160) NOT NULL DEFAULT '',category VARCHAR(80) NOT NULL DEFAULT 'Recent',moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible',
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  INDEX(user_id,updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -68,3 +74,43 @@ CREATE TABLE arena_answers (
  id CHAR(32) PRIMARY KEY,session_id CHAR(32) NOT NULL,position INT NOT NULL,result ENUM('correct','wrong','timeout') NOT NULL,adjustment_seconds INT NOT NULL,remaining_ms BIGINT NOT NULL,
  submitted_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),UNIQUE(session_id,position),FOREIGN KEY(session_id,position) REFERENCES arena_questions(session_id,position) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Admin review is internal: decks remain private to their owner and staff.
+CREATE TABLE deck_reports (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,deck_id CHAR(32) NOT NULL,flagged_by_user_id CHAR(32) NULL,
+ reason VARCHAR(1000) NOT NULL,status ENUM('open','dismissed','actioned') NOT NULL DEFAULT 'open',
+ moderation_action ENUM('hide','restore') NULL,moderation_reason VARCHAR(1000) NULL,reviewed_by_user_id CHAR(32) NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),reviewed_at DATETIME(3) NULL,
+ INDEX(status,created_at),INDEX(deck_id,status),
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE,
+ FOREIGN KEY(flagged_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+ FOREIGN KEY(reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE user_notifications (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,deck_id CHAR(32) NULL,
+ notification_type VARCHAR(40) NOT NULL,title VARCHAR(160) NOT NULL,message VARCHAR(1000) NOT NULL,
+ read_at DATETIME(3) NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE security_events (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,actor_user_id CHAR(32) NULL,target_user_id CHAR(32) NULL,
+ target_type ENUM('user','deck','system') NOT NULL DEFAULT 'user',target_id CHAR(32) NULL,
+ event_code VARCHAR(64) NOT NULL,ip_hash CHAR(64) NULL,details_json LONGTEXT NULL,
+ created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ INDEX(created_at),INDEX(event_code,created_at),INDEX(target_user_id,created_at),INDEX idx_security_target(target_type,target_id),
+ FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+ FOREIGN KEY(target_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE system_settings (
+ setting_key VARCHAR(64) PRIMARY KEY,value_text VARCHAR(255) NOT NULL,updated_by_user_id CHAR(32) NULL,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ FOREIGN KEY(updated_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+INSERT INTO system_settings(setting_key,value_text) VALUES
+ ('maintenance_mode','0'),('storage_limit_bytes','10737418240')
+ON DUPLICATE KEY UPDATE setting_key=VALUES(setting_key);

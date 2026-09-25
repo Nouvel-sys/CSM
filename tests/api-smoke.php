@@ -8,10 +8,10 @@ $users = [
     ['name' => 'qb'.$suffix, 'email' => 'qb'.$suffix.'@example.invalid', 'password' => 'SmokeTest-2026!'],
 ];
 function check(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
-function client(): array { return ['cookie' => tempnam(sys_get_temp_dir(), 'csm-cookie-'), 'csrf' => '']; }
-function call_api(array &$client, string $route, string $method='GET', ?array $data=null, ?string $upload=null): array {
+function client(): array { return ['cookie' => tempnam(sys_get_temp_dir(), 'csm-cookie-'), 'csrf' => '', 'tab' => bin2hex(random_bytes(16)), 'browser' => bin2hex(random_bytes(16))]; }
+function call_api(array &$client, string $route, string $method='GET', ?array $data=null, ?string $upload=null, bool $includeTabHeaders=true): array {
     global $base;
-    $ch=curl_init($base.$route);$headers=['Accept: application/json'];
+    $ch=curl_init($base.$route);$headers=['Accept: application/json'];if($includeTabHeaders){$headers[]='X-CSM-Tab-Id: '.$client['tab'];$headers[]='X-CSM-Browser-Id: '.$client['browser'];}
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_COOKIEFILE=>$client['cookie'],CURLOPT_COOKIEJAR=>$client['cookie'],CURLOPT_CUSTOMREQUEST=>$method]);
     if($data!==null){if($upload!==null){$data['file']=new CURLFile($upload,'application/pdf','smoke-test.pdf');curl_setopt($ch,CURLOPT_POSTFIELDS,$data);}else{$headers[]='Content-Type: application/json';curl_setopt($ch,CURLOPT_POSTFIELDS,json_encode($data,JSON_THROW_ON_ERROR));}}
     if($method!=='GET'&&$client['csrf']!=='')$headers[]='X-CSRF-Token: '.$client['csrf'];
@@ -22,17 +22,31 @@ function call_api(array &$client, string $route, string $method='GET', ?array $d
 }
 function expect(array &$client,string $route,string $method='GET',?array $data=null,int $status=200,?string $upload=null):array{$result=call_api($client,$route,$method,$data,$upload);check($result[0]===$status,"$route expected HTTP $status, got {$result[0]}: {$result[2]}");return $result[1]??[];}
 $localConfig=require dirname(__DIR__).'/server/config.local.php';
-$mailerParts=parse_url($localConfig['mailer_url']??'http://127.0.0.1:8091/send');
+$skipRecovery=getenv('CSM_TEST_SKIP_RECOVERY')==='1';
+$mailerParts=parse_url(getenv('CSM_TEST_MAILER_URL')?:($localConfig['mailer_url']??'http://127.0.0.1:8091/send'));
 $mailerOrigin=($mailerParts['scheme']??'http').'://'.($mailerParts['host']??'127.0.0.1').(isset($mailerParts['port'])?':'.$mailerParts['port']:'');
 $mailerSecret=(string)($localConfig['mailer_secret']??(getenv('CSM_MAILER_SECRET')?:''));
 function mailer_get(string $path):array{global $mailerOrigin,$mailerSecret;$ch=curl_init($mailerOrigin.$path);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Accept: application/json','Authorization: Bearer '.$mailerSecret]]);$body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$err=curl_error($ch);curl_close($ch);if($body===false)throw new RuntimeException('Mailer stub is unavailable: '.$err);$json=json_decode($body,true);check($status===200&&is_array($json),'Mailer stub did not return a valid response.');return $json;}
 function recovery_token(string $email):string{$outbox=mailer_get('/__test/outbox?to='.rawurlencode($email));$messages=$outbox['messages']??[];check(count($messages)>0,'The recovery email was not captured by the stub mail transport.');$last=end($messages);$text=(string)($last['text']??'');check((bool)preg_match('~login\.html\?mode=reset#token=([a-f0-9]{64})~',$text,$match),'The stub email did not contain a valid recovery link.');return $match[1];}
-$created=[];$accounts=[];$tmpPdf=null;$extraClients=[];
+$created=[];$accounts=[];$tmpPdf=null;$extraClients=[];$initialMaintenanceSetting=null;$initialStorageLimitSetting=null;
 try {
-    $health=mailer_get('/health');check(($health['ok']??false)===true&&($health['transport']??'')==='stub','Start the mail bridge with MAILER_TRANSPORT=stub before running the recovery smoke tests.');
+    if(!$skipRecovery){$health=mailer_get('/health');check(($health['ok']??false)===true&&($health['transport']??'')==='stub','Start the mail bridge with MAILER_TRANSPORT=stub before running the recovery smoke tests.');}
+    $pdo=new PDO($localConfig['dsn'],$localConfig['user'],$localConfig['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
+    $initialMaintenanceSetting=$pdo->query("SELECT value_text,updated_by_user_id FROM system_settings WHERE setting_key='maintenance_mode'")->fetch();
+    $initialStorageLimitSetting=$pdo->query("SELECT value_text,updated_by_user_id FROM system_settings WHERE setting_key='storage_limit_bytes'")->fetch();
+    if(($initialMaintenanceSetting['value_text']??'0')==='1')throw new RuntimeException('Maintenance mode is already enabled; disable it before running the full smoke test.');
     $guard=client();expect($guard,'auth/session');$guard['csrf']='';expect($guard,'auth/logout','POST',[],403);
     foreach($users as $u){$c=client();expect($c,'auth/session');expect($c,'auth/register','POST',['username'=>$u['name'],'email'=>$u['email'],'password'=>$u['password']],201);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>'incorrect-password'],401);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>$u['password']]);$accounts[]=$c;}
     $a=$accounts[0];$b=$accounts[1];
+    // Two browser tabs share one PHP cookie but keep independent sessionStorage IDs.
+    $secondTab=['cookie'=>$a['cookie'],'csrf'=>'','tab'=>bin2hex(random_bytes(16)),'browser'=>$a['browser']];$extraClients[]=$secondTab;
+    check(expect($secondTab,'auth/session')['authenticated']===false,'A second tab unexpectedly inherited the first tab’s authenticated state.');
+    expect($secondTab,'auth/login','POST',['username'=>$users[0]['name'],'password'=>$users[0]['password']]);
+    check(expect($a,'auth/session')['authenticated']===false,'Signing in from a second tab did not invalidate the first tab.');
+    $staleTab=call_api($a,'workspace');check($staleTab[0]===401,'An invalidated tab could still read private account data.');
+    $a['csrf']='stale-token';$staleWrite=call_api($a,'profile','PATCH',['avatar'=>'slate']);check($staleWrite[0]===401,'An invalidated tab did not reject writes before stale CSRF validation.');expect($a,'auth/session');
+    expect($a,'auth/login','POST',['username'=>$users[0]['name'],'password'=>$users[0]['password']]);
+    check(expect($secondTab,'auth/session')['authenticated']===false,'The previous tab remained active after the original tab signed in again.');
     $freshWorkspace=expect($a,'workspace');$freshStats=$freshWorkspace['stats'];
     check($freshStats['decks']===0&&$freshStats['cards']===0&&$freshStats['studyDays']===0&&$freshStats['studyBestDays']===0&&$freshStats['accuracy']===0&&$freshStats['decksTrend']===0&&$freshStats['cardsTrend']===0&&$freshStats['accuracyTrend']===0,'A newly created account did not start with zero statistics.');
     check(count($freshStats['activityChart'])===7&&array_sum(array_column($freshStats['activityChart'],'current'))===0&&array_sum(array_column($freshStats['activityChart'],'previous'))===0,'A new account received non-zero sample activity.');
@@ -48,7 +62,7 @@ try {
     $card2=expect($a,'cards','POST',['deckId'=>$deckId,'type'=>'IDENTIFICATION','prompt'=>'Second smoke question?','correctAnswer'=>'Answer two'],201);
     $tmpPdf=tempnam(sys_get_temp_dir(),'csm-pdf-');file_put_contents($tmpPdf,"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n");
     $doc=expect($a,'documents','POST',['deckId'=>$deckId],201,$tmpPdf);check(isset($doc['id']),'PDF metadata was not saved.');
-    $deck=expect($a,'decks&id='.$deckId);check(count($deck['cards'])===2&&count($deck['documents'])===1,'Deck read did not return saved cards and material metadata.');
+    $deck=expect($a,'decks&id='.$deckId);check(count($deck['cards'])===2&&count($deck['documents'])===1,'Deck read did not return saved cards and material metadata.');check(str_contains($deck['documents'][0]['url'],'tabId='.$a['tab'])&&str_contains($deck['documents'][0]['url'],'browserId='.$a['browser']),'PDF viewer URL did not carry its tab/browser binding for range requests.');
     $stream=call_api($a,'documents/file&id='.$doc['id']);check($stream[0]===200&&str_starts_with($stream[2],'%PDF-'),'PDF owner could not read their own upload.');
     $highlight=expect($a,'highlights','POST',['documentId'=>$doc['id'],'page'=>1,'text'=>'Selected PDF passage','color'=>'#f5a23a','selection'=>[['x'=>0.12,'y'=>0.24,'width'=>0.31,'height'=>0.025]]],201);
     $savedHighlights=expect($a,'highlights&documentId='.$doc['id']);check(count($savedHighlights)===1&&$savedHighlights[0]['selection'][0]['x']===0.12,'PDF note selection geometry did not persist.');
@@ -74,12 +88,106 @@ try {
     expect($foreign,'documents','DELETE',['id'=>$doc['id']],404);
     expect($foreign,'study/progress','POST',['bombcardId'=>$card['id'],'result'=>'known'],404);
     expect($foreign,'arena/session&id='.$session['id'],'GET',null,404);
+
+    // Test-only role setup uses these two throwaway accounts; no existing account is promoted.
+    $lookup=$pdo->prepare('SELECT id FROM users WHERE username=?');$lookup->execute([$users[0]['name']]);$adminId=(string)$lookup->fetchColumn();
+    $lookup->execute([$users[1]['name']]);$superId=(string)$lookup->fetchColumn();
+    $setRole=$pdo->prepare('UPDATE users SET role=? WHERE id=?');$setRole->execute(['admin',$adminId]);
+    check(expect($a,'auth/session')['profile']['role']==='admin','The authenticated session did not expose the saved admin role to the frontend.');
+    expect($foreign,'admin/dashboard','GET',null,403);
+    $dashboard=expect($a,'admin/dashboard&from='.gmdate('Y-m-d').'&to='.gmdate('Y-m-d'));
+    check(isset($dashboard['totals']['users'],$dashboard['totals']['activeNow'],$dashboard['period']['activeUsers'],$dashboard['days']),'Admin dashboard did not return total, live-presence, and period activity analytics.');
+    check($dashboard['totals']['users']>=2,'Admin dashboard did not count registered user accounts.');
+    $staffWorkspace=expect($a,'workspace');check($staffWorkspace['decks']===[]&&$staffWorkspace['sessions']===[],'Staff workspace exposed personal library decks or Arena sessions.');
+    expect($a,'decks','POST',['title'=>'Staff should not create decks','subject'=>'QA'],403);
+    expect($a,'arena/start','POST',['deckId'=>$deckId,'difficulty'=>'normal'],403);
+    $adminUsers=expect($a,'admin/users&q='.rawurlencode($users[0]['name']));
+    check(count($adminUsers['users'])===1&&!isset($adminUsers['users'][0]['password_hash']),'Admin account search leaked a password hash or failed to find the account.');
+    expect($a,'admin/audit','GET',null,403);expect($a,'admin/settings','GET',null,403);
+    expect($a,'admin/users/role','POST',['userId'=>$superId,'role'=>'admin'],403);
+    if(!$skipRecovery){
+        $adminReset=expect($a,'admin/users/reset','POST',['userId'=>$superId]);
+        check(!isset($adminReset['token'])&&!isset($adminReset['resetUrl']),'Admin password-reset endpoint exposed a reset token or link.');
+        recovery_token($users[1]['email']);
+    }
+
+    // Repeated failures lock an account; an administrator can clear the lock.
+    $lockedClient=client();$extraClients[]=$lockedClient;expect($lockedClient,'auth/session');
+    for($attempt=0;$attempt<9;$attempt++)expect($lockedClient,'auth/login','POST',['username'=>$users[0]['name'],'password'=>'DefinitelyWrong-2026!'],401);
+    $lockState=expect($a,'admin/users&q='.rawurlencode($users[0]['name']))['users'][0];
+    check(!empty($lockState['locked_until']),'Repeated failed sign-ins did not lock the account.');
+    expect($a,'admin/users/unlock','POST',['userId'=>$adminId,'reason'=>'QA unlock verification']);
+    expect($lockedClient,'auth/login','POST',['username'=>$users[0]['name'],'password'=>$users[0]['password']]);
+
+    $modDeck=expect($foreign,'decks','POST',['title'=>'Moderation smoke '.$suffix,'subject'=>'QA','category'=>'Recent'],201);$created[]=$modDeck['id'];
+    expect($foreign,'cards','POST',['deckId'=>$modDeck['id'],'type'=>'IDENTIFICATION','prompt'=>'Moderation test question','correctAnswer'=>'Moderation test answer'],201);
+    $modDoc=expect($foreign,'documents','POST',['deckId'=>$modDeck['id']],201,$tmpPdf);
+    $adminPreview=expect($a,'admin/decks/view&id='.$modDeck['id']);check(($adminPreview['deck']['owner']??'')===$users[1]['name']&&count($adminPreview['cards'])===1&&$adminPreview['cards'][0]['prompt']==='Moderation test question'&&$adminPreview['cards'][0]['correctAnswer']==='Moderation test answer','Admin deck preview did not include another user’s Bombcard content.');
+    check(count($adminPreview['documents']??[])===1&&$adminPreview['documents'][0]['id']===$modDoc['id']&&str_contains($adminPreview['documents'][0]['url'],'tabId='.$a['tab']),'Admin deck preview did not list the deck owner PDF with a tab-bound URL.');
+    $adminPdfRoute=substr((string)parse_url($adminPreview['documents'][0]['url'],PHP_URL_QUERY),2);$adminPdf=call_api($a,$adminPdfRoute,'GET',null,null,false);check($adminPdf[0]===200&&str_starts_with($adminPdf[2],'%PDF-'),'Admin could not stream another user\'s PDF through the staff-only route.');
+    expect($foreign,'admin/documents/file&id='.$modDoc['id'],'GET',null,403);
+    expect($foreign,'admin/decks/view&id='.$deckId,'GET',null,403);
+    $hiddenSession=expect($foreign,'arena/start','POST',['deckId'=>$modDeck['id'],'difficulty'=>'easy'],201);
+    expect($a,'admin/decks/flag','POST',['deckId'=>$modDeck['id'],'reason'=>'QA report: verify staff moderation queue.'],201);
+    $ownerNotices=expect($foreign,'notifications');$flagNotice=array_values(array_filter($ownerNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']&&$item['type']==='deck_flagged'));
+    check(count($flagNotice)===1&&!$flagNotice[0]['isRead']&&$ownerNotices['unreadCount']===1&&str_contains($flagNotice[0]['message'],'QA report: verify staff moderation queue.'),'Flagging a deck did not create an unread private notification for its owner.');
+    $adminNotices=expect($a,'notifications');check(count(array_filter($adminNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']))===0,'The flag notification was visible to a different account.');
+    expect($foreign,'notifications/read','PATCH',['id'=>$flagNotice[0]['id']]);
+    $openReports=expect($a,'admin/reports&status=open')['reports'];$report=array_values(array_filter($openReports,fn($item)=>$item['deckId']===$modDeck['id']));
+    check(count($report)===1&&str_contains($report[0]['reason'],'QA report'),'Flagged-deck reason was not visible in the admin queue.');
+    expect($a,'admin/reports','PATCH',['id'=>(int)$report[0]['id'],'action'=>'dismiss','reason'=>'QA dismissal']);
+    $ownerNotices=expect($foreign,'notifications');$dismissNotice=array_values(array_filter($ownerNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']&&$item['type']==='deck_report_dismiss'));
+    check(count($dismissNotice)===1&&$ownerNotices['unreadCount']===1&&str_contains($dismissNotice[0]['message'],'QA dismissal'),'A dismissed deck review did not create a private unread owner notification.');
+    $adminNotices=expect($a,'notifications');check(count(array_filter($adminNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']))===0,'A different account could read another owner’s review notification.');
+    expect($foreign,'notifications/read','PATCH',['id'=>$dismissNotice[0]['id']]);
+    check(expect($foreign,'notifications')['unreadCount']===0,'Marking a notification as read did not clear its unread status.');
+    expect($a,'admin/decks/flag','POST',['deckId'=>$modDeck['id'],'reason'=>'QA report: hide path.'],201);
+    $ownerNotices=expect($foreign,'notifications');$secondFlag=array_values(array_filter($ownerNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']&&$item['type']==='deck_flagged'&&!$item['isRead']));
+    check(count($secondFlag)===1&&str_contains($secondFlag[0]['message'],'QA report: hide path.'),'A repeated deck flag did not create a new unread owner notification.');
+    expect($foreign,'notifications/read','PATCH',['id'=>$secondFlag[0]['id']]);
+    $openReports=expect($a,'admin/reports&status=open')['reports'];$report=array_values(array_filter($openReports,fn($item)=>$item['deckId']===$modDeck['id']));
+    check(count($report)===1,'Second moderation report was not queued.');
+    expect($a,'admin/reports','PATCH',['id'=>(int)$report[0]['id'],'action'=>'hide','reason'=>'QA hide verification']);
+    $ownerNotices=expect($foreign,'notifications');$hideNotice=array_values(array_filter($ownerNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']&&!$item['isRead']));
+    check(count($hideNotice)===1&&str_contains($hideNotice[0]['message'],'QA hide verification'),'A deck hidden after review did not notify its owner.');
+    expect($foreign,'decks&id='.$modDeck['id'],'GET',null,404);
+    $sessionStatus=$pdo->prepare('SELECT status FROM arena_sessions WHERE id=?');$sessionStatus->execute([$hiddenSession['id']]);check($sessionStatus->fetchColumn()==='abandoned','Hiding a reviewer did not safely end its active Arena session.');
+    $setRole->execute(['superadmin',$superId]);
+    check(expect($foreign,'auth/session')['profile']['role']==='superadmin','The authenticated session did not receive its saved superadmin role.');
+    $superPreview=expect($foreign,'admin/decks/view&id='.$deckId);check(($superPreview['deck']['owner']??'')===$users[0]['name'],'Superadmin could not preview a different user’s deck.');
+    expect($foreign,'admin/decks/visibility','PATCH',['deckId'=>$modDeck['id'],'action'=>'restore','reason'=>'QA restore verification']);
+    $ownerNotices=expect($foreign,'notifications');check(count(array_filter($ownerNotices['notifications'],fn($item)=>($item['deckId']??null)===$modDeck['id']&&!$item['isRead']))===2,'Restoring a reviewed deck did not create a new unread notification.');
+    expect($foreign,'decks&id='.$modDeck['id'],'GET',null,403);
+    $restoredStatus=$pdo->prepare('SELECT moderation_status FROM decks WHERE id=?');$restoredStatus->execute([$modDeck['id']]);check($restoredStatus->fetchColumn()==='visible','Superadmin restore action did not restore deck visibility.');
+
+    $events=expect($foreign,'admin/audit&from='.gmdate('Y-m-d').'&to='.gmdate('Y-m-d'))['events'];
+    check(count(array_filter($events,fn($event)=>in_array($event['event'],['login_failure','login_success'],true)))>0,'Superadmin audit log did not record sign-in attempts.');
+    expect($a,'admin/audit','GET',null,403);expect($a,'admin/settings','GET',null,403);expect($a,'admin/sessions/clear','POST',['confirm'=>true],403);
+    $system=expect($foreign,'admin/settings');$unchangedSettings=expect($foreign,'admin/settings','PATCH',['storageLimitBytes'=>(int)$system['storageLimitBytes']]);
+    check($unchangedSettings['storageLimitBytes']===$system['storageLimitBytes'],'Superadmin storage-limit setting did not persist.');
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'superadmin']);
+    $promoted=expect($foreign,'admin/users&q='.rawurlencode($users[0]['name']))['users'][0];check($promoted['role']==='superadmin','Superadmin could not promote an account.');
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'admin']);
+    $superCount=(int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='superadmin'")->fetchColumn();
+    if($superCount===1)expect($foreign,'admin/users/role','POST',['userId'=>$superId,'role'=>'user'],409);
+    expect($foreign,'admin/settings','PATCH',['maintenanceMode'=>true]);
+    check(expect($a,'auth/session')['profile']['role']==='admin','The admin role was not active before the maintenance access check.');
+    expect($a,'workspace');
+    expect($a,'admin/dashboard');
+    expect($foreign,'workspace');
+    expect($foreign,'admin/settings');
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'user']);
+    expect($a,'workspace','GET',null,503);
+    expect($foreign,'workspace');
+    expect($foreign,'admin/settings','PATCH',['maintenanceMode'=>false]);
+
     expect($a,'auth/password','POST',['currentPassword'=>$users[0]['password'],'newPassword'=>'SmokeChanged-2026!']);
     expect($a,'auth/logout','POST',[]);
     expect($a,'auth/session');expect($a,'auth/login','POST',['username'=>$users[0]['email'],'password'=>'SmokeChanged-2026!']);
     $again=expect($a,'workspace');check(count(array_filter($again['decks'],fn($d)=>$d['id']===$deckId))===1,'Data did not survive sign-out and sign-in.');
     expect($a,'decks','DELETE',['id'=>$deckId]);$created=[];
 
+    if(!$skipRecovery){
     $recovery=client();$extraClients[]=$recovery;expect($recovery,'auth/session');
     $unknownResult=call_api($recovery,'auth/password/request','POST',['email'=>'missing-'.$suffix.'@example.invalid']);
     check($unknownResult[0]===200&&is_array($unknownResult[1])&&isset($unknownResult[1]['message']),'Unknown-email recovery did not return the generic confirmation.');
@@ -111,10 +219,23 @@ try {
     $expiredInsert=$owner->prepare('INSERT INTO password_reset_tokens(user_id,token_hash,expires_at) VALUES(?,?,?)');$expiredInsert->execute([$ownerId,hash('sha256',$expiredToken),gmdate('Y-m-d H:i:s',time()-60)]);
     $expired=call_api($recovery,'auth/password/reset','POST',['token'=>$expiredToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
     check($expired[0]===422&&str_contains((string)($expired[1]['error']??''),'expired'),'An expired recovery token was not rejected.');
-    echo "PASS register/login/invalid login/duplicate email; reviewer create/edit; Bombcard create/update; PDF upload/private read/highlights; Arena timer/results; cross-account isolation; generic recovery response; previous/invalid/expired/used tokens; password reset/sign-in; existing-session invalidation; QA cleanup.\n";
+    }
+    if(!$skipRecovery&&getenv('CSM_TEST_ALLOW_SESSION_CLEAR')==='YES'){expect($foreign,'admin/sessions/clear','POST',['confirm'=>true]);expect($newLogin,'workspace','GET',null,401);}
+    echo $skipRecovery
+        ? "PASS registration/login/lock and admin unlock; reviewer/Bombcard/PDF/highlight/Arena persistence; account data isolation; admin/superadmin authorization and role changes; analytics/moderation/owner-only notifications/maintenance; QA cleanup. Password recovery cases were explicitly skipped.\n"
+        : "PASS registration/login/lock and admin unlock; reviewer/Bombcard/PDF/highlight/Arena persistence; account data isolation; admin/superadmin authorization and role changes; analytics/moderation/maintenance; generic password recovery, expired/invalid/used tokens, and password-reset session invalidation; QA cleanup.\n";
 } finally {
     if($tmpPdf&&is_file($tmpPdf))unlink($tmpPdf);
     foreach($created as $deckId){try{if(isset($a))expect($a,'decks','DELETE',['id'=>$deckId]);}catch(Throwable $ignored){}}
-    try {$cfg=$localConfig;$pdo=$pdo??new PDO($cfg['dsn'],$cfg['user'],$cfg['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$delete=$pdo->prepare('DELETE FROM users WHERE username=?');foreach($users as $u)$delete->execute([$u['name']]);if($mailerSecret!==''){$clearThrottle=$pdo->prepare('DELETE FROM auth_attempts WHERE bucket=?');foreach([$users[0]['email'],'missing-'.$suffix.'@example.invalid'] as $address){$normalized=function_exists('mb_strtolower')?mb_strtolower($address,'UTF-8'):strtolower($address);$clearThrottle->execute([hash_hmac('sha256','reset-email:'.$normalized,$mailerSecret)]);}$clearThrottle->execute([hash_hmac('sha256','reset-ip:'.(getenv('CSM_TEST_REMOTE_IP')?:'127.0.0.1'),$mailerSecret)]);}}catch(Throwable $ignored){}
-    foreach(array_merge($accounts,$extraClients,isset($guard)?[$guard]:[],isset($foreign)?[$foreign]:[]) as $c){if(isset($c['cookie'])&&is_file($c['cookie']))unlink($c['cookie']);}
+    $testClients=array_merge($accounts,$extraClients,isset($guard)?[$guard]:[],isset($foreign)?[$foreign]:[]);
+    try {
+        $cfg=$localConfig;$pdo=$pdo??new PDO($cfg['dsn'],$cfg['user'],$cfg['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+        if($initialMaintenanceSetting){$restore=$pdo->prepare("UPDATE system_settings SET value_text=?,updated_by_user_id=? WHERE setting_key='maintenance_mode'");$restore->execute([$initialMaintenanceSetting['value_text'],$initialMaintenanceSetting['updated_by_user_id']]);}
+        if($initialStorageLimitSetting){$restore=$pdo->prepare("UPDATE system_settings SET value_text=?,updated_by_user_id=? WHERE setting_key='storage_limit_bytes'");$restore->execute([$initialStorageLimitSetting['value_text'],$initialStorageLimitSetting['updated_by_user_id']]);}
+        $clearAttempt=$pdo->prepare('DELETE FROM auth_attempts WHERE bucket=?');
+        foreach($testClients as $testClient){if(empty($testClient['cookie'])||!is_file($testClient['cookie']))continue;foreach(file($testClient['cookie'],FILE_IGNORE_NEW_LINES|FILE_SKIP_EMPTY_LINES) as $cookieLine){$parts=preg_split('/\s+/',trim($cookieLine));if(count($parts)>=7&&$parts[5]==='csm_session'){$pdo->prepare('DELETE FROM web_sessions WHERE id=?')->execute([$parts[6]]);break;}}}
+        foreach($users as $u){$find=$pdo->prepare('SELECT id FROM users WHERE username=?');$find->execute([$u['name']]);$userId=$find->fetchColumn();if(!$userId)continue;$clearAttempt->execute([hash('sha256','account-login:user:'.$userId)]);$logs=$pdo->prepare('DELETE FROM security_events WHERE actor_user_id=? OR target_user_id=?');$logs->execute([$userId,$userId]);$delete=$pdo->prepare('DELETE FROM users WHERE id=?');$delete->execute([$userId]);}
+        if($mailerSecret!==''){$clearThrottle=$pdo->prepare('DELETE FROM auth_attempts WHERE bucket=?');foreach([$users[0]['email'],$users[1]['email'],'missing-'.$suffix.'@example.invalid'] as $address){$normalized=function_exists('mb_strtolower')?mb_strtolower($address,'UTF-8'):strtolower($address);$clearThrottle->execute([hash_hmac('sha256','reset-email:'.$normalized,$mailerSecret)]);}}
+    }catch(Throwable $ignored){}
+    foreach($testClients as $c){if(isset($c['cookie'])&&is_file($c['cookie']))unlink($c['cookie']);}
 }

@@ -488,17 +488,348 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
   );
 }
 
+function AdminHome({ profile, onOpenAdmin }) {
+  const [dashboard, setDashboard] = useState(null);
+  const [error, setError] = useState('');
+  const load = async () => {
+    const to = new Date().toISOString().slice(0, 10);
+    const from = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
+    try { setDashboard(await CSM.api(`admin/dashboard&from=${from}&to=${to}`)); setError(''); }
+    catch (requestError) { setError(requestError.message || 'Could not load workspace activity.'); }
+  };
+  useEffect(() => {
+    load();
+    const interval = window.setInterval(load, 60000);
+    return () => window.clearInterval(interval);
+  }, []);
+  return <div className="csm-screen custom-scroll csm-admin-screen csm-admin-home">
+    <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE OVERVIEW</span><h1>Good to see you, {profile?.displayName || profile?.username || 'Admin'}</h1><p>Monitor who is using Co-StudyMaxx and review activity across the workspace.</p></div><button type="button" className="csm-primary-button" onClick={onOpenAdmin}>Open admin console <span aria-hidden="true">→</span></button></div>
+    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}
+    {dashboard ? <>
+      <div className="csm-admin-metrics">
+        {[
+          ['Total users', dashboard.totals.users, 'All registered accounts'],
+          ['Active now', dashboard.totals.activeNow, 'Seen in the last 5 minutes'],
+          ['Active last 30 days', dashboard.period.activeUsers, 'Distinct users with study activity'],
+          ['Total decks', dashboard.totals.decks, 'Across all accounts'],
+          ['PDF uploads', dashboard.period.uploads, 'Selected 30-day period'],
+          ['Arena sessions', dashboard.period.sessions, 'Selected 30-day period']
+        ].map(([label, value, description]) => <article className={`csm-admin-metric ${label === 'Active now' ? 'is-live' : ''}`} key={label}><span>{label}</span><strong>{value}</strong><small>{description}</small></article>)}
+      </div>
+      <section className="csm-admin-card csm-admin-home-note"><span className="csm-kicker">LIVE ACCOUNT ACTIVITY</span><p>“Active now” counts accounts with a signed-in tab that contacted the server within five minutes. Period activity counts distinct users who generated study activity during the selected dates.</p></section>
+    </> : !error && <div className="csm-admin-empty">Loading workspace totals…</div>}
+  </div>;
+}
+
+function AdminPanel({ profile }) {
+  const isSuper = profile?.role === 'superadmin';
+  const [section, setSection] = useState('overview');
+  const [range, setRange] = useState(() => ({ from: new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }));
+  const [dashboard, setDashboard] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [decks, setDecks] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [settings, setSettings] = useState(null);
+  const [search, setSearch] = useState('');
+  const [previewDeckId, setPreviewDeckId] = useState('');
+  const [notice, setNotice] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [adminActionModal, setAdminActionModal] = useState(null);
+  const [adminActionReason, setAdminActionReason] = useState('');
+  const [adminActionError, setAdminActionError] = useState('');
+  const adminActionReasonRef = useRef(null);
+  const adminActionConfirmRef = useRef(null);
+  const adminActionTriggerRef = useRef(null);
+  const [flagDeckTarget, setFlagDeckTarget] = useState(null);
+  const [flagReason, setFlagReason] = useState('');
+  const [flagReasonError, setFlagReasonError] = useState('');
+  const flagReasonRef = useRef(null);
+  const flagTriggerRef = useRef(null);
+  const [deckPreview, setDeckPreview] = useState(null);
+  const [deckPreviewLoading, setDeckPreviewLoading] = useState(false);
+  const [deckPreviewError, setDeckPreviewError] = useState('');
+  const deckPreviewTriggerRef = useRef(null);
+  const deckPreviewCloseRef = useRef(null);
+  const deckPreviewRequestRef = useRef(0);
+
+  const load = async (query = search) => {
+    setError('');
+    try {
+      if (section === 'overview') setDashboard(await CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`));
+      if (section === 'users') setUsers((await CSM.api(`admin/users&q=${encodeURIComponent(query)}&limit=100`)).users || []);
+      if (section === 'content') {
+        const result = await CSM.api(`admin/decks&q=${encodeURIComponent(query)}&limit=100`);
+        const nextDecks = result.decks || [];
+        setDecks(nextDecks);
+        setPreviewDeckId(current => nextDecks.some(deck => deck.id === current) ? current : (nextDecks[0]?.id || ''));
+      }
+      if (section === 'reports') setReports((await CSM.api('admin/reports&status=open')).reports || []);
+      if (section === 'audit' && isSuper) setEvents((await CSM.api(`admin/audit&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&limit=100`)).events || []);
+      if (section === 'system' && isSuper) setSettings(await CSM.api('admin/settings'));
+    } catch (requestError) { setError(requestError.message || 'Could not load administrator data.'); }
+  };
+  useEffect(() => { load(); }, [section, range.from, range.to]);
+  useEffect(() => {
+    if (section !== 'overview') return undefined;
+    const interval = window.setInterval(async () => {
+      try { setDashboard(await CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`)); }
+      catch { /* The current dashboard remains visible; the next refresh can recover. */ }
+    }, 60000);
+    return () => window.clearInterval(interval);
+  }, [section, range.from, range.to]);
+
+  const runAction = async (action, success) => {
+    setBusy(true); setError(''); setNotice(null);
+    try { await action(); setNotice(success); await load(); }
+    catch (actionError) { setError(actionError.message || 'The action could not be completed.'); }
+    finally { setBusy(false); }
+  };
+  const requestAdminAction = (event, options) => {
+    adminActionTriggerRef.current = event.currentTarget?.tagName === 'FORM' ? event.nativeEvent?.submitter : event.currentTarget;
+    setAdminActionReason('');
+    setAdminActionError('');
+    setAdminActionModal(options);
+  };
+  const closeAdminActionModal = () => {
+    if (busy) return;
+    setAdminActionModal(null);
+    setAdminActionReason('');
+    setAdminActionError('');
+  };
+  const submitAdminAction = event => {
+    event.preventDefault();
+    if (!adminActionModal || busy) return;
+    const reason = adminActionReason.trim();
+    if (adminActionModal.requiresReason && !reason) {
+      setAdminActionError('Enter a reason to continue.');
+      adminActionReasonRef.current?.focus();
+      return;
+    }
+    const { action, success } = adminActionModal;
+    setAdminActionModal(null);
+    setAdminActionReason('');
+    runAction(() => action(reason.slice(0, 1000)), success);
+  };
+  const closeFlagModal = () => {
+    if (busy) return;
+    setFlagDeckTarget(null);
+    setFlagReason('');
+    setFlagReasonError('');
+  };
+  const loadDeckPreview = async deck => {
+    const requestId = ++deckPreviewRequestRef.current;
+    setDeckPreview(deck);
+    setDeckPreviewLoading(true);
+    setDeckPreviewError('');
+    try {
+      const result = await CSM.api(`admin/decks/view&id=${encodeURIComponent(deck.id)}`);
+      if (requestId === deckPreviewRequestRef.current) setDeckPreview({ ...result.deck, cards: result.cards || [], documents: result.documents || [] });
+    } catch (requestError) {
+      if (requestId === deckPreviewRequestRef.current) setDeckPreviewError(requestError.message || 'Could not load this deck preview.');
+    } finally {
+      if (requestId === deckPreviewRequestRef.current) setDeckPreviewLoading(false);
+    }
+  };
+  const closeDeckPreview = () => {
+    deckPreviewRequestRef.current++;
+    setDeckPreview(null);
+    setDeckPreviewLoading(false);
+    setDeckPreviewError('');
+  };
+  const submitFlagReview = async event => {
+    event.preventDefault();
+    const reason = flagReason.trim();
+    if (!reason) {
+      setFlagReasonError('Enter a reason so the moderation team can review this deck.');
+      flagReasonRef.current?.focus();
+      return;
+    }
+    setBusy(true); setError(''); setNotice(null); setFlagReasonError('');
+    try {
+      await CSM.api('admin/decks/flag', 'POST', { deckId: flagDeckTarget.id, reason: reason.slice(0, 1000) });
+      setNotice('Deck added to the review queue.');
+      setFlagDeckTarget(null); setFlagReason('');
+      await load();
+    } catch (requestError) {
+      setFlagReasonError(requestError.message || 'The deck could not be flagged. Please try again.');
+    } finally { setBusy(false); }
+  };
+  useEffect(() => {
+    if (!flagDeckTarget) {
+      flagTriggerRef.current?.focus();
+      return undefined;
+    }
+    flagReasonRef.current?.focus();
+    const onKeyDown = event => {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault();
+        closeFlagModal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [flagDeckTarget, busy]);
+  useEffect(() => {
+    if (!adminActionModal) {
+      adminActionTriggerRef.current?.focus();
+      return undefined;
+    }
+    (adminActionModal.requiresReason ? adminActionReasonRef.current : adminActionConfirmRef.current)?.focus();
+    const onKeyDown = event => {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault();
+        closeAdminActionModal();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [adminActionModal, busy]);
+  useEffect(() => {
+    if (!deckPreview) {
+      deckPreviewTriggerRef.current?.focus();
+      return undefined;
+    }
+    deckPreviewCloseRef.current?.focus();
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeDeckPreview();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [Boolean(deckPreview)]);
+  const dateFilters = (label = 'Activity period') => <div className="csm-admin-date-filter"><span>{label}</span><label>From<input type="date" value={range.from} onChange={event => setRange(value => ({ ...value, from: event.target.value }))} /></label><label>To<input type="date" value={range.to} onChange={event => setRange(value => ({ ...value, to: event.target.value }))} /></label></div>;
+  const sections = [['overview', 'Overview'], ['content', 'Content'], ['reports', 'Review queue'], ['users', 'Users'], ...(isSuper ? [['audit', 'Security log'], ['system', 'System']] : [])];
+
+  return <div className="csm-screen custom-scroll csm-admin-screen">
+    <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE ADMINISTRATION</span><h1>Admin console</h1><p>Review app activity and manage accounts and study content.</p></div><span className={`csm-admin-role-pill ${isSuper ? 'is-super' : ''}`}>{isSuper ? 'Superadmin' : 'Admin'}</span></div>
+    <div className="csm-admin-tabs" role="tablist" aria-label="Admin console sections">{sections.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={section === id} className={section === id ? 'active' : ''} onClick={() => { setSection(id); setNotice(null); setError(''); }}>{label}</button>)}</div>
+    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-admin-alert is-success" role="status">{notice}</div>}
+
+    {section === 'overview' && <>
+      {dateFilters()}
+      {!dashboard && !error ? <div className="csm-admin-empty">Loading activity…</div> : dashboard && <>
+        <div className="csm-admin-metrics">
+          {[['Total users', dashboard.totals.users], ['Active now', dashboard.totals.activeNow], ['Active users (period)', dashboard.period.activeUsers], ['Total decks', dashboard.totals.decks], ['PDF uploads (period)', dashboard.period.uploads], ['Arena sessions (period)', dashboard.period.sessions], ['PDF storage', `${(dashboard.totals.storageBytes / 1048576).toFixed(1)} MB`]].map(([label, value]) => <article className={`csm-admin-metric ${label === 'Active now' ? 'is-live' : ''}`} key={label}><span>{label}</span><strong>{value}</strong>{label === 'Active now' && <small>Seen in the last 5 minutes</small>}</article>)}
+        </div>
+        <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SELECTED PERIOD</span><h2>Activity summary</h2></div><span className="csm-admin-subtle">{dashboard.from} – {dashboard.to}</span></div>
+          <div className="csm-admin-period-grid">{[['Active users', dashboard.period.activeUsers], ['New users', dashboard.period.newUsers], ['New decks', dashboard.period.newDecks], ['Documents uploaded', dashboard.period.uploads], ['Arena sessions', dashboard.period.sessions], ['Sessions completed', dashboard.period.completedSessions]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
+          {dashboard.days.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Date</th><th>Active users</th><th>Decks</th><th>Uploads</th><th>Arena sessions</th></tr></thead><tbody>{dashboard.days.map(day => <tr key={day.date}><td>{day.date}</td><td>{day.activeUsers}</td><td>{day.decks}</td><td>{day.uploads}</td><td>{day.arenaSessions}</td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No activity was recorded in this date range.</div>}
+        </div>
+      </>}
+    </>}
+
+    {(section === 'users' || section === 'content') && <div className="csm-admin-card">
+      <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); load(search); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
+      {section === 'content' && <div className="csm-admin-preview-launch"><div><strong>Review deck contents</strong><span>Read-only staff preview of Bombcards and answers.</span></div><label htmlFor="admin-preview-deck">Deck<select id="admin-preview-deck" value={previewDeckId} onChange={event => setPreviewDeckId(event.target.value)} disabled={!decks.length || deckPreviewLoading}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} · {deck.owner}</option>)}</select></label><button type="button" className="csm-secondary-button" disabled={!previewDeckId || busy || deckPreviewLoading} onClick={event => { const deck = decks.find(item => item.id === previewDeckId); if (!deck) return; deckPreviewTriggerRef.current = event.currentTarget; loadDeckPreview(deck); }}>{deckPreviewLoading ? 'Loading…' : 'View deck'}</button></div>}
+      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}
+    </div>}
+
+    {section === 'reports' && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">STAFF REVIEW QUEUE</span><h2>Flagged decks</h2></div><span className="csm-admin-subtle">Private content is only visible to its owner and authorized staff.</span></div>{reports.length ? <div className="csm-admin-report-list">{reports.map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · flagged by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Flagged {new Date(`${report.created_at}Z`).toLocaleString()}</small></div><div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Dismiss this report?', message: `This report will be closed without hiding “${report.deckTitle}”. The deck owner will be notified of the review outcome.`, confirmLabel: 'Dismiss report', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Report dismissed.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'dismiss', reason }) })}>Dismiss</button><button type="button" className="csm-primary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Hide this deck?', message: `“${report.deckTitle}” will be hidden from its owner. They will receive a notification with your review note.`, confirmLabel: 'Hide deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Deck hidden and moderation action recorded.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'hide', reason }) })}>Hide deck</button></div></article>)}</div> : <div className="csm-admin-empty">No decks are waiting for review.</div>}</div>}
+
+    {section === 'audit' && isSuper && <>{dateFilters('Security event period')}<div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Security event log</h2></div><span className="csm-admin-subtle">IP addresses are stored as one-way hashes.</span></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Non-sensitive details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status">{event.event}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details)}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No security events were recorded in this date range.</div>}</div></>}
+
+    {section === 'system' && isSuper && <div className="csm-admin-system-grid">{settings && <>
+      <section className="csm-admin-card"><span className="csm-kicker">SERVICE AVAILABILITY</span><h2>Maintenance mode</h2><p>When enabled, regular accounts cannot load or change workspace data. Administrators can continue working; sign-in and sign-out remain available.</p><div className="csm-admin-setting-row"><span className={`csm-admin-status ${settings.maintenanceMode ? 'is-locked' : ''}`}>{settings.maintenanceMode ? 'Enabled' : 'Disabled'}</span><button type="button" className={settings.maintenanceMode ? 'csm-secondary-button' : 'csm-primary-button'} disabled={busy} onClick={event => requestAdminAction(event, { title: `${settings.maintenanceMode ? 'Disable' : 'Enable'} maintenance mode?`, message: settings.maintenanceMode ? 'Regular users will be able to access the workspace again.' : 'Regular users will see the maintenance page. Admins and superadmins can continue working.', confirmLabel: settings.maintenanceMode ? 'Disable maintenance' : 'Enable maintenance', success: `Maintenance mode ${settings.maintenanceMode ? 'disabled' : 'enabled'}.`, action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { maintenanceMode: !settings.maintenanceMode })) })}>{settings.maintenanceMode ? 'Disable' : 'Enable'}</button></div></section>
+      <section className="csm-admin-card"><span className="csm-kicker">DOCUMENT STORAGE</span><h2>Global PDF storage limit</h2><p>Limits the combined stored PDF size across all accounts. Existing files are retained if the limit is reduced.</p><form className="csm-admin-storage-form" onSubmit={event => { event.preventDefault(); const bytes = Math.round(Number(event.currentTarget.elements.storage.value) * 1048576); requestAdminAction(event, { title: 'Update the storage limit?', message: 'The new limit applies across all stored PDFs. Existing files will not be removed.', confirmLabel: 'Save storage limit', success: 'Storage limit updated.', action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { storageLimitBytes: bytes })) }); }}><label>Limit in MiB<input name="storage" type="number" min="1" max="1048576" step="1" defaultValue={Math.floor(settings.storageLimitBytes / 1048576)} /></label><div className="csm-admin-subtle">Currently used: {(settings.storageUsedBytes / 1048576).toFixed(1)} MiB</div><button type="submit" className="csm-secondary-button" disabled={busy}>Save limit</button></form></section>
+      <section className="csm-admin-card csm-admin-danger-card"><span className="csm-kicker">SESSION SECURITY</span><h2>Sign out all users</h2><p>Revokes every active login on every device, including yours. Everyone must sign in again.</p><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Sign out every user?', message: 'This revokes every active login on every device, including yours. Everyone will need to sign in again.', confirmLabel: 'Clear all sessions', danger: true, success: 'All sessions cleared.', action: async () => { const result = await CSM.api('admin/sessions/clear', 'POST', { confirm: true }); setNotice(`${result.sessionsRemoved} sessions cleared; ${result.accountsInvalidated} accounts must sign in again.`); setTimeout(() => location.replace('login.html?mode=signin'), 1200); } })}>Clear all sessions</button></section>
+    </>}</div>}
+
+    {(flagDeckTarget || adminActionModal || deckPreview) && ReactDOM.createPortal(<>
+    {flagDeckTarget && <div className="csm-modal-backdrop csm-admin-flag-backdrop" role="presentation" onClick={closeFlagModal}>
+      <form className="csm-admin-flag-modal" role="dialog" aria-modal="true" aria-labelledby="admin-flag-title" aria-describedby="admin-flag-description" onSubmit={submitFlagReview} onClick={event => event.stopPropagation()}>
+        <div className="csm-admin-flag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4m0 1h12l-2.5 4L17 13H5" /></svg></div>
+        <span className="csm-kicker">CONTENT MODERATION</span>
+        <h2 id="admin-flag-title">Flag “{flagDeckTarget.code || flagDeckTarget.title}” for review</h2>
+        <p id="admin-flag-description">Tell the moderation team why this reviewer needs attention. Your reason will be included in the private review queue.</p>
+        <label className="csm-admin-flag-label" htmlFor="admin-flag-reason">Reason for review</label>
+        <textarea id="admin-flag-reason" ref={flagReasonRef} value={flagReason} onChange={event => { setFlagReason(event.target.value); if (flagReasonError) setFlagReasonError(''); }} maxLength={1000} rows={4} placeholder="Describe the concern…" disabled={busy} aria-required="true" aria-invalid={Boolean(flagReasonError)} aria-describedby={flagReasonError ? 'admin-flag-description admin-flag-error' : 'admin-flag-description'} />
+        <div className="csm-admin-flag-meta"><span>{flagReason.length}/1000</span>{flagReasonError && <span id="admin-flag-error" className="csm-admin-flag-error" role="alert">{flagReasonError}</span>}</div>
+        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeFlagModal} disabled={busy}>Cancel</button><button type="submit" className="csm-primary-button" disabled={busy}>{busy ? 'Submitting…' : 'Submit flag'}</button></div>
+      </form>
+    </div>}
+    {adminActionModal && <div className="csm-modal-backdrop csm-admin-action-backdrop" role="presentation" onClick={closeAdminActionModal}>
+      <form className="csm-admin-action-modal" role="dialog" aria-modal="true" aria-labelledby="admin-action-title" aria-describedby="admin-action-description" onSubmit={submitAdminAction} onClick={event => event.stopPropagation()}>
+        <div className={`csm-admin-action-icon ${adminActionModal.danger ? 'is-danger' : ''}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="M12 8v4m0 4h.01" /></svg></div>
+        <span className="csm-kicker">ADMIN ACTION</span>
+        <h2 id="admin-action-title">{adminActionModal.title}</h2>
+        <p id="admin-action-description">{adminActionModal.message}</p>
+        {adminActionModal.requiresReason && <>
+          <label className="csm-admin-flag-label" htmlFor="admin-action-reason">{adminActionModal.reasonLabel || 'Reason'}</label>
+          <textarea id="admin-action-reason" ref={adminActionReasonRef} value={adminActionReason} onChange={event => { setAdminActionReason(event.target.value); if (adminActionError) setAdminActionError(''); }} maxLength={1000} rows={4} placeholder="Add a clear note…" aria-required="true" aria-invalid={Boolean(adminActionError)} aria-describedby={adminActionError ? 'admin-action-description admin-action-error' : 'admin-action-description'} />
+          <div className="csm-admin-flag-meta"><span>{adminActionReason.length}/1000</span>{adminActionError && <span id="admin-action-error" className="csm-admin-flag-error" role="alert">{adminActionError}</span>}</div>
+        </>}
+        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeAdminActionModal} disabled={busy}>Cancel</button><button ref={adminActionConfirmRef} type="submit" className={adminActionModal.danger ? 'csm-admin-danger-button' : 'csm-primary-button'} disabled={busy}>{busy ? 'Working…' : adminActionModal.confirmLabel || 'Continue'}</button></div>
+      </form>
+    </div>}
+    {deckPreview && <div className="csm-modal-backdrop csm-admin-preview-backdrop" role="presentation" onClick={closeDeckPreview}>
+      <section className="csm-admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="admin-preview-title" aria-describedby="admin-preview-description" onClick={event => event.stopPropagation()}>
+        <header className="csm-admin-preview-header">
+          <div><span className="csm-kicker">AUTHORIZED STAFF · READ ONLY</span><h2 id="admin-preview-title">{deckPreview.title || deckPreview.code || 'Deck preview'}</h2><p>{deckPreview.owner ? `Owned by ${deckPreview.owner}` : 'Loading deck owner…'} · {deckPreview.subject || 'No subject'} · {deckPreview.document_count || 0} PDF(s)</p></div>
+          <div className="csm-admin-preview-header-actions"><button type="button" className="csm-secondary-button" onClick={() => loadDeckPreview(deckPreview)} disabled={deckPreviewLoading}>{deckPreviewLoading ? 'Refreshing…' : 'Refresh'}</button><button ref={deckPreviewCloseRef} type="button" className="csm-admin-preview-close" onClick={closeDeckPreview} aria-label="Close deck preview">×</button></div>
+        </header>
+        <p className="csm-admin-preview-description" id="admin-preview-description">Review this account’s Bombcards and attached PDFs. Staff access is read-only and recorded for moderation oversight.</p>
+        <div className="csm-admin-preview-content">
+          {deckPreviewLoading ? <div className="csm-admin-empty" role="status">Loading the latest deck contents…</div> : deckPreviewError ? <div className="csm-admin-alert is-error" role="alert">{deckPreviewError}</div> : <>
+          <section className="csm-admin-preview-documents" aria-label="PDF files attached to this deck">
+            <div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">REFERENCE FILES</span><h3>Attached PDFs</h3></div><span className="csm-admin-status">{deckPreview.documents?.length || 0} files</span></div>
+            {deckPreview.documents?.length ? <div className="csm-admin-preview-document-list">{deckPreview.documents.map(file => <article className="csm-admin-preview-document" key={file.id}><span className="csm-admin-preview-pdf-icon" aria-hidden="true">PDF</span><div className="csm-admin-preview-document-info"><strong>{file.title}</strong><small>{(Number(file.size) / 1048576).toFixed(2)} MB · Uploaded {new Date(`${file.uploadedAt}Z`).toLocaleDateString()}</small></div><a className="csm-secondary-button" href={file.url} target="_blank" rel="noreferrer">Open PDF ↗</a></article>)}</div> : <div className="csm-admin-empty csm-admin-preview-document-empty">No PDF files are attached to this deck.</div>}
+          </section>
+          <section className="csm-admin-preview-bombcards" aria-label="Bombcards in this deck"><div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">STUDY CONTENT</span><h3>Bombcards</h3></div><span className="csm-admin-status">{deckPreview.cards?.length || 0} cards</span></div>
+          {deckPreview.cards?.length ? deckPreview.cards.map((card, index) => <article className="csm-admin-preview-card" key={card.id || index}>
+            <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</span></div>
+            <h3>{card.prompt || 'Untitled question'}</h3>
+            {card.hint && <p className="csm-admin-preview-detail"><strong>Hint:</strong> {card.hint}</p>}
+            {card.type === 'MULTIPLE_CHOICE' && <ol className="csm-admin-preview-options">{(card.options || []).map((option, optionIndex) => <li className={optionIndex === Number(card.correctIndex) ? 'is-correct' : ''} key={`${card.id}-${optionIndex}`}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{optionIndex === Number(card.correctIndex) && <small>Correct</small>}</li>)}</ol>}
+            <div className="csm-admin-preview-answer"><span>Correct answer</span><strong>{card.correctAnswer || 'No answer saved'}</strong></div>
+            {card.explanation && <p className="csm-admin-preview-detail"><strong>Explanation:</strong> {card.explanation}</p>}
+          </article>) : <div className="csm-admin-empty">This deck does not have any Bombcards yet.</div>}</section>
+          </>}
+        </div>
+        {deckPreview.updated_at && <footer className="csm-admin-preview-footer">Last updated {new Date(`${deckPreview.updated_at}Z`).toLocaleString()}</footer>}
+      </section>
+    </div>}
+    </>, document.body)}
+  </div>;
+}
+
 function App() {
   // Navigation: 'home' | 'library' | 'game' | 'arena' | 'account'
+  const initialRole = window.CSM?.initial?.profile?.role || 'user';
+  const isStaffAccount = ['admin', 'superadmin'].includes(initialRole);
+  const staffRestrictedScreens = ['library', 'flashcards', 'creator', 'highlighter', 'game', 'arena'];
   const requestedScreen = new URLSearchParams(window.location.search).get('screen');
-  const [activeTab, setActiveTab] = useState(['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account'].includes(requestedScreen) ? requestedScreen : 'home');
+  const allowedScreens = ['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account', 'admin'];
+  const initialScreen = allowedScreens.includes(requestedScreen) ? requestedScreen : 'home';
+  const [activeTab, setActiveTab] = useState(isStaffAccount && staffRestrictedScreens.includes(initialScreen) ? 'home' : (!isStaffAccount && initialScreen === 'admin' ? 'home' : initialScreen));
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [changeConfirmation, setChangeConfirmation] = useState(null);
   const defaultProfile = { displayName: 'Gavin Dave', username: 'gavin_dave', avatar: 'ember', nameChangedAt: null };
   const [profile, setProfile] = useState(() => ({ ...defaultProfile, ...(window.CSM?.initial?.profile || {}) }));
+  const isStaff = ['admin', 'superadmin'].includes(profile.role);
+  const refreshNotifications = async () => {
+    try {
+      const result = await CSM.api('notifications');
+      setNotifications(Array.isArray(result.notifications) ? result.notifications : []);
+      setNotificationsUnread(Number(result.unreadCount) || 0);
+    } catch { /* Session handling is surfaced by the shared API client. */ }
+  };
+  useEffect(() => {
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 30000);
+    return () => window.clearInterval(interval);
+  }, []);
+  useEffect(() => {
+    if (isStaff && staffRestrictedScreens.includes(activeTab)) setActiveTab('home');
+    else if (!isStaff && activeTab === 'admin') setActiveTab('home');
+  }, [activeTab, isStaff]);
   const [profileNameDraft, setProfileNameDraft] = useState(() => profile.displayName);
   const [profileClock, setProfileClock] = useState(Date.now());
   const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
@@ -719,6 +1050,13 @@ function App() {
   const activityChart = Array.isArray(accountStats.activityChart) ? accountStats.activityChart : [];
   const activityChartMax = Math.max(1, ...activityChart.flatMap(day => [Number(day.current) || 0, Number(day.previous) || 0]));
   const activeFlashcardDeck = useMemo(() => decks.find(d => d.id === selectedDeckIds[0]) || decks[0], [decks, selectedDeckIds]);
+  const activeDeckProgress = useMemo(() => studyProgress.filter(item => item.deck_id === activeFlashcardDeck?.id), [studyProgress, activeFlashcardDeck?.id]);
+  const activeDeckKnownAnswers = activeDeckProgress.reduce((total, item) => total + (Number(item.times_known) || 0), 0);
+  const activeDeckUnknownAnswers = activeDeckProgress.reduce((total, item) => total + (Number(item.times_unknown) || 0), 0);
+  const activeDeckAccuracy = activeDeckKnownAnswers + activeDeckUnknownAnswers
+    ? Math.round(activeDeckKnownAnswers / (activeDeckKnownAnswers + activeDeckUnknownAnswers) * 100)
+    : 0;
+  const activeDeckMissedCount = activeDeckProgress.filter(item => (Number(item.times_unknown) || 0) > (Number(item.times_known) || 0)).length;
   const flashcards = activeFlashcardDeck?.cards || [];
   const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
   const flipFlashcard = () => {
@@ -1757,7 +2095,7 @@ function App() {
             </button>
 
             {/* 2. Reviewer Library (Parent with Nested Child Items) */}
-            <div className="w-full flex flex-col items-center">
+            {!isStaff && <div className="w-full flex flex-col items-center">
               <button
                 onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
                 data-tooltip="Reviewer Library"
@@ -1808,10 +2146,10 @@ function App() {
                   </button>
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* 3. Game Mode Section (Launch Lobby) */}
-            <button
+            {!isStaff && <button
               onClick={() => { setSelectedDeckForFolderView(null); setBombstylePhase('select_deck'); setActiveTab('arena'); }}
               data-tooltip="Arena"
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'game' || activeTab === 'arena'
@@ -1822,7 +2160,7 @@ function App() {
             >
               <IconCards className="w-6 h-6" />
               <span className="csm-sidebar-label">Arena</span>
-            </button>
+            </button>}
 
             {/* ACCOUNT Category — placed below Arena */}
             <span className="csm-sidebar-category" style={{ marginTop: '8px' }}>ACCOUNT</span>
@@ -1838,6 +2176,15 @@ function App() {
               <IconUser />
               <span className="csm-sidebar-label">Profile</span>
             </button>
+            {['admin', 'superadmin'].includes(profile.role) && <button
+              type="button"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'admin' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
+              title="Admin console" data-tooltip="Admin console" aria-label="Admin console"
+              onClick={() => setActiveTab('admin')}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span className="csm-sidebar-label">Admin</span>
+            </button>}
           </div>
         </div>
 
@@ -1923,7 +2270,20 @@ function App() {
                       </>
                     )}
                 {activeTab === 'account' && 'Account Settings'}
+                {activeTab === 'admin' && 'Admin Console'}
               </span>
+            </div>
+            <div className="csm-topbar-role-slot">
+              {['admin', 'superadmin'].includes(profile.role) && (
+                <span
+                  className={`csm-topbar-role ${profile.role === 'superadmin' ? 'is-super' : ''}`}
+                  aria-label={`Account role: ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
+                  title={`Signed in as ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
+                >
+                  <span className="csm-topbar-role-dot" aria-hidden="true" />
+                  {profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}
+                </span>
+              )}
             </div>
             <div className="csm-top-actions">
               {activeTab === 'home' && (
@@ -1938,14 +2298,21 @@ function App() {
                 </button>
               )}
               <div className="csm-notifications-wrap">
-                <button className={`csm-icon-button csm-notification ${notifications.length ? '' : 'is-empty'}`} type="button" aria-label="Notifications" aria-expanded={notificationsOpen} title="Notifications" onClick={() => setNotificationsOpen(value => !value)}>
+                <button className={`csm-icon-button csm-notification ${notificationsUnread ? 'has-unread' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+                  {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 9 ? '9+' : notificationsUnread}</span>}
                 </button>
                 {notificationsOpen && (
                   <div className="csm-notifications-panel" role="dialog" aria-label="Notifications panel">
-                    <div className="csm-notifications-header"><strong>Notifications</strong><span>{notifications.length ? `${notifications.length} unread` : 'All caught up'}</span></div>
-                    <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. New study updates will appear here.</p></div>
-                    <div className="csm-notifications-actions"><button type="button" onClick={() => triggerToast(notifications.length ? 'Notifications marked as read' : 'No notifications to mark as read')}>Mark all as read</button><button type="button" onClick={() => { if (!notifications.length) { triggerToast('No notifications to clear'); return; } requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: () => { setNotifications([]); triggerToast('Notifications cleared'); } }); }}>Clear all</button></div>
+                    <div className="csm-notifications-header"><strong>Notifications</strong><span>{notificationsUnread ? `${notificationsUnread} unread` : 'All caught up'}</span></div>
+                    <div className="csm-notifications-list">
+                      {notifications.length ? notifications.map(notification => <article className={`csm-notification-item ${notification.isRead ? '' : 'is-unread'}`} key={notification.id}>
+                        <span className="csm-notification-item-icon" aria-hidden="true">{notification.type?.startsWith('deck') ? '▦' : '•'}</span>
+                        <div className="csm-notification-item-copy"><strong>{notification.title}</strong><p>{notification.message}</p><time dateTime={notification.createdAt}>{new Date(`${notification.createdAt}Z`).toLocaleString()}</time></div>
+                        {!notification.isRead && <button className="csm-notification-mark-read" type="button" aria-label={`Mark ${notification.title} as read`} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', { id: notification.id }); setNotifications(items => items.map(item => item.id === notification.id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); setNotificationsUnread(count => Math.max(0, count - 1)); } catch (error) { triggerToast(error.message); } }}>Mark read</button>}
+                      </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
+                    </div>
+                    <div className="csm-notifications-actions"><button type="button" disabled={!notificationsUnread} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', {}); setNotifications(items => items.map(item => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }))); setNotificationsUnread(0); } catch (error) { triggerToast(error.message); } }}>Mark all as read</button><button type="button" disabled={!notifications.length} onClick={() => { if (!notifications.length) return; requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: async () => { try { await CSM.api('notifications', 'DELETE'); setNotifications([]); setNotificationsUnread(0); triggerToast('Notifications cleared'); } catch (error) { triggerToast(error.message); } } }); }}>Clear all</button></div>
                   </div>
                 )}
               </div>
@@ -1997,6 +2364,9 @@ function App() {
             </div>
           </header>
 
+        {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={() => setActiveTab('admin')} />}
+        {activeTab === 'admin' && isStaff && <AdminPanel profile={profile} />}
+
         {/* Floating Toast Notification */}
         {shareToast && (
           <div className="absolute top-4 right-4 z-50 bg-[#181818] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 csm-toast-animate">
@@ -2008,7 +2378,7 @@ function App() {
         {/* ========================================================
                 VIEW A: HOME DASHBOARD
                 ======================================================== */}
-        {activeTab === 'home' && (
+        {activeTab === 'home' && !isStaff && (
           <div className="flex h-full overflow-hidden relative">
 
             {/* Dashboard Content Container (Static and unaffected by chatbot popup) */}
@@ -2325,7 +2695,7 @@ function App() {
 
               <section className="csm-account-card csm-account-security-card">
                 <div className="csm-account-card-heading"><div><span className="csm-kicker">SECURITY</span><h2>Password</h2></div><span className="csm-account-placeholder-badge">Protected</span></div>
-                <div className="csm-account-security-row"><span className="csm-account-security-icon">•••</span><div><strong>Change your password</strong><p>Verify your current password to set a new one. Email recovery is not configured.</p></div><button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(true)}>Change password</button></div>
+                <div className="csm-account-security-row"><span className="csm-account-security-icon">•••</span><div><strong>Change your password</strong><p>Verify your current password to set a new one. Email recovery requires the server mail service to be configured.</p></div><button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(true)}>Change password</button></div>
               </section>
               <section className="csm-account-card csm-account-policy-card">
                 <div className="csm-account-card-heading"><div><span className="csm-kicker">PRIVACY &amp; POLICY</span><h2>Your data in Co-StudyMaxx</h2></div><span className="csm-account-placeholder-badge">Account data</span></div>
@@ -2633,8 +3003,8 @@ function App() {
                 <span className="csm-kicker">SESSION SUMMARY</span>
                 <h2>{activeFlashcardDeck?.code || 'Your deck'}</h2>
                 <div className="csm-summary-stat"><strong>{flashcards.length}</strong><span>cards in deck</span></div>
-                <div className="csm-summary-stat"><strong>{accountStats.accuracy || 0}%</strong><span>average accuracy</span></div>
-                <div className="csm-summary-stat"><strong>3</strong><span>missed to revisit</span></div>
+                <div className="csm-summary-stat"><strong>{activeDeckAccuracy}%</strong><span>average accuracy</span></div>
+                <div className="csm-summary-stat"><strong>{activeDeckMissedCount}</strong><span>missed to revisit</span></div>
                 <button type="button" className="csm-text-button" onClick={() => setActiveTab('game')}>Practice missed cards <span>→</span></button>
               </aside>
             </div>
