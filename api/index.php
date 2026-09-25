@@ -3,6 +3,20 @@ require dirname(__DIR__).'/server/bootstrap.php';require dirname(__DIR__).'/serv
 $route=$_GET['r']??'';$method=$_SERVER['REQUEST_METHOD'];header('Referrer-Policy: same-origin');header('X-Frame-Options: SAMEORIGIN');
 if(!is_string($route))fail(400,'Invalid endpoint.');if(!in_array($method,['GET','POST','PATCH','DELETE'],true))fail(405,'Method not allowed.');if($method!=='GET')csrf();
 if($route==='auth/session'&&$method==='GET'){$ok=false;if(isset($_SESSION['user_id'])){$u=query('SELECT auth_version FROM users WHERE id=?',[$_SESSION['user_id']])->fetch();$ok=$u&&(int)$u['auth_version']==($_SESSION['auth_version']??0);}respond(['authenticated'=>(bool)$ok,'csrf'=>$_SESSION['csrf'],'profile'=>$ok?profile($_SESSION['user_id']):null]);}
+if($route==='auth/password/request'&&$method==='POST'){
+ $started=microtime(true);$data=input();$email=$data['email']??'';$email=is_string($email)?trim($email):'';$validEmail=strlen($email)<=254&&filter_var($email,FILTER_VALIDATE_EMAIL)!==false;$normalized=$validEmail?(function_exists('mb_strtolower')?mb_strtolower($email,'UTF-8'):strtolower($email)):'';$key=(string)($config['mailer_secret']?:'local-reset-throttle-key-change-this');$address=(string)($_SERVER['REMOTE_ADDR']??'unknown');
+ $allowed=throttle_allows(hash_hmac('sha256','reset-ip:'.$address,$key),30,900);
+ if($validEmail)$allowed=throttle_allows(hash_hmac('sha256','reset-email:'.$normalized,$key),3,900)&&$allowed;
+ if($allowed&&$validEmail&&recovery_delivery_configured()){
+  $issued=$passwordRecovery->issue($normalized);
+  if($issued){$base=rtrim($config['app_base_url'],'/');$resetUrl=$base.'/login.html?mode=reset#token='.rawurlencode($issued['token']);$sent=false;try{$sent=send_password_recovery_email($issued['email'],$resetUrl);}catch(Throwable $ignored){}if(!$sent){$passwordRecovery->revoke($issued['token']);error_log('Password recovery mail delivery failed.');}}
+ }
+ $delay=500000-(int)((microtime(true)-$started)*1000000);if($delay>0)usleep($delay);
+ respond(['message'=>'If an account exists for that email and email delivery is configured, password reset instructions will be sent.']);
+}
+if($route==='auth/password/reset'&&$method==='POST'){
+ $data=input();$token=field($data,'token',64);$next=password_value($data,'newPassword');$confirm=password_value($data,'confirmPassword');if(!hash_equals($next,$confirm))fail(422,'The new password and confirmation do not match.');$passwordRecovery->consume($token,password_hash($next,PASSWORD_DEFAULT));respond(['ok'=>true,'message'=>'Password reset. You can now sign in with your new password.']);
+}
 if(in_array($route,['auth/register','auth/login'],true)&&$method==='POST'){
  global $users;$data=input();$login=field($data,'username',254);$pass=password_value($data,'password');$bucket=hash('sha256',($_SERVER['REMOTE_ADDR']??'local').':'.$route);$now=time();
  query('INSERT INTO auth_attempts (bucket,attempts,window_start) VALUES (?,1,?) ON DUPLICATE KEY UPDATE attempts=IF(window_start<?,1,attempts+1),window_start=IF(window_start<?,VALUES(window_start),window_start)',[$bucket,$now,$now-900,$now-900]);if((int)query('SELECT attempts FROM auth_attempts WHERE bucket=?',[$bucket])->fetchColumn()>30)fail(429,'Too many attempts. Try again in 15 minutes.');

@@ -1,4 +1,8 @@
 server/config.local.php
+.env
+mailer/.env
+*.env.local
+/node_modules/
 storage/
 test-results/
 __pycache__/

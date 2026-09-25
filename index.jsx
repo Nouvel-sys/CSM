@@ -502,6 +502,7 @@ function App() {
   const [profileNameDraft, setProfileNameDraft] = useState(() => profile.displayName);
   const [profileClock, setProfileClock] = useState(Date.now());
   const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
+  const [passwordErrorModal, setPasswordErrorModal] = useState(null);
   const [currentPasswordDraft, setCurrentPasswordDraft] = useState('');
   const [newPasswordDraft, setNewPasswordDraft] = useState('');
   const [confirmPasswordDraft, setConfirmPasswordDraft] = useState('');
@@ -890,6 +891,29 @@ function App() {
     });
   };
 
+  const handleRemoveBombcard = (deck, cardId) => {
+    const card = deck?.cards?.find(item => item.id === cardId);
+    if (!deck || !card) return;
+    setOpenMaterialMenuId(null);
+    requestDeleteConfirmation({
+      title: 'Delete this Bombcard?',
+      message: `“${card.prompt}” will be permanently removed from ${deck.code || deck.title}.`,
+      confirmLabel: 'Delete Bombcard',
+      action: async () => {
+        try {
+          await CSM.api('cards', 'DELETE', { id: cardId, deckId: deck.id });
+          setRevealedLibraryCards(current => current.filter(id => id !== cardId));
+          await refreshWorkspace();
+        } catch (error) {
+          triggerToast(error.message);
+          return;
+        }
+        triggerToast('Bombcard deleted');
+        showChangeConfirmation('Bombcard deleted', 'The Bombcard was removed from this reviewer.');
+      }
+    });
+  };
+
   const handleOpenDeckStudy = (deck, mode = 'flashcards') => {
     setSelectedDeckIds([deck.id]);
     setSelectedDeckForFolderView(null);
@@ -1040,12 +1064,16 @@ function App() {
   const handleChangePassword = async (event) => {
     event.preventDefault();
     if (newPasswordDraft.length < 8 || newPasswordDraft.length > 72) return triggerToast('Use a password between 8 and 72 characters.');
-    if (newPasswordDraft !== confirmPasswordDraft) return triggerToast('The new passwords do not match.');
+    if (newPasswordDraft !== confirmPasswordDraft) return setPasswordErrorModal({ title: 'Passwords don’t match', message: 'The new password and confirmation are different. Check both fields and try again.' });
     try {
       await CSM.api('auth/password', 'POST', { currentPassword: currentPasswordDraft, newPassword: newPasswordDraft });
       setPasswordResetModalOpen(false); setCurrentPasswordDraft(''); setNewPasswordDraft(''); setConfirmPasswordDraft('');
       triggerToast('Password updated.');
-    } catch (error) { triggerToast(error.message); }
+    } catch (error) {
+      if (/current password.*incorrect/i.test(error.message || '')) {
+        setPasswordErrorModal({ title: 'Current password is incorrect', message: 'That doesn’t match your current password. Check it and try again.' });
+      } else triggerToast(error.message);
+    }
   };
 
   const FIXED_CHAT_TOPICS = [
@@ -2437,6 +2465,13 @@ function App() {
                                     >
                                       <IconEdit /> Create cards
                                     </button>
+                                    <button
+                                      type="button"
+                                      className="danger"
+                                      onClick={() => handleRemoveBombcard(currentSelectedDeck, cardId)}
+                                    >
+                                      <IconTrash /> Delete Bombcard
+                                    </button>
                                   </div>
                                 )}
                               </div>
@@ -3683,6 +3718,18 @@ function App() {
               <button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(false)}>Cancel</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {passwordErrorModal && (
+        <div className="csm-modal-backdrop csm-password-error-backdrop" role="presentation" onClick={() => setPasswordErrorModal(null)}>
+          <section className="csm-password-error-modal" role="alertdialog" aria-modal="true" aria-labelledby="password-error-title" aria-describedby="password-error-copy" onClick={event => event.stopPropagation()}>
+            <span className="csm-password-error-icon" aria-hidden="true">!</span>
+            <span className="csm-kicker">PASSWORD NOT UPDATED</span>
+            <h2 id="password-error-title">{passwordErrorModal.title}</h2>
+            <p id="password-error-copy">{passwordErrorModal.message}</p>
+            <button type="button" className="csm-primary-button" onClick={() => setPasswordErrorModal(null)}>Try again</button>
+          </section>
         </div>
       )}
 

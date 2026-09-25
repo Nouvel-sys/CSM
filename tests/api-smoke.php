@@ -21,8 +21,15 @@ function call_api(array &$client, string $route, string $method='GET', ?array $d
     return [$status,$decoded,$body];
 }
 function expect(array &$client,string $route,string $method='GET',?array $data=null,int $status=200,?string $upload=null):array{$result=call_api($client,$route,$method,$data,$upload);check($result[0]===$status,"$route expected HTTP $status, got {$result[0]}: {$result[2]}");return $result[1]??[];}
-$created=[];$accounts=[];$tmpPdf=null;
+$localConfig=require dirname(__DIR__).'/server/config.local.php';
+$mailerParts=parse_url($localConfig['mailer_url']??'http://127.0.0.1:8091/send');
+$mailerOrigin=($mailerParts['scheme']??'http').'://'.($mailerParts['host']??'127.0.0.1').(isset($mailerParts['port'])?':'.$mailerParts['port']:'');
+$mailerSecret=(string)($localConfig['mailer_secret']??(getenv('CSM_MAILER_SECRET')?:''));
+function mailer_get(string $path):array{global $mailerOrigin,$mailerSecret;$ch=curl_init($mailerOrigin.$path);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Accept: application/json','Authorization: Bearer '.$mailerSecret]]);$body=curl_exec($ch);$status=(int)curl_getinfo($ch,CURLINFO_HTTP_CODE);$err=curl_error($ch);curl_close($ch);if($body===false)throw new RuntimeException('Mailer stub is unavailable: '.$err);$json=json_decode($body,true);check($status===200&&is_array($json),'Mailer stub did not return a valid response.');return $json;}
+function recovery_token(string $email):string{$outbox=mailer_get('/__test/outbox?to='.rawurlencode($email));$messages=$outbox['messages']??[];check(count($messages)>0,'The recovery email was not captured by the stub mail transport.');$last=end($messages);$text=(string)($last['text']??'');check((bool)preg_match('~login\.html\?mode=reset#token=([a-f0-9]{64})~',$text,$match),'The stub email did not contain a valid recovery link.');return $match[1];}
+$created=[];$accounts=[];$tmpPdf=null;$extraClients=[];
 try {
+    $health=mailer_get('/health');check(($health['ok']??false)===true&&($health['transport']??'')==='stub','Start the mail bridge with MAILER_TRANSPORT=stub before running the recovery smoke tests.');
     $guard=client();expect($guard,'auth/session');$guard['csrf']='';expect($guard,'auth/logout','POST',[],403);
     foreach($users as $u){$c=client();expect($c,'auth/session');expect($c,'auth/register','POST',['username'=>$u['name'],'email'=>$u['email'],'password'=>$u['password']],201);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>'incorrect-password'],401);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>$u['password']]);$accounts[]=$c;}
     $a=$accounts[0];$b=$accounts[1];
@@ -72,10 +79,42 @@ try {
     expect($a,'auth/session');expect($a,'auth/login','POST',['username'=>$users[0]['email'],'password'=>'SmokeChanged-2026!']);
     $again=expect($a,'workspace');check(count(array_filter($again['decks'],fn($d)=>$d['id']===$deckId))===1,'Data did not survive sign-out and sign-in.');
     expect($a,'decks','DELETE',['id'=>$deckId]);$created=[];
-    echo "PASS register/login/invalid login/duplicate email; reviewer create/edit; Bombcard create/update; PDF upload/private read; PDF highlight persistence/page geometry; create both question/answer Bombcards from PDF selections; Easy/Normal/Hard timer starts; wrong -5/correct +8/idempotent answers; per-card progress; saved history/refresh/sign-out/sign-in; cross-account ownership isolation; QA cleanup.\n";
+
+    $recovery=client();$extraClients[]=$recovery;expect($recovery,'auth/session');
+    $unknownResult=call_api($recovery,'auth/password/request','POST',['email'=>'missing-'.$suffix.'@example.invalid']);
+    check($unknownResult[0]===200&&is_array($unknownResult[1])&&isset($unknownResult[1]['message']),'Unknown-email recovery did not return the generic confirmation.');
+    $knownResult=call_api($recovery,'auth/password/request','POST',['email'=>$users[0]['email']]);
+    check($knownResult[0]===200&&($knownResult[1]['message']??null)===$unknownResult[1]['message'],'Known and unknown emails did not receive an identical recovery response.');
+    $firstResetToken=recovery_token($users[0]['email']);
+    expect($recovery,'auth/password/request','POST',['email'=>$users[0]['email']]);
+    $validResetToken=recovery_token($users[0]['email']);
+    check($validResetToken!==$firstResetToken,'A repeated recovery request reused the same token.');
+    $invalid=call_api($recovery,'auth/password/reset','POST',['token'=>str_repeat('0',64),'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
+    check($invalid[0]===422&&str_contains((string)($invalid[1]['error']??''),'invalid'),'Invalid recovery token was not rejected.');
+    $older=call_api($recovery,'auth/password/reset','POST',['token'=>$firstResetToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
+    check($older[0]===422&&str_contains((string)($older[1]['error']??''),'already been used'),'A previous token was not invalidated by the newer request.');
+    $shortPassword=call_api($recovery,'auth/password/reset','POST',['token'=>$validResetToken,'newPassword'=>'short','confirmPassword'=>'short']);
+    check($shortPassword[0]===422&&str_contains((string)($shortPassword[1]['error']??''),'8'),'Reset did not enforce the existing password length rule.');
+    $mismatch=call_api($recovery,'auth/password/reset','POST',['token'=>$validResetToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'DifferentSmoke-2026!']);
+    check($mismatch[0]===422&&str_contains((string)($mismatch[1]['error']??''),'do not match'),'Reset accepted a mismatched confirmation.');
+    $oldSession=client();$extraClients[]=$oldSession;expect($oldSession,'auth/session');expect($oldSession,'auth/login','POST',['username'=>$users[0]['name'],'password'=>'SmokeChanged-2026!']);
+    expect($recovery,'auth/password/reset','POST',['token'=>$validResetToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
+    $replay=call_api($recovery,'auth/password/reset','POST',['token'=>$validResetToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
+    check($replay[0]===422&&str_contains((string)($replay[1]['error']??''),'already been used'),'A successfully consumed reset token could be reused.');
+    expect($a,'workspace','GET',null,401);expect($oldSession,'workspace','GET',null,401);
+    $newLogin=client();$extraClients[]=$newLogin;expect($newLogin,'auth/session');
+    expect($newLogin,'auth/login','POST',['username'=>$users[0]['name'],'password'=>'SmokeChanged-2026!'],401);
+    expect($newLogin,'auth/login','POST',['username'=>$users[0]['email'],'password'=>'ResetSmoke-2026!']);
+    expect($newLogin,'workspace');
+    $expiredToken=bin2hex(random_bytes(32));$owner=$pdo??new PDO($localConfig['dsn'],$localConfig['user'],$localConfig['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
+    $ownerId=$owner->prepare('SELECT id FROM users WHERE email=?');$ownerId->execute([$users[0]['email']]);$ownerId=$ownerId->fetchColumn();
+    $expiredInsert=$owner->prepare('INSERT INTO password_reset_tokens(user_id,token_hash,expires_at) VALUES(?,?,?)');$expiredInsert->execute([$ownerId,hash('sha256',$expiredToken),gmdate('Y-m-d H:i:s',time()-60)]);
+    $expired=call_api($recovery,'auth/password/reset','POST',['token'=>$expiredToken,'newPassword'=>'ResetSmoke-2026!','confirmPassword'=>'ResetSmoke-2026!']);
+    check($expired[0]===422&&str_contains((string)($expired[1]['error']??''),'expired'),'An expired recovery token was not rejected.');
+    echo "PASS register/login/invalid login/duplicate email; reviewer create/edit; Bombcard create/update; PDF upload/private read/highlights; Arena timer/results; cross-account isolation; generic recovery response; previous/invalid/expired/used tokens; password reset/sign-in; existing-session invalidation; QA cleanup.\n";
 } finally {
     if($tmpPdf&&is_file($tmpPdf))unlink($tmpPdf);
     foreach($created as $deckId){try{if(isset($a))expect($a,'decks','DELETE',['id'=>$deckId]);}catch(Throwable $ignored){}}
-    try {$cfg=require dirname(__DIR__).'/server/config.local.php';$pdo=new PDO($cfg['dsn'],$cfg['user'],$cfg['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$delete=$pdo->prepare('DELETE FROM users WHERE username=?');foreach($users as $u)$delete->execute([$u['name']]);}catch(Throwable $ignored){}
-    foreach($accounts as $c){if(is_file($c['cookie']))unlink($c['cookie']);}
+    try {$cfg=$localConfig;$pdo=$pdo??new PDO($cfg['dsn'],$cfg['user'],$cfg['password'],[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);$delete=$pdo->prepare('DELETE FROM users WHERE username=?');foreach($users as $u)$delete->execute([$u['name']]);if($mailerSecret!==''){$clearThrottle=$pdo->prepare('DELETE FROM auth_attempts WHERE bucket=?');foreach([$users[0]['email'],'missing-'.$suffix.'@example.invalid'] as $address){$normalized=function_exists('mb_strtolower')?mb_strtolower($address,'UTF-8'):strtolower($address);$clearThrottle->execute([hash_hmac('sha256','reset-email:'.$normalized,$mailerSecret)]);}$clearThrottle->execute([hash_hmac('sha256','reset-ip:'.(getenv('CSM_TEST_REMOTE_IP')?:'127.0.0.1'),$mailerSecret)]);}}catch(Throwable $ignored){}
+    foreach(array_merge($accounts,$extraClients,isset($guard)?[$guard]:[],isset($foreign)?[$foreign]:[]) as $c){if(isset($c['cookie'])&&is_file($c['cookie']))unlink($c['cookie']);}
 }

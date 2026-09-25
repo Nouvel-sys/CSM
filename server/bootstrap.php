@@ -6,8 +6,13 @@ function respond($data,int $status=200):void{http_response_code($status);header(
 function fail(int $status,string $message):void{if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();respond(['error'=>$message],$status);}
 set_exception_handler(function(Throwable $error){if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();error_log((string)$error);fail(500,'The server could not complete the request. Please try again.');});
 if(!is_file(__DIR__.'/config.local.php'))fail(503,'Server setup is incomplete. Copy server/config.example.php to config.local.php and configure MySQL.');
-$config=require __DIR__.'/config.local.php';$database=new Database($config);$db=$database->getConnection();
-$users=new User($database);$decksService=new Deck($database);$bombcardsService=new Bombcard($database);$materialsService=new Material($database);$progressService=new StudyProgress($database);$bombstyleService=new BombstyleSession($database);
+$config=require __DIR__.'/config.local.php';$config+=[
+ 'app_env'=>getenv('APP_ENV')?:'local',
+ 'app_base_url'=>getenv('APP_BASE_URL')?:'',
+ 'mailer_url'=>getenv('CSM_MAILER_URL')?:'http://127.0.0.1:8091/send',
+ 'mailer_secret'=>getenv('CSM_MAILER_SECRET')?:'',
+];$database=new Database($config);$db=$database->getConnection();
+$users=new User($database);$passwordRecovery=new PasswordRecovery($database,$users);$decksService=new Deck($database);$bombcardsService=new Bombcard($database);$materialsService=new Material($database);$progressService=new StudyProgress($database);$bombstyleService=new BombstyleSession($database);
 function query(string $sql,array $params=[]):PDOStatement{global $database;return $database->query($sql,$params);}
 function uid():string{return bin2hex(random_bytes(16));}
 function now_ms():int{return (int)floor(microtime(true)*1000);}
@@ -30,6 +35,18 @@ session_set_save_handler(new DatabaseSessionHandler(),true);ini_set('session.use
 session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);session_start();
 if(($_SESSION['expires_at']??PHP_INT_MAX)<=time()){$_SESSION=[];session_regenerate_id(true);}$_SESSION['csrf']=$_SESSION['csrf']??bin2hex(random_bytes(32));
 function csrf():void{if(!hash_equals($_SESSION['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']??''))fail(403,'Invalid CSRF token. Reload and try again.');}
+function recovery_delivery_configured():bool{
+ global $config;
+ $secret=(string)($config['mailer_secret']??'');$service=parse_url((string)($config['mailer_url']??''));$app=parse_url((string)($config['app_base_url']??''));
+ $localHosts=['127.0.0.1','localhost'];
+ $validService=is_array($service)&&($service['scheme']??'')==='http'&&in_array(strtolower($service['host']??''),$localHosts,true)&&isset($service['port'])&&($service['path']??'')==='/send'&&empty($service['user'])&&empty($service['pass'])&&empty($service['query'])&&empty($service['fragment']);
+ $localApp=is_array($app)&&($app['scheme']??'')==='http'&&in_array(strtolower($app['host']??''),$localHosts,true);
+ $secureApp=is_array($app)&&($app['scheme']??'')==='https'&&isset($app['host']);
+ $httpsRequired=($config['app_env']??'local')==='production';
+ return strlen($secret)>=32&&!str_starts_with($secret,'replace-')&&$validService&&($localApp||$secureApp)&&(!$httpsRequired||$secureApp)&&empty($app['user'])&&empty($app['pass'])&&empty($app['query'])&&empty($app['fragment']);
+}
+function throttle_allows(string $bucket,int $limit,int $window):bool{$now=time();$cutoff=$now-$window;query('INSERT INTO auth_attempts (bucket,attempts,window_start) VALUES (?,1,?) ON DUPLICATE KEY UPDATE attempts=IF(window_start<=?,1,attempts+1),window_start=IF(window_start<=?,VALUES(window_start),window_start)',[$bucket,$now,$cutoff,$cutoff]);return (int)query('SELECT attempts FROM auth_attempts WHERE bucket=?',[$bucket])->fetchColumn()<=$limit;}
+function send_password_recovery_email(string $email,string $url):bool{global $config;if(!recovery_delivery_configured())return false;$payload=json_encode(['to'=>$email,'resetUrl'=>$url,'expiresMinutes'=>30],JSON_THROW_ON_ERROR);$context=stream_context_create(['http'=>['method'=>'POST','header'=>'Content-Type: application/json'."\r\n".'Authorization: Bearer '.$config['mailer_secret'],'content'=>$payload,'timeout'=>0.25,'ignore_errors'=>true,'follow_location'=>0,'max_redirects'=>0]]);$response=@file_get_contents($config['mailer_url'],false,$context);if($response===false)return false;$status=$http_response_header[0]??'';$data=json_decode($response,true);return preg_match('/\s200\s/',$status)===1&&is_array($data)&&($data['sent']??false)===true;}
 function user_id():string{$id=$_SESSION['user_id']??'';$row=$id?query('SELECT auth_version FROM users WHERE id=?',[$id])->fetch():false;if(!$row||(int)$row['auth_version']!==($_SESSION['auth_version']??0))fail(401,'Please sign in.');return $id;}
 function profile(string $user):array{global $users;return $users->profile($user);}
 function activity(string $user,?string $deck,string $material,string $mode,string $screen,string $status,?float $accuracy=null):void{query('INSERT INTO study_activity (id,user_id,deck_id,material,mode,screen,status,accuracy) VALUES (?,?,?,?,?,?,?,?)',[uid(),$user,$deck,$material,$mode,$screen,$status,$accuracy]);}
