@@ -2767,6 +2767,11 @@
       background: #e7f7ef;
     }
 
+    .csm-trend.down {
+      color: #c94b37;
+      background: #fff0ec;
+    }
+
     .csm-home-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.55fr) minmax(245px, .75fr);
@@ -5704,10 +5709,15 @@
     }
 
     .csm-password-modal {
-      width: min(100%, 390px);
-      padding: 27px;
+      width: min(100%, 440px);
+      max-height: calc(100dvh - 32px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      padding: 30px;
       border: 1px solid #e5e9ee;
-      border-radius: 17px;
+      border-radius: 16px;
       background: #fff;
       box-shadow: 0 24px 55px rgba(15, 24, 38, .22);
       text-align: center;
@@ -5718,32 +5728,92 @@
       height: 46px;
       display: grid;
       place-items: center;
-      margin: 0 auto 16px;
+      margin: 0 auto 2px;
       border-radius: 14px;
       color: var(--csm-accent);
       background: #fff0eb;
-      font-size: 20px;
-      font-weight: 900;
+    }
+
+    .csm-password-icon svg {
+      width: 22px;
+      height: 22px;
     }
 
     .csm-password-modal h2 {
-      margin: 7px 0 9px;
+      margin: -5px 0 -4px;
       color: var(--csm-ink);
-      font-size: 19px;
-      letter-spacing: -.025em;
+      font-size: 21px;
+      letter-spacing: -.035em;
     }
 
     .csm-password-modal p {
-      margin: 0 auto;
+      margin: -2px auto 4px;
       max-width: 290px;
       color: #758396;
-      font-size: 11px;
+      font-size: 12px;
       line-height: 1.55;
     }
 
-    .csm-password-modal .csm-primary-button {
+    .csm-password-input {
       width: 100%;
-      margin-top: 22px;
+      min-height: 44px;
+      padding: 0 13px;
+      border: 1px solid var(--csm-line);
+      border-radius: 9px;
+      outline: none;
+      color: var(--csm-ink);
+      background: #fbfcfd;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: left;
+      transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+
+    .csm-password-input::placeholder {
+      color: #8b98a7;
+      font-weight: 500;
+    }
+
+    .csm-password-input:focus {
+      border-color: var(--csm-accent);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(240, 90, 53, .12);
+    }
+
+    .csm-password-actions {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      margin-top: 7px;
+    }
+
+    .csm-password-actions .csm-primary-button,
+    .csm-password-actions .csm-secondary-button {
+      min-height: 42px;
+      height: auto;
+      margin: 0;
+      font-size: 11px;
+    }
+
+    .csm-password-actions .csm-secondary-button {
+      min-width: 92px;
+    }
+
+    @media (max-width: 480px) {
+      .csm-password-modal {
+        gap: 10px;
+        padding: 24px 20px;
+      }
+
+      .csm-password-actions {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .csm-password-actions .csm-primary-button,
+      .csm-password-actions .csm-secondary-button {
+        width: 100%;
+      }
     }
 
     @media (max-width: 920px) {

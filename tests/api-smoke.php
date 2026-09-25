@@ -26,6 +26,9 @@ try {
     $guard=client();expect($guard,'auth/session');$guard['csrf']='';expect($guard,'auth/logout','POST',[],403);
     foreach($users as $u){$c=client();expect($c,'auth/session');expect($c,'auth/register','POST',['username'=>$u['name'],'email'=>$u['email'],'password'=>$u['password']],201);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>'incorrect-password'],401);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>$u['password']]);$accounts[]=$c;}
     $a=$accounts[0];$b=$accounts[1];
+    $freshWorkspace=expect($a,'workspace');$freshStats=$freshWorkspace['stats'];
+    check($freshStats['decks']===0&&$freshStats['cards']===0&&$freshStats['studyDays']===0&&$freshStats['studyBestDays']===0&&$freshStats['accuracy']===0&&$freshStats['decksTrend']===0&&$freshStats['cardsTrend']===0&&$freshStats['accuracyTrend']===0,'A newly created account did not start with zero statistics.');
+    check(count($freshStats['activityChart'])===7&&array_sum(array_column($freshStats['activityChart'],'current'))===0&&array_sum(array_column($freshStats['activityChart'],'previous'))===0,'A new account received non-zero sample activity.');
     expect($a,'auth/register','POST',['username'=>'duplicate'.$suffix,'email'=>$users[0]['email'],'password'=>$users[0]['password']],409);
     $profile=expect($a,'profile','PATCH',['displayName'=>'Smoke Profile '.$suffix,'avatar'=>'mint']);check($profile['avatar']==='mint','Profile avatar was not saved.');
     $deck=expect($a,'decks','POST',['title'=>'Smoke Reviewer '.$suffix,'subject'=>'QA','category'=>'Recent'],201);$deckId=$deck['id'];$created[]=$deckId;

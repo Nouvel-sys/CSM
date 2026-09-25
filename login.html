@@ -81,7 +81,8 @@
     .success-icon::after { content: ""; width: 9px; height: 16px; border: solid #fff; border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
     .success-modal h2 { margin: 0; font-size: 25px; letter-spacing: -.06em; }
     .success-modal p { margin: 10px 0 21px; color: rgba(255,255,255,.58); font-size: 11px; line-height: 1.5; }
-    .success-modal button { width: 100%; min-height: 40px; border: 0; border-radius: 7px; color: #fff; background: var(--orange); font-size: 11px; font-weight: 900; cursor: pointer; }
+    .redirect-status { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 40px; border-radius: 7px; color: #fff; background: var(--orange); font-size: 11px; font-weight: 900; }
+    .redirect-spinner { width: 15px; height: 15px; flex: 0 0 15px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: redirectSpin .7s linear infinite; }
     .auth-loading-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(18,10,9,.78); backdrop-filter: blur(9px); }
     .auth-loading-card { width: min(100%, 330px); padding: 30px 26px 27px; border: 1px solid rgba(255,255,255,.12); border-radius: 17px; color: #fff; background: linear-gradient(145deg, #211817, #2d1a14); box-shadow: 0 24px 70px rgba(0,0,0,.4); text-align: center; animation: modalIn .25s ease both; }
     .auth-loading-mascot { width: 82px; height: 82px; object-fit: contain; filter: drop-shadow(0 12px 12px rgba(0,0,0,.3)); animation: loadingBounce .8s ease-in-out infinite; }
@@ -93,6 +94,7 @@
     .auth-loading-dots i:nth-child(3) { animation-delay: .28s; }
     @keyframes loadingBounce { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-9px) rotate(2deg); } }
     @keyframes loadingDot { 0%, 80%, 100% { opacity: .35; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
+    @keyframes redirectSpin { to { transform: rotate(360deg); } }
     [hidden] { display: none !important; }
 
     @keyframes shellIn { from { opacity: 0; transform: translateY(15px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -240,6 +242,50 @@
     }
     .brand-mascot { display: block; }
     .brand-mascot[hidden] { display: none; }
+
+    /* Keep both auth modes on the same frame and anchor their content to the same positions. */
+    @media (min-width: 761px) {
+      .auth-page { height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto; display: grid; align-content: center; }
+      .auth-shell { width: min(1100px, calc(100% - 56px)); height: min(620px, calc(100vh - 40px)); min-height: 560px; }
+      .form-panel { justify-content: flex-start; padding: clamp(32px, 7vh, 58px) clamp(24px, 4vw, 58px) 8px; }
+      .panel-top { flex: 0 0 auto; margin-bottom: 22px; }
+      .form-copy { display: flex; flex: 1 0 480px; flex-direction: column; width: min(100%, 380px); max-width: 380px; min-height: 480px; margin: 0; }
+      .form-title { min-height: 1.96em; font-size: clamp(34px, 3.4vw, 48px); line-height: .98; }
+      .auth-form { flex: 0 0 auto; margin-top: 24px; gap: 12px; }
+      .field { gap: 5px; }
+      .field label { font-size: 10px; }
+      .field input { min-height: 40px; padding-inline: 12px; font-size: 10px; }
+      .password-wrap input { padding-right: 48px; }
+      .password-toggle { right: 10px; font-size: 8px; }
+      .auth-meta { min-height: 18px; font-size: 10px; }
+      .remember input { width: 12px; height: 12px; }
+      .submit-button { min-height: 44px; margin-top: 4px; font-size: 10px; }
+      .form-footer { margin-top: auto; padding-top: 18px; font-size: 10px; }
+      .form-footer button { font-size: 10px; }
+    }
+    @media (min-width: 761px) and (max-height: 700px) {
+      .auth-page { align-content: start; padding-block: 20px; }
+      .auth-shell { height: auto; min-height: 620px; }
+      .form-panel { padding-block: 32px 28px; }
+    }
+    @media (max-width: 760px) {
+      .auth-page { min-height: 100svh; height: auto; overflow: visible; }
+      .auth-shell { height: auto; min-height: 0; overflow: hidden; }
+      .form-panel { min-height: 0; padding: 28px 27px 30px; }
+      .panel-top { margin-bottom: 22px; }
+      .form-copy { display: flex; flex-direction: column; width: min(100%, 460px); max-width: 460px; min-height: 560px; margin: 0 auto; }
+      .form-title { min-height: 1.96em; }
+      .form-description { margin-bottom: 24px; }
+      .auth-form { gap: 14px; }
+      .field input { min-height: 44px; }
+      .submit-button { min-height: 46px; }
+      .form-footer { margin-top: auto; padding-top: 22px; }
+    }
+    @media (max-width: 430px) {
+      .panel-top { align-items: center; }
+      .form-copy { min-height: 590px; }
+    }
+    .form-footer { width: 100%; margin: 18px 0 0; padding-top: 0; text-align: center; }
   </style>
 </head>
 <body>
@@ -317,7 +363,7 @@
       <div class="success-icon" aria-hidden="true"></div>
       <h2 id="success-title">You’re ready to study.</h2>
       <p id="success-copy">Your account is set up. Jump into your workspace and start your next reviewer.</p>
-      <button type="button" id="continue-button">Continue to workspace <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
+      <div class="redirect-status" role="status" aria-live="polite"><span class="redirect-spinner" aria-hidden="true"></span><span>Opening your workspace…</span></div>
     </div>
   </div>
 
@@ -559,7 +605,6 @@
         input.type = visible ? 'password' : 'text'; button.textContent = visible ? 'Show' : 'Hide';
       }));
       byId('forgot-bottom').addEventListener('click', () => showError('Password recovery is not configured yet. Contact your workspace administrator.'));
-      byId('continue-button').addEventListener('click', () => location.replace('index.html?screen=home'));
       if (localStorage.getItem('csm-legacy-notice') === 'true') {
         byId('legacy-data-notice').hidden = false;
         byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
@@ -588,7 +633,7 @@
           loading.hidden = true; byId('success-title').textContent = 'You’re signed in.';
           byId('success-copy').textContent = 'Your workspace is ready. Loading your saved reviewers…';
           success.hidden = false;
-          window.setTimeout(() => location.replace('index.html?screen=home'), 900);
+          window.setTimeout(() => location.replace('index.html?screen=home'), 1200);
         } catch (failure) { loading.hidden = true; showError(failure.message); }
         finally { submit.disabled = false; }
       });

@@ -714,6 +714,9 @@ function App() {
   const totalReviewers = decks.length;
   const totalBombCards = useMemo(() => decks.reduce((acc, d) => acc + d.cards.length, 0), [decks]);
   const totalDocuments = useMemo(() => decks.reduce((acc, d) => acc + (d.documents?.length || 0), 0), [decks]);
+  const formatTrend = value => `${Number(value) < 0 ? '\u2193' : '\u2191'} ${Math.abs(Number(value) || 0)}%`;
+  const activityChart = Array.isArray(accountStats.activityChart) ? accountStats.activityChart : [];
+  const activityChartMax = Math.max(1, ...activityChart.flatMap(day => [Number(day.current) || 0, Number(day.previous) || 0]));
   const activeFlashcardDeck = useMemo(() => decks.find(d => d.id === selectedDeckIds[0]) || decks[0], [decks, selectedDeckIds]);
   const flashcards = activeFlashcardDeck?.cards || [];
   const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
@@ -2005,7 +2008,7 @@ function App() {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">TOTAL DECKS</span>
                     <span className="home-stat-value">{totalReviewers}</span>
-                    <span className="home-stat-description"><b className="csm-trend up">↑ 12%</b> this month</span>
+                    <span className="home-stat-description"><b className="csm-trend up">{formatTrend(accountStats.decksTrend)}</b> this month</span>
                   </span>
                 </div>
                 <div
@@ -2021,7 +2024,7 @@ function App() {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">TOTAL BOMBCARDS</span>
                     <span className="home-stat-value">{totalBombCards}</span>
-                    <span className="home-stat-description"><b className="csm-trend up">↑ 8%</b> across your sets</span>
+                    <span className="home-stat-description"><b className="csm-trend up">{formatTrend(accountStats.cardsTrend)}</b> across your sets</span>
                   </span>
                 </div>
                 <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
@@ -2031,7 +2034,7 @@ function App() {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">STUDY STREAK</span>
                     <span className="home-stat-value">{accountStats.studyDays || 0} days</span>
-                    <span className="home-stat-description"><b className="csm-trend up">↑ 2 days</b> personal best</span>
+                    <span className="home-stat-description"><b className="csm-trend up">{accountStats.studyBestDays || 0} days</b> personal best</span>
                   </span>
                 </div>
                 <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
@@ -2041,16 +2044,16 @@ function App() {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">AVG. ACCURACY</span>
                     <span className="home-stat-value">{accountStats.accuracy || 0}%</span>
-                    <span className="home-stat-description"><b className="csm-trend up">↑ 5%</b> than last week</span>
+                    <span className="home-stat-description"><b className={`csm-trend ${(accountStats.accuracyTrend || 0) < 0 ? 'down' : 'up'}`}>{formatTrend(accountStats.accuracyTrend)}</b> than last week</span>
                   </span>
                 </div>
               </div>
 
               <div className="csm-home-grid">
                 <section className="csm-chart-card">
-                  <div className="csm-card-heading"><div><span className="csm-kicker">PROGRESS</span><h2>Cards reviewed</h2></div><div className="csm-chart-legend"><span><i className="legend-dark" />This week</span><span><i className="legend-orange" />Last week</span></div></div>
-                  <div className="csm-chart" aria-label="Cards reviewed by day">
-                    {[['Mon', 42, 31], ['Tue', 58, 38], ['Wed', 48, 35], ['Thu', 76, 46], ['Fri', 62, 40], ['Sat', 86, 52], ['Sun', 70, 44]].map(([day, current, previous]) => <div className="csm-chart-column" key={day}><div className="csm-bars"><span className="csm-bar previous" style={{ height: `${previous}%` }} /><span className="csm-bar current" style={{ height: `${current}%` }} /></div><small>{day}</small></div>)}
+                  <div className="csm-card-heading"><div><span className="csm-kicker">PROGRESS</span><h2>Study activity</h2></div><div className="csm-chart-legend"><span><i className="legend-dark" />This week</span><span><i className="legend-orange" />Last week</span></div></div>
+                  <div className="csm-chart" aria-label="Study activity by day">
+                    {activityChart.map(({ day, current = 0, previous = 0 }) => <div className="csm-chart-column" key={day}><div className="csm-bars"><span className="csm-bar previous" style={{ height: previous ? `${Math.max(7, previous / activityChartMax * 100)}%` : 0, display: previous ? 'block' : 'none' }} /><span className="csm-bar current" style={{ height: current ? `${Math.max(7, current / activityChartMax * 100)}%` : 0, display: current ? 'block' : 'none' }} /></div><small>{day}</small></div>)}
                   </div>
                 </section>
                 <section className="csm-detail-card">
@@ -3668,15 +3671,17 @@ function App() {
       {passwordResetModalOpen && (
         <div className="csm-modal-backdrop" role="presentation" onClick={() => setPasswordResetModalOpen(false)}>
           <form className="csm-password-modal" role="dialog" aria-modal="true" aria-labelledby="password-reset-title" onSubmit={handleChangePassword} onClick={(e) => e.stopPropagation()}>
-            <div className="csm-password-icon" aria-hidden="true">•••</div>
+            <div className="csm-password-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="10" width="16" height="11" rx="2.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><path d="M12 14v3" /></svg></div>
             <span className="csm-kicker">PASSWORD RESET</span>
             <h2 id="password-reset-title">Change password</h2>
             <p>Confirm your current password, then choose a new one.</p>
-            <input type="password" autoComplete="current-password" required minLength={8} maxLength={72} placeholder="Current password" value={currentPasswordDraft} onChange={event => setCurrentPasswordDraft(event.target.value)} />
-            <input type="password" autoComplete="new-password" required minLength={8} maxLength={72} placeholder="New password (8–72 characters)" value={newPasswordDraft} onChange={event => setNewPasswordDraft(event.target.value)} />
-            <input type="password" autoComplete="new-password" required minLength={8} maxLength={72} placeholder="Confirm new password" value={confirmPasswordDraft} onChange={event => setConfirmPasswordDraft(event.target.value)} />
-            <button type="submit" className="csm-primary-button">Update password</button>
-            <button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(false)}>Cancel</button>
+            <input className="csm-password-input" type="password" autoComplete="current-password" aria-label="Current password" required minLength={8} maxLength={72} placeholder="Current password" value={currentPasswordDraft} onChange={event => setCurrentPasswordDraft(event.target.value)} />
+            <input className="csm-password-input" type="password" autoComplete="new-password" aria-label="New password (8–72 characters)" required minLength={8} maxLength={72} placeholder="New password (8–72 characters)" value={newPasswordDraft} onChange={event => setNewPasswordDraft(event.target.value)} />
+            <input className="csm-password-input" type="password" autoComplete="new-password" aria-label="Confirm new password" required minLength={8} maxLength={72} placeholder="Confirm new password" value={confirmPasswordDraft} onChange={event => setConfirmPasswordDraft(event.target.value)} />
+            <div className="csm-password-actions">
+              <button type="submit" className="csm-primary-button">Update password</button>
+              <button type="button" className="csm-secondary-button" onClick={() => setPasswordResetModalOpen(false)}>Cancel</button>
+            </div>
           </form>
         </div>
       )}
