@@ -5816,6 +5816,55 @@
       }
     }
 
+    .csm-password-error-backdrop {
+      z-index: 110;
+    }
+
+    .csm-password-error-modal {
+      width: min(100%, 380px);
+      padding: 28px;
+      border: 1px solid #e5e9ee;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 24px 55px rgba(15, 24, 38, .22);
+      text-align: center;
+      animation: modalIn .2s ease both;
+    }
+
+    .csm-password-error-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+      border-radius: 14px;
+      color: #c94b37;
+      background: #fff0ec;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .csm-password-error-modal h2 {
+      margin: 7px 0 8px;
+      color: var(--csm-ink);
+      font-size: 20px;
+      letter-spacing: -.035em;
+    }
+
+    .csm-password-error-modal p {
+      max-width: 300px;
+      margin: 0 auto;
+      color: #758396;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .csm-password-error-modal .csm-primary-button {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 20px;
+    }
+
     @media (max-width: 920px) {
 
       .csm-account-layout,

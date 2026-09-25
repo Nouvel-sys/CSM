@@ -64,6 +64,11 @@
     .auth-meta a { color: rgba(255,255,255,.62); text-decoration: none; }
     .auth-meta a:hover { color: #fff; }
     .form-error { padding: 9px 10px; border: 1px solid rgba(255,115,85,.35); border-radius: 6px; color: #ffb2a2; background: rgba(255,79,34,.11); font-size: 10px; line-height: 1.35; }
+    .recovery-complete { margin-top: 26px; padding: 20px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; background: rgba(0,0,0,.14); text-align: center; }
+    .recovery-complete-icon { width: 38px; height: 38px; display: grid; place-items: center; margin: 0 auto 13px; border-radius: 12px; color: var(--orange); background: rgba(255,79,34,.12); }
+    .recovery-complete-icon::before { content: ""; width: 10px; height: 16px; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
+    .recovery-complete h3 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
+    .recovery-complete p { margin: 9px 0 0; color: rgba(255,255,255,.62); font-size: 11px; line-height: 1.55; }
     .submit-button { display: flex; align-items: center; justify-content: center; gap: 11px; min-height: 43px; margin-top: 5px; border: 0; border-radius: 7px; color: #fff; background: var(--orange); box-shadow: 0 9px 20px rgba(255,79,34,.18); font-size: 11px; font-weight: 900; cursor: pointer; transition: transform .2s ease, background .2s ease; }
     .button-icon { width: 15px; height: 15px; flex: 0 0 15px; }
     .submit-button:hover { transform: translateY(-2px); background: #ff623a; }
@@ -309,7 +314,7 @@
       </section>
 
       <section class="form-panel" aria-label="Account access">
-        <div class="panel-top">
+        <div class="panel-top" id="panel-top">
           <div class="mode-switch" role="tablist" aria-label="Account access mode">
             <button type="button" data-mode-button="signin" role="tab">Sign in</button>
             <button type="button" data-mode-button="register" role="tab">Create account</button>
@@ -321,7 +326,7 @@
           <p class="form-description" id="form-description">Pick up where your next focused study session starts.</p>
 
           <form class="auth-form" id="auth-form" novalidate>
-            <div class="field">
+            <div class="field" id="username-field">
               <label for="username" id="username-label">Username or email</label>
               <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username or email" required>
             </div>
@@ -329,15 +334,15 @@
               <label for="email">Email address</label>
               <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
             </div>
-            <div class="field">
-              <label for="password">Password</label>
+            <div class="field" id="password-field">
+              <label for="password" id="password-label">Password</label>
               <div class="password-wrap">
                 <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
                 <button class="password-toggle" type="button" data-toggle-password="password">Show</button>
               </div>
             </div>
             <div class="field" id="confirm-field" hidden>
-              <label for="confirm-password">Confirm password</label>
+              <label for="confirm-password" id="confirm-label">Confirm password</label>
               <div class="password-wrap">
                 <input id="confirm-password" name="confirmPassword" type="password" autocomplete="new-password" placeholder="Repeat your password">
                 <button class="password-toggle" type="button" data-toggle-password="confirm-password">Show</button>
@@ -349,6 +354,12 @@
             <div class="form-error" id="form-error" role="alert" hidden></div>
             <button class="submit-button" id="submit-button" type="submit">Sign in <svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></button>
           </form>
+
+          <div class="recovery-complete" id="recovery-complete" role="status" aria-live="polite" hidden>
+            <div class="recovery-complete-icon" aria-hidden="true" id="recovery-complete-icon"></div>
+            <h3 id="recovery-complete-title"></h3>
+            <p id="recovery-complete-copy"></p>
+          </div>
 
           <p id="legacy-data-notice" hidden style="margin-top:18px;padding:12px;border:1px solid #f6c7ba;border-radius:12px;background:#fff6f3;color:#5f4a45;font-size:12px;line-height:1.5">This browser had an old demo profile. Its plaintext sign-in data was removed for security. Your saved profile and recent activity remain in this browser only; export them before switching devices. <button type="button" id="export-legacy-data" style="color:#d93b1d;font-weight:700;text-decoration:underline">Download browser data</button></p>
 
@@ -475,9 +486,6 @@
       input.type = visible ? 'password' : 'text';
       button.textContent = visible ? 'Show' : 'Hide';
     }));
-    forgotBottom.addEventListener('click', () => {
-      showError('Password recovery will be available once the account service is connected.');
-    });
     form.addEventListener('submit', event => {
       event.preventDefault();
       return;
@@ -565,7 +573,7 @@
   </script>
   <script>
     // Replace the legacy demo handlers above: credentials now travel only to the PHP API.
-    (() => {
+    if (false) (() => {
       const oldForm = document.getElementById('auth-form');
       const form = oldForm.cloneNode(true);
       oldForm.replaceWith(form);
@@ -604,7 +612,6 @@
         const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
         input.type = visible ? 'password' : 'text'; button.textContent = visible ? 'Show' : 'Hide';
       }));
-      byId('forgot-bottom').addEventListener('click', () => showError('Password recovery is not configured yet. Contact your workspace administrator.'));
       if (localStorage.getItem('csm-legacy-notice') === 'true') {
         byId('legacy-data-notice').hidden = false;
         byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
@@ -639,6 +646,160 @@
       });
       setMode(mode);
       CSM.api('auth/session').then(session => { if (session.authenticated) location.replace('index.html?screen=home'); }).catch(() => {});
+    })();
+  </script>
+  <script>
+    (() => {
+      const oldForm = document.getElementById('auth-form');
+      const form = oldForm.cloneNode(true);
+      oldForm.replaceWith(form);
+      const byId = id => document.getElementById(id);
+      const params = new URLSearchParams(location.search);
+      const fragment = new URLSearchParams(location.hash.slice(1));
+      let resetToken = params.get('mode') === 'reset' ? (fragment.get('token') || '') : '';
+      let mode = ['register', 'forgot', 'reset'].includes(params.get('mode')) ? params.get('mode') : 'signin';
+      const error = byId('form-error');
+      const submit = byId('submit-button');
+      const loading = byId('auth-loading');
+      const complete = byId('recovery-complete');
+      const arrow = '<svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+
+      const setMode = (nextMode, updateUrl = true) => {
+        mode = nextMode;
+        const register = mode === 'register';
+        const signin = mode === 'signin';
+        const forgot = mode === 'forgot';
+        const reset = mode === 'reset';
+        const regular = signin || register;
+        const finished = mode === 'recovery-sent' || mode === 'reset-complete';
+        byId('form-title').textContent = register ? 'Create Your Account' : signin ? 'Log in to your account' : forgot ? 'Reset your password' : reset ? 'Choose a new password' : mode === 'recovery-sent' ? 'Check your email' : 'Password updated';
+        byId('form-description').textContent = register ? 'Build reviewers, play timed quizzes, and keep your study space private.' : signin ? 'Pick up where your next focused study session starts.' : forgot ? 'Enter the email address linked to your account.' : reset ? 'Choose a new password for your Co-StudyMaxx account.' : '';
+        byId('panel-top').hidden = !regular;
+        byId('username-field').hidden = !(signin || register);
+        byId('username').required = signin || register;
+        byId('username-label').textContent = register ? 'Username' : 'Username or email';
+        byId('email-field').hidden = !(register || forgot);
+        byId('email').required = register || forgot;
+        byId('password-field').hidden = !(signin || register || reset);
+        byId('password').required = signin || register || reset;
+        byId('password').autocomplete = register || reset ? 'new-password' : 'current-password';
+        byId('password-label').textContent = reset ? 'New password' : 'Password';
+        byId('password').placeholder = reset ? 'Choose a secure password (8–72 characters)' : 'At least 8 characters';
+        byId('confirm-field').hidden = !(register || reset);
+        byId('confirm-password').required = register || reset;
+        byId('confirm-label').textContent = reset ? 'Confirm new password' : 'Confirm password';
+        byId('auth-meta').hidden = !signin;
+        form.hidden = finished;
+        complete.hidden = !finished;
+        if (finished) {
+          byId('recovery-complete-title').textContent = mode === 'recovery-sent' ? 'Check your inbox' : 'Your password is updated';
+          byId('recovery-complete-copy').textContent = mode === 'recovery-sent'
+            ? 'If an account exists for that email and email delivery is configured, password reset instructions will be sent. Links are valid for 30 minutes.'
+            : 'You can now sign in using your new password. Other signed-in sessions have been ended.';
+        }
+        submit.hidden = finished;
+        byId('switch-copy').textContent = regular ? (register ? 'Already have an account?' : 'Don’t have an account yet?') : '';
+        byId('switch-button').textContent = regular ? (register ? 'Sign in' : 'Create account') : 'Back to sign in';
+        byId('switch-button').setAttribute('aria-label', regular ? (register ? 'Switch to sign in' : 'Create an account') : 'Return to sign in');
+        byId('forgot-bottom').hidden = !signin;
+        byId('footer-divider').hidden = !signin;
+        submit.innerHTML = `${register ? 'Create account' : signin ? 'Sign in' : forgot ? 'Send reset link' : 'Update password'} ${arrow}`;
+        document.querySelectorAll('[data-mode-button]').forEach(button => {
+          const active = regular && button.dataset.modeButton === mode;
+          button.classList.toggle('is-active', active);
+          button.setAttribute('aria-selected', String(active));
+        });
+        error.hidden = true;
+        document.title = `${reset ? 'Reset password' : forgot || mode === 'recovery-sent' ? 'Forgot password' : register ? 'Create account' : 'Sign in'} · Co-StudyMaxx`;
+        if (updateUrl) history.replaceState({}, '', `login.html?mode=${mode === 'recovery-sent' ? 'forgot' : mode === 'reset-complete' ? 'signin' : mode}`);
+      };
+      const showError = message => { error.textContent = message; error.hidden = false; };
+
+      document.querySelectorAll('[data-mode-button]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.modeButton)));
+      byId('switch-button').addEventListener('click', () => {
+        if (mode === 'signin') setMode('register');
+        else if (mode === 'register') setMode('signin');
+        else { resetToken = ''; form.reset(); setMode('signin'); }
+      });
+      byId('forgot-bottom').addEventListener('click', () => { form.reset(); setMode('forgot'); });
+      document.querySelectorAll('[data-toggle-password]').forEach(button => button.addEventListener('click', () => {
+        const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
+        input.type = visible ? 'password' : 'text';
+        button.textContent = visible ? 'Show' : 'Hide';
+      }));
+      if (localStorage.getItem('csm-legacy-notice') === 'true') {
+        byId('legacy-data-notice').hidden = false;
+        byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
+      }
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (submit.disabled) return;
+        const data = new FormData(form);
+        const username = String(data.get('username') || '').trim();
+        const email = String(data.get('email') || '').trim();
+        const password = String(data.get('password') || '');
+        const confirmation = String(data.get('confirmPassword') || '');
+        if ((mode === 'signin' || mode === 'register') && !username) return showError('Enter your username or email.');
+        if ((mode === 'register' || mode === 'forgot') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Enter a valid email address.');
+        if ((mode === 'signin' || mode === 'register' || mode === 'reset') && password.length < 8) return showError('Your password needs at least 8 characters.');
+        if ((mode === 'register' || mode === 'reset') && password !== confirmation) return showError('Your passwords do not match yet.');
+        if (mode === 'reset' && !/^[a-f0-9]{64}$/.test(resetToken)) return showError('This reset link is invalid or incomplete. Request a new password reset link.');
+
+        submit.disabled = true;
+        error.hidden = true;
+        loading.hidden = false;
+        byId('loading-title').textContent = mode === 'register' ? 'Creating your account…' : mode === 'forgot' ? 'Sending reset instructions…' : mode === 'reset' ? 'Updating your password…' : 'Logging you in…';
+        byId('loading-copy').textContent = mode === 'forgot' ? 'Preparing your secure recovery request.' : mode === 'reset' ? 'Verifying your reset link securely.' : mode === 'register' ? 'Saving your profile securely.' : 'Checking your account and loading your workspace.';
+        try {
+          // This anonymous session GET supplies the CSRF token used by public write endpoints.
+          await CSM.api('auth/session');
+          if (mode === 'register') {
+            await CSM.api('auth/register', 'POST', { username, email, password });
+            loading.hidden = true;
+            form.reset();
+            setMode('signin');
+            byId('username').value = username;
+            showError('Account created. Sign in with your new credentials.');
+            return;
+          }
+          if (mode === 'forgot') {
+            await CSM.api('auth/password/request', 'POST', { email });
+            loading.hidden = true;
+            form.reset();
+            setMode('recovery-sent');
+            return;
+          }
+          if (mode === 'reset') {
+            await CSM.api('auth/password/reset', 'POST', { token: resetToken, newPassword: password, confirmPassword: confirmation });
+            resetToken = '';
+            loading.hidden = true;
+            form.reset();
+            setMode('reset-complete');
+            return;
+          }
+          await CSM.api('auth/login', 'POST', { username, password, remember: data.get('remember') === 'on' });
+          loading.hidden = true;
+          byId('success-title').textContent = 'You’re signed in.';
+          byId('success-copy').textContent = 'Your workspace is ready. Loading your saved reviewers…';
+          byId('success-modal').hidden = false;
+          window.setTimeout(() => location.replace('index.html?screen=home'), 1200);
+        } catch (failure) {
+          loading.hidden = true;
+          showError(failure.message || 'The request could not be completed. Please try again.');
+        } finally { submit.disabled = false; }
+      });
+
+      const initialMode = mode;
+      setMode(mode, false);
+      if (initialMode === 'reset') {
+        // The token remains in memory for this page only and is removed from visible browser history.
+        history.replaceState({}, '', 'login.html?mode=reset');
+        if (!/^[a-f0-9]{64}$/.test(resetToken)) showError('This reset link is invalid or incomplete. Request a new password reset link.');
+      }
+      CSM.api('auth/session').then(session => {
+        if (session.authenticated && mode !== 'reset') location.replace('index.html?screen=home');
+      }).catch(() => {});
     })();
   </script>
 </body>
