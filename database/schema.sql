@@ -114,3 +114,11 @@ CREATE TABLE system_settings (
 INSERT INTO system_settings(setting_key,value_text) VALUES
  ('maintenance_mode','0'),('storage_limit_bytes','10737418240')
 ON DUPLICATE KEY UPDATE setting_key=VALUES(setting_key);
+
+CREATE TABLE deck_shares (
+ id CHAR(32) PRIMARY KEY,deck_id CHAR(32) NOT NULL UNIQUE,share_token CHAR(64) NOT NULL UNIQUE,
+ is_active BOOLEAN NOT NULL DEFAULT TRUE,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ INDEX idx_deck_shares_token(share_token, is_active),
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

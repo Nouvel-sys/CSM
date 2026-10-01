@@ -64,6 +64,7 @@
     .auth-meta a { color: rgba(255,255,255,.62); text-decoration: none; }
     .auth-meta a:hover { color: #fff; }
     .form-error { padding: 9px 10px; border: 1px solid rgba(255,115,85,.35); border-radius: 6px; color: #ffb2a2; background: rgba(255,79,34,.11); font-size: 10px; line-height: 1.35; }
+    .form-error.is-success { border-color: rgba(52,199,89,.35); color: #86efac; background: rgba(34,197,94,.12); }
     .recovery-complete { margin-top: 26px; padding: 20px; border: 1px solid rgba(255,255,255,.13); border-radius: 10px; background: rgba(0,0,0,.14); text-align: center; }
     .recovery-complete-icon { width: 38px; height: 38px; display: grid; place-items: center; margin: 0 auto 13px; border-radius: 12px; color: var(--orange); background: rgba(255,79,34,.12); }
     .recovery-complete-icon::before { content: ""; width: 10px; height: 16px; border: solid currentColor; border-width: 0 2px 2px 0; transform: translateY(-2px) rotate(45deg); }
@@ -251,46 +252,48 @@
     /* Keep both auth modes on the same frame and anchor their content to the same positions. */
     @media (min-width: 761px) {
       .auth-page { height: auto; min-height: 100vh; overflow-x: hidden; overflow-y: auto; display: grid; align-content: center; }
-      .auth-shell { width: min(1100px, calc(100% - 56px)); height: min(620px, calc(100vh - 40px)); min-height: 560px; }
-      .form-panel { justify-content: flex-start; padding: clamp(32px, 7vh, 58px) clamp(24px, 4vw, 58px) 8px; }
-      .panel-top { flex: 0 0 auto; margin-bottom: 22px; }
-      .form-copy { display: flex; flex: 1 0 480px; flex-direction: column; width: min(100%, 380px); max-width: 380px; min-height: 480px; margin: 0; }
-      .form-title { min-height: 1.96em; font-size: clamp(34px, 3.4vw, 48px); line-height: .98; }
-      .auth-form { flex: 0 0 auto; margin-top: 24px; gap: 12px; }
-      .field { gap: 5px; }
+      .auth-shell { width: min(1100px, calc(100% - 56px)); height: auto; min-height: 560px; max-height: calc(100vh - 36px); }
+      .form-panel { justify-content: flex-start; padding: clamp(24px, 4.5vh, 40px) clamp(24px, 4vw, 58px) 16px; overflow-y: auto; }
+      .form-panel::-webkit-scrollbar { width: 4px; }
+      .form-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 4px; }
+      .panel-top { flex: 0 0 auto; margin-bottom: 16px; }
+      .form-copy { display: flex; flex: 1 1 auto; flex-direction: column; width: min(100%, 380px); max-width: 380px; min-height: 0; margin: 0; }
+      .form-title { font-size: clamp(32px, 3.2vw, 44px); line-height: 1; }
+      .auth-form { flex: 0 0 auto; margin-top: 18px; gap: 11px; }
+      .field { gap: 4px; }
       .field label { font-size: 10px; }
-      .field input { min-height: 40px; padding-inline: 12px; font-size: 10px; }
+      .field input { min-height: 38px; padding-inline: 12px; font-size: 10px; }
       .password-wrap input { padding-right: 48px; }
       .password-toggle { right: 10px; font-size: 8px; }
       .auth-meta { min-height: 18px; font-size: 10px; }
       .remember input { width: 12px; height: 12px; }
-      .submit-button { min-height: 44px; margin-top: 4px; font-size: 10px; }
-      .form-footer { margin-top: auto; padding-top: 18px; font-size: 10px; }
+      .submit-button { min-height: 42px; margin-top: 4px; font-size: 10px; }
+      .form-footer { margin-top: 16px; padding-top: 0; font-size: 10px; }
       .form-footer button { font-size: 10px; }
     }
     @media (min-width: 761px) and (max-height: 700px) {
       .auth-page { align-content: start; padding-block: 20px; }
-      .auth-shell { height: auto; min-height: 620px; }
-      .form-panel { padding-block: 32px 28px; }
+      .auth-shell { height: auto; min-height: 540px; }
+      .form-panel { padding-block: 20px 16px; }
     }
     @media (max-width: 760px) {
       .auth-page { min-height: 100svh; height: auto; overflow: visible; }
       .auth-shell { height: auto; min-height: 0; overflow: hidden; }
       .form-panel { min-height: 0; padding: 28px 27px 30px; }
       .panel-top { margin-bottom: 22px; }
-      .form-copy { display: flex; flex-direction: column; width: min(100%, 460px); max-width: 460px; min-height: 560px; margin: 0 auto; }
+      .form-copy { display: flex; flex-direction: column; width: min(100%, 460px); max-width: 460px; min-height: 0; margin: 0 auto; }
       .form-title { min-height: 1.96em; }
       .form-description { margin-bottom: 24px; }
       .auth-form { gap: 14px; }
       .field input { min-height: 44px; }
       .submit-button { min-height: 46px; }
-      .form-footer { margin-top: auto; padding-top: 22px; }
+      .form-footer { margin-top: 20px; padding-top: 0; }
     }
     @media (max-width: 430px) {
       .panel-top { align-items: center; }
-      .form-copy { min-height: 590px; }
+      .form-copy { min-height: 0; }
     }
-    .form-footer { width: 100%; margin: 18px 0 0; padding-top: 0; text-align: center; }
+    .form-footer { width: 100%; margin: 18px 0 12px; padding-top: 0; text-align: center; }
   </style>
 </head>
 <body>
@@ -360,8 +363,6 @@
             <h3 id="recovery-complete-title"></h3>
             <p id="recovery-complete-copy"></p>
           </div>
-
-          <p id="legacy-data-notice" hidden style="margin-top:18px;padding:12px;border:1px solid #f6c7ba;border-radius:12px;background:#fff6f3;color:#5f4a45;font-size:12px;line-height:1.5">This browser had an old demo profile. Its plaintext sign-in data was removed for security. Your saved profile and recent activity remain in this browser only; export them before switching devices. <button type="button" id="export-legacy-data" style="color:#d93b1d;font-weight:700;text-decoration:underline">Download browser data</button></p>
 
           <div class="form-footer"><span id="switch-copy">Don’t have an account yet?</span> <button type="button" id="switch-button">Create account</button><span class="footer-divider" id="footer-divider"> · </span><button class="forgot-placeholder" type="button" id="forgot-bottom">Forgot password?</button></div>
         </div>
@@ -612,10 +613,6 @@
         const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
         input.type = visible ? 'password' : 'text'; button.textContent = visible ? 'Show' : 'Hide';
       }));
-      if (localStorage.getItem('csm-legacy-notice') === 'true') {
-        byId('legacy-data-notice').hidden = false;
-        byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
-      }
       form.addEventListener('submit', async event => {
         event.preventDefault(); if (submit.disabled) return;
         const data = new FormData(form), username = String(data.get('username') || '').trim();
@@ -698,11 +695,11 @@
             : 'You can now sign in using your new password. Other signed-in sessions have been ended.';
         }
         submit.hidden = finished;
-        byId('switch-copy').textContent = regular ? (register ? 'Already have an account?' : 'Don’t have an account yet?') : '';
-        byId('switch-button').textContent = regular ? (register ? 'Sign in' : 'Create account') : 'Back to sign in';
+        byId('switch-copy').textContent = regular ? (register ? 'Already have an account?' : 'Don’t have an account yet?') : (forgot ? 'Remember your password?' : '');
+        byId('switch-button').textContent = regular ? (register ? 'Sign in' : 'Create account') : 'Sign in';
         byId('switch-button').setAttribute('aria-label', regular ? (register ? 'Switch to sign in' : 'Create an account') : 'Return to sign in');
-        byId('forgot-bottom').hidden = !signin;
-        byId('footer-divider').hidden = !signin;
+        byId('forgot-bottom').hidden = !regular;
+        byId('footer-divider').hidden = !regular;
         submit.innerHTML = `${register ? 'Create account' : signin ? 'Sign in' : forgot ? 'Send reset link' : 'Update password'} ${arrow}`;
         document.querySelectorAll('[data-mode-button]').forEach(button => {
           const active = regular && button.dataset.modeButton === mode;
@@ -710,16 +707,27 @@
           button.setAttribute('aria-selected', String(active));
         });
         error.hidden = true;
+        error.classList.remove('is-success');
         document.title = `${reset ? 'Reset password' : forgot || mode === 'recovery-sent' ? 'Forgot password' : register ? 'Create account' : 'Sign in'} · Co-StudyMaxx`;
         if (updateUrl) history.replaceState({}, '', `login.html?mode=${mode === 'recovery-sent' ? 'forgot' : mode === 'reset-complete' ? 'signin' : mode}`);
       };
-      const showError = message => { error.textContent = message; error.hidden = false; };
+      const showError = (message, isSuccess = false) => {
+        error.textContent = message;
+        error.classList.toggle('is-success', isSuccess);
+        error.hidden = false;
+      };
 
-      document.querySelectorAll('[data-mode-button]').forEach(button => button.addEventListener('click', () => setMode(button.dataset.modeButton)));
+      document.querySelectorAll('[data-mode-button]').forEach(button => button.addEventListener('click', () => {
+        if (button.dataset.modeButton !== mode) {
+          form.reset();
+          setMode(button.dataset.modeButton);
+        }
+      }));
       byId('switch-button').addEventListener('click', () => {
+        form.reset();
         if (mode === 'signin') setMode('register');
         else if (mode === 'register') setMode('signin');
-        else { resetToken = ''; form.reset(); setMode('signin'); }
+        else { resetToken = ''; setMode('signin'); }
       });
       byId('forgot-bottom').addEventListener('click', () => { form.reset(); setMode('forgot'); });
       document.querySelectorAll('[data-toggle-password]').forEach(button => button.addEventListener('click', () => {
@@ -727,11 +735,13 @@
         input.type = visible ? 'password' : 'text';
         button.textContent = visible ? 'Show' : 'Hide';
       }));
-      if (localStorage.getItem('csm-legacy-notice') === 'true') {
-        byId('legacy-data-notice').hidden = false;
-        byId('export-legacy-data').addEventListener('click', () => CSM.exportLegacy());
-      }
-
+      form.addEventListener('input', () => {
+        if (!error.hidden) {
+          error.hidden = true;
+          error.textContent = '';
+          error.classList.remove('is-success');
+        }
+      });
       form.addEventListener('submit', async event => {
         event.preventDefault();
         if (submit.disabled) return;
@@ -760,7 +770,7 @@
             form.reset();
             setMode('signin');
             byId('username').value = username;
-            showError('Account created. Sign in with your new credentials.');
+            showError('Account created. Sign in with your new credentials.', true);
             return;
           }
           if (mode === 'forgot') {

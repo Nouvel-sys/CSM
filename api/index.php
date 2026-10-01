@@ -2,7 +2,7 @@
 require dirname(__DIR__).'/server/bootstrap.php';require dirname(__DIR__).'/server/arena.php';
 $route=$_GET['r']??'';$method=$_SERVER['REQUEST_METHOD'];header('Referrer-Policy: same-origin');header('X-Frame-Options: SAMEORIGIN');
 if(!is_string($route))fail(400,'Invalid endpoint.');if(!in_array($method,['GET','POST','PATCH','DELETE'],true))fail(405,'Method not allowed.');
-$publicSessionRoutes=['auth/session','auth/login','auth/register','auth/password/request','auth/password/reset'];
+$publicSessionRoutes=['auth/session','auth/login','auth/register','auth/password/request','auth/password/reset','shared/deck','shared/document'];
 if(isset($_SESSION['user_id'])&&!in_array($route,$publicSessionRoutes,true)&&!tab_session_matches((string)$_SESSION['user_id']))fail(401,'This tab was signed out because the account was opened in another tab. Please sign in again.');
 if($method!=='GET')csrf();
 if($route==='auth/session'&&$method==='GET'){$ok=false;if(isset($_SESSION['user_id'])){$u=query('SELECT auth_version FROM users WHERE id=?',[$_SESSION['user_id']])->fetch();$ok=$u&&(int)$u['auth_version']==($_SESSION['auth_version']??0)&&tab_session_matches((string)$_SESSION['user_id'],$u);}respond(['authenticated'=>(bool)$ok,'csrf'=>$_SESSION['csrf'],'profile'=>$ok?profile($_SESSION['user_id']):null]);}
@@ -32,7 +32,35 @@ if(in_array($route,['auth/register','auth/login'],true)&&$method==='POST'){
  $tabHash=request_tab_hash();$browserHash=request_browser_hash();if(!$tabHash||!$browserHash)fail(400,'Refresh the page and try signing in again.');query('INSERT INTO user_active_tabs(user_id,browser_hash,active_tab_hash) VALUES(?,?,?) ON DUPLICATE KEY UPDATE active_tab_hash=VALUES(active_tab_hash),updated_at=UTC_TIMESTAMP(3)',[$row['id'],$browserHash,$tabHash]);query('DELETE FROM auth_attempts WHERE bucket IN (?,?)',[$bucket,$accountBucket]);audit_event($row['id'],'login_success',$row['id'],['remembered'=>($data['remember']??false)===true]);
  $_SESSION=[];session_regenerate_id(true);$remember=($data['remember']??false)===true;$until=time()+($remember?2592000:43200);$_SESSION=['user_id'=>$row['id'],'auth_version'=>(int)$row['auth_version'],'expires_at'=>$until,'csrf'=>bin2hex(random_bytes(32))];setcookie(session_name(),session_id(),['expires'=>$remember?$until:0,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);respond(['profile'=>profile($row['id']),'csrf'=>$_SESSION['csrf']]);
 }
-$user=user_id();$currentRole=current_role($user);global $users,$decksService,$bombcardsService,$materialsService,$progressService,$bombstyleService;
+if($route==='shared/deck'&&$method==='GET'){
+ $token=$_GET['token']??'';if(!is_string($token)||!preg_match('/^[a-zA-Z0-9_-]{3,64}$/D',$token))fail(404,'Shared deck link is invalid or not found.');
+ $share=$deckSharesService->getByToken($token);if(!$share)fail(404,'Shared deck link not found.');
+ if($share['moderation_status']!=='visible')fail(404,'This deck is currently unavailable.');
+ if(!(bool)$share['is_active'])fail(403,'This shared deck link has been deactivated by the owner.');
+ $cards=array_map('card_data',$bombcardsService->forDeck($share['deck_id']));
+ $docs=$materialsService->byDeck($share['deck_id']);
+ foreach($docs as &$doc){$doc['deckId']=$share['deck_id'];$doc['url']=app_base_url().'/api/index.php?r=shared/document&token='.rawurlencode($token).'&id='.rawurlencode((string)$doc['id']);}unset($doc);
+ respond(['deck'=>['id'=>$share['deck_id'],'code'=>$share['title'],'title'=>$share['title'],'subject'=>$share['subject'],'category'=>$share['category'],'owner'=>$share['owner_name'],'lastModified'=>$share['updated_at'],'section'=>'recent','cards'=>$cards,'documents'=>$docs,'share'=>['token'=>$share['share_token'],'isActive'=>true,'url'=>app_base_url().'/shared/deck/'.$share['share_token']]],'share'=>['token'=>$share['share_token'],'isActive'=>true,'url'=>app_base_url().'/shared/deck/'.$share['share_token']]]);
+}
+if($route==='shared/document'&&$method==='GET'){
+ $token=$_GET['token']??'';$docId=$_GET['id']??'';
+ if(!is_string($token)||!preg_match('/^[a-zA-Z0-9_-]{3,64}$/D',$token))fail(404,'Invalid share token.');
+ if(!is_string($docId)||!preg_match('/^[a-f0-9]{32}$/D',$docId))fail(404,'Invalid document ID.');
+ $share=$deckSharesService->getByToken($token);
+ if(!$share||$share['moderation_status']!=='visible'||!(bool)$share['is_active'])fail(403,'This shared document is not available.');
+ $document=query("SELECT m.id,m.title,m.stored_name FROM documents m WHERE m.id=? AND m.deck_id=?",[$docId,$share['deck_id']])->fetch();
+ if(!$document)fail(404,'PDF not found.');
+ $path=$config['upload_dir'].'/'.$document['stored_name'];
+ if(!is_file($path))fail(404,'PDF missing from file storage.');
+ if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
+ header('Content-Type: application/pdf');header('Content-Length: '.filesize($path));
+ $disp=($_GET['download']??'')==='1'?'attachment':'inline';
+ header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''".rawurlencode((string)$document['title']));
+ header('Cache-Control: public, max-age=3600');header('X-Content-Type-Options: nosniff');
+ header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+ readfile($path);exit;
+}
+$user=user_id();$currentRole=current_role($user);global $users,$decksService,$bombcardsService,$materialsService,$progressService,$bombstyleService,$deckSharesService;
 if($route==='notifications'&&$method==='GET'){$items=query('SELECT id,notification_type type,title,message,read_at readAt,created_at createdAt,deck_id deckId FROM user_notifications WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 50',[$user])->fetchAll();$unread=(int)query('SELECT COUNT(*) FROM user_notifications WHERE user_id=? AND read_at IS NULL',[$user])->fetchColumn();foreach($items as &$item){$item['id']=(int)$item['id'];$item['isRead']=$item['readAt']!==null;}unset($item);respond(['notifications'=>$items,'unreadCount'=>$unread]);}
 if($route==='notifications/read'&&$method==='PATCH'){$data=input();if(array_key_exists('id',$data)){if(!is_int($data['id'])||$data['id']<1)fail(422,'Invalid notification id.');query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE id=? AND user_id=? AND read_at IS NULL',[$data['id'],$user]);}else query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE user_id=? AND read_at IS NULL',[$user]);respond(['ok'=>true]);}
 if($route==='notifications'&&$method==='DELETE'){query('DELETE FROM user_notifications WHERE user_id=?',[$user]);respond(['ok'=>true]);}
@@ -67,7 +95,7 @@ if($route==='admin/sessions/clear'&&$method==='POST'){if(!$isSuper)fail(403,'Onl
 // administrators can reach the workspace and turn maintenance back off.
 if($route!=='auth/logout'&&maintenance_enabled()&&!in_array($currentRole,['admin','superadmin'],true))fail(503,'The workspace is temporarily in maintenance mode. Please try again later.');
 if($route==='auth/logout'&&$method==='POST'){audit_event($user,'logout',$user);$tabHash=request_tab_hash();$browserHash=request_browser_hash();if($tabHash&&$browserHash)query('DELETE FROM user_active_tabs WHERE user_id=? AND browser_hash=? AND active_tab_hash=?',[$user,$browserHash,$tabHash]);$_SESSION=[];session_destroy();setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);respond(['ok'=>true]);}
-if(in_array($currentRole,['admin','superadmin'],true)&&(in_array($route,['decks','cards','documents','highlights','study/progress','activity','account/export'],true)||str_starts_with($route,'arena/')))fail(403,'Personal library and Arena features are not available to staff accounts.');
+if(in_array($currentRole,['admin','superadmin'],true)&&(in_array($route,['decks','decks/share','cards','documents','highlights','study/progress','activity','account/export'],true)||str_starts_with($route,'arena/')))fail(403,'Personal library and Arena features are not available to staff accounts.');
 if($route==='workspace'&&$method==='GET')respond(workspace($user));
 if($route==='profile'&&$method==='PATCH'){$data=input();$p=query('SELECT * FROM profiles WHERE user_id=? FOR UPDATE',[$user])->fetch();if(isset($data['displayName'])){$name=field($data,'displayName',40);if($name!==$p['display_name']){if($p['name_changed_at']&&strtotime($p['name_changed_at'])>time()-604800)fail(409,'Display names can only change once every 7 days.');query('UPDATE profiles SET display_name=?,name_changed_at=CURRENT_TIMESTAMP(3) WHERE user_id=?',[$name,$user]);}}if(isset($data['avatar'])){$avatar=field($data,'avatar',16);if(!in_array($avatar,['ember','ocean','mint','violet','sunset','slate'],true))fail(422,'Invalid avatar.');query('UPDATE profiles SET avatar=? WHERE user_id=?',[$avatar,$user]);}respond(profile($user));}
 if($route==='auth/password'&&$method==='POST'){$data=input();$old=password_value($data,'currentPassword');$next=password_value($data,'newPassword');$row=query('SELECT password_hash,auth_version FROM users WHERE id=? FOR UPDATE',[$user])->fetch();if(!password_verify($old,$row['password_hash']))fail(422,'Current password is incorrect.');$users->setPassword($user,password_hash($next,PASSWORD_DEFAULT));audit_event($user,'password_changed',$user);$_SESSION['auth_version']=(int)$row['auth_version']+1;session_regenerate_id(true);respond(['ok'=>true]);}
@@ -77,6 +105,26 @@ if($route==='decks'){
   if(array_key_exists('cards',$data)){if(!is_array($data['cards'])||count($data['cards'])>1000)fail(422,'Invalid card list.');$keep=[];foreach($data['cards'] as $i=>$card){if(!is_array($card))fail(422,'Invalid Bombcard.');$cardId=isset($card['id'])&&preg_match('/^[a-f0-9]{32}$/D',(string)$card['id'])?$card['id']:null;$keep[]=save_card($card,$id,$cardId,$i);}foreach($bombcardsService->forDeck($id) as $card)if(!in_array($card['id'],$keep,true))$bombcardsService->delete($card['id'],$id);}
   activity($user,$id,$title,'Reviewer','library',$method==='POST'?'Created':'Edited');$db->commit();respond(deck_data(owned_deck($id,$user)),$method==='POST'?201:200);}
  if($method==='DELETE'){$id=id_field(input());owned_deck($id,$user);$names=query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?',[$id,$user])->fetchAll(PDO::FETCH_COLUMN);$decksService->delete($id,$user);foreach($names as $name){$path=$config['upload_dir'].'/'.$name;if(is_file($path))unlink($path);}respond(['ok'=>true]);}
+}
+if($route==='decks/share'){
+ $deckId=id_field($method==='GET'?$_GET:input(),'deckId');owned_deck($deckId,$user);
+ if($method==='GET'){
+  $share=$deckSharesService->getForDeck($deckId,$user);
+  if(!$share)respond(['isShared'=>false,'isActive'=>false,'token'=>null,'url'=>null]);
+  respond(['isShared'=>true,'isActive'=>(bool)$share['is_active'],'token'=>$share['share_token'],'url'=>app_base_url().'/shared/deck/'.$share['share_token'],'createdAt'=>$share['created_at'],'updatedAt'=>$share['updated_at']]);
+ }
+ if($method==='POST'){
+  $data=input();$action=$data['action']??'create';
+  if($action==='create')$share=$deckSharesService->createOrGet($deckId,$user);
+  elseif($action==='regenerate')$share=$deckSharesService->regenerate($deckId,$user);
+  elseif($action==='toggle'){$active=(bool)($data['active']??true);$share=$deckSharesService->setActive($deckId,$user,$active);}
+  else fail(422,'Invalid share action.');
+  respond(['ok'=>true,'isShared'=>true,'isActive'=>(bool)$share['is_active'],'token'=>$share['share_token'],'url'=>app_base_url().'/shared/deck/'.$share['share_token'],'action'=>$action]);
+ }
+ if($method==='DELETE'){
+  $share=$deckSharesService->setActive($deckId,$user,false);
+  respond(['ok'=>true,'isShared'=>true,'isActive'=>false]);
+ }
 }
 if($route==='cards'&&in_array($method,['POST','PATCH','DELETE'],true)){$data=input();$deck=owned_deck(id_field($data,'deckId'),$user);$db->beginTransaction();if($method==='DELETE'){$id=id_field($data);if(!$bombcardsService->delete($id,$deck['id']))fail(404,'Bombcard not found.');}else{$position=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$deck['id']])->fetchColumn();$id=save_card($data,$deck['id'],$method==='PATCH'?id_field($data):null,$position);}activity($user,$deck['id'],$deck['title'],'Bombcards','library',$method==='DELETE'?'Removed':($method==='POST'?'Created':'Edited'));$db->commit();respond(['id'=>$id],$method==='POST'?201:200);}
 if($route==='documents'&&$method==='POST'){

@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Co-StudyMaxx — Study reviewers, made to stick</title>
+  <title>Co-StudyMaxx — Shared Reviewer Deck</title>
   <meta name="description"
-    content="Create private study reviewers, practice what you missed, and turn every deck into a focused countdown quiz.">
+    content="Study this shared reviewer deck on Co-StudyMaxx. Practice cards, flip flashcards, and test yourself with countdown quiz mode.">
 
   <!-- Typography: Plus Jakarta Sans (Body/UI), Outfit (Display/Headings), JetBrains Mono (Timer/Mono) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,6 +14,17 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap"
     rel="stylesheet">
+
+  <script>
+    (function () {
+      var p = window.location.pathname;
+      var idx = p.toLowerCase().indexOf('/shared/');
+      var base = idx >= 0 ? p.substring(0, idx + 1) : '/';
+      var b = document.createElement('base');
+      b.href = base;
+      document.head.appendChild(b);
+    })();
+  </script>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -89,6 +100,11 @@
   <div class="outer-glow-backdrop"></div>
   <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden"></div>
 
+  <script>
+    <?php if (isset($_GET['share_token'])): ?>
+    window.CSM_GUEST_SHARE_TOKEN = <?php echo json_encode((string)$_GET['share_token']); ?>;
+    <?php endif; ?>
+  </script>
   <script src="api.js?v=1.18"></script>
   <script type="text/babel" src="index.jsx?v=1.18"></script>
 </body>

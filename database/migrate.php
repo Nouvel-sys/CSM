@@ -83,5 +83,12 @@ $db->exec("CREATE TABLE IF NOT EXISTS user_active_tabs (
  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  PRIMARY KEY(user_id,browser_hash),INDEX(updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-echo "Admin schema is ready (roles, lock state, deck moderation queue, user notifications, security events, system settings, browser-scoped active tabs). Existing user/content rows were preserved.\n";
+$db->exec("CREATE TABLE IF NOT EXISTS deck_shares (
+ id CHAR(32) PRIMARY KEY,deck_id CHAR(32) NOT NULL UNIQUE,share_token CHAR(64) NOT NULL UNIQUE,
+ is_active BOOLEAN NOT NULL DEFAULT TRUE,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ INDEX idx_deck_shares_token(share_token, is_active),
+ FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+echo "Deck sharing schema is ready. Existing user/content rows were preserved.\n";
 echo "Migration complete. No tables or existing user data were dropped.\n";
