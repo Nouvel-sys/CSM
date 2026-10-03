@@ -225,11 +225,11 @@ const IconSpeaker = ({ muted }) => (
   </svg>
 );
 
-const IconPdf = () => (
-  <svg className="w-6 h-7 shrink-0" viewBox="0 0 24 28" fill="none">
-    <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
-    <path d="M15 1V8.5H23" stroke="#222222" strokeWidth="2" strokeLinejoin="round" />
-    <text x="4" y="20" fontFamily="Helvetica, Arial, sans-serif" fontSize="7.5" fontWeight="900" fill="#222222" letterSpacing="-0.4">PDF</text>
+const IconPdf = ({ className = "w-6 h-7 shrink-0" }) => (
+  <svg className={className} viewBox="0 0 24 28" fill="none">
+    <path d="M3 1C1.89543 1 1 1.89543 1 3V25C1 26.1046 1.89543 27 3 27H21C22.1046 27 23 26.1046 23 25V8.5L15.5 1H3Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M15 1V8.5H23" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    <text x="4" y="20" fontFamily="Helvetica, Arial, sans-serif" fontSize="7.5" fontWeight="900" fill="currentColor" letterSpacing="-0.4">PDF</text>
   </svg>
 );
 
@@ -746,59 +746,59 @@ function AdminPanel({ profile }) {
     </>}</div>}
 
     {(flagDeckTarget || adminActionModal || deckPreview) && ReactDOM.createPortal(<>
-    {flagDeckTarget && <div className="csm-modal-backdrop csm-admin-flag-backdrop" role="presentation" onClick={closeFlagModal}>
-      <form className="csm-admin-flag-modal" role="dialog" aria-modal="true" aria-labelledby="admin-flag-title" aria-describedby="admin-flag-description" onSubmit={submitFlagReview} onClick={event => event.stopPropagation()}>
-        <div className="csm-admin-flag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4m0 1h12l-2.5 4L17 13H5" /></svg></div>
-        <span className="csm-kicker">CONTENT MODERATION</span>
-        <h2 id="admin-flag-title">Flag “{flagDeckTarget.code || flagDeckTarget.title}” for review</h2>
-        <p id="admin-flag-description">Tell the moderation team why this reviewer needs attention. Your reason will be included in the private review queue.</p>
-        <label className="csm-admin-flag-label" htmlFor="admin-flag-reason">Reason for review</label>
-        <textarea id="admin-flag-reason" ref={flagReasonRef} value={flagReason} onChange={event => { setFlagReason(event.target.value); if (flagReasonError) setFlagReasonError(''); }} maxLength={1000} rows={4} placeholder="Describe the concern…" disabled={busy} aria-required="true" aria-invalid={Boolean(flagReasonError)} aria-describedby={flagReasonError ? 'admin-flag-description admin-flag-error' : 'admin-flag-description'} />
-        <div className="csm-admin-flag-meta"><span>{flagReason.length}/1000</span>{flagReasonError && <span id="admin-flag-error" className="csm-admin-flag-error" role="alert">{flagReasonError}</span>}</div>
-        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeFlagModal} disabled={busy}>Cancel</button><button type="submit" className="csm-primary-button" disabled={busy}>{busy ? 'Submitting…' : 'Submit flag'}</button></div>
-      </form>
-    </div>}
-    {adminActionModal && <div className="csm-modal-backdrop csm-admin-action-backdrop" role="presentation" onClick={closeAdminActionModal}>
-      <form className="csm-admin-action-modal" role="dialog" aria-modal="true" aria-labelledby="admin-action-title" aria-describedby="admin-action-description" onSubmit={submitAdminAction} onClick={event => event.stopPropagation()}>
-        <div className={`csm-admin-action-icon ${adminActionModal.danger ? 'is-danger' : ''}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="M12 8v4m0 4h.01" /></svg></div>
-        <span className="csm-kicker">ADMIN ACTION</span>
-        <h2 id="admin-action-title">{adminActionModal.title}</h2>
-        <p id="admin-action-description">{adminActionModal.message}</p>
-        {adminActionModal.requiresReason && <>
-          <label className="csm-admin-flag-label" htmlFor="admin-action-reason">{adminActionModal.reasonLabel || 'Reason'}</label>
-          <textarea id="admin-action-reason" ref={adminActionReasonRef} value={adminActionReason} onChange={event => { setAdminActionReason(event.target.value); if (adminActionError) setAdminActionError(''); }} maxLength={1000} rows={4} placeholder="Add a clear note…" aria-required="true" aria-invalid={Boolean(adminActionError)} aria-describedby={adminActionError ? 'admin-action-description admin-action-error' : 'admin-action-description'} />
-          <div className="csm-admin-flag-meta"><span>{adminActionReason.length}/1000</span>{adminActionError && <span id="admin-action-error" className="csm-admin-flag-error" role="alert">{adminActionError}</span>}</div>
-        </>}
-        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeAdminActionModal} disabled={busy}>Cancel</button><button ref={adminActionConfirmRef} type="submit" className={adminActionModal.danger ? 'csm-admin-danger-button' : 'csm-primary-button'} disabled={busy}>{busy ? 'Working…' : adminActionModal.confirmLabel || 'Continue'}</button></div>
-      </form>
-    </div>}
-    {deckPreview && <div className="csm-modal-backdrop csm-admin-preview-backdrop" role="presentation" onClick={closeDeckPreview}>
-      <section className="csm-admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="admin-preview-title" aria-describedby="admin-preview-description" onClick={event => event.stopPropagation()}>
-        <header className="csm-admin-preview-header">
-          <div><span className="csm-kicker">AUTHORIZED STAFF · READ ONLY</span><h2 id="admin-preview-title">{deckPreview.title || deckPreview.code || 'Deck preview'}</h2><p>{deckPreview.owner ? `Owned by ${deckPreview.owner}` : 'Loading deck owner…'} · {deckPreview.subject || 'No subject'} · {deckPreview.document_count || 0} PDF(s)</p></div>
-          <div className="csm-admin-preview-header-actions"><button type="button" className="csm-secondary-button" onClick={() => loadDeckPreview(deckPreview)} disabled={deckPreviewLoading}>{deckPreviewLoading ? 'Refreshing…' : 'Refresh'}</button><button ref={deckPreviewCloseRef} type="button" className="csm-admin-preview-close" onClick={closeDeckPreview} aria-label="Close deck preview">×</button></div>
-        </header>
-        <p className="csm-admin-preview-description" id="admin-preview-description">Review this account’s Bombcards and attached PDFs. Staff access is read-only and recorded for moderation oversight.</p>
-        <div className="csm-admin-preview-content">
-          {deckPreviewLoading ? <div className="csm-admin-empty" role="status">Loading the latest deck contents…</div> : deckPreviewError ? <div className="csm-admin-alert is-error" role="alert">{deckPreviewError}</div> : <>
-          <section className="csm-admin-preview-documents" aria-label="PDF files attached to this deck">
-            <div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">REFERENCE FILES</span><h3>Attached PDFs</h3></div><span className="csm-admin-status">{deckPreview.documents?.length || 0} files</span></div>
-            {deckPreview.documents?.length ? <div className="csm-admin-preview-document-list">{deckPreview.documents.map(file => <article className="csm-admin-preview-document" key={file.id}><span className="csm-admin-preview-pdf-icon" aria-hidden="true">PDF</span><div className="csm-admin-preview-document-info"><strong>{file.title}</strong><small>{(Number(file.size) / 1048576).toFixed(2)} MB · Uploaded {new Date(`${file.uploadedAt}Z`).toLocaleDateString()}</small></div><a className="csm-secondary-button" href={file.url} target="_blank" rel="noreferrer">Open PDF ↗</a></article>)}</div> : <div className="csm-admin-empty csm-admin-preview-document-empty">No PDF files are attached to this deck.</div>}
-          </section>
-          <section className="csm-admin-preview-bombcards" aria-label="Bombcards in this deck"><div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">STUDY CONTENT</span><h3>Bombcards</h3></div><span className="csm-admin-status">{deckPreview.cards?.length || 0} cards</span></div>
-          {deckPreview.cards?.length ? deckPreview.cards.map((card, index) => <article className="csm-admin-preview-card" key={card.id || index}>
-            <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</span></div>
-            <h3>{card.prompt || 'Untitled question'}</h3>
-            {card.hint && <p className="csm-admin-preview-detail"><strong>Hint:</strong> {card.hint}</p>}
-            {card.type === 'MULTIPLE_CHOICE' && <ol className="csm-admin-preview-options">{(card.options || []).map((option, optionIndex) => <li className={optionIndex === Number(card.correctIndex) ? 'is-correct' : ''} key={`${card.id}-${optionIndex}`}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{optionIndex === Number(card.correctIndex) && <small>Correct</small>}</li>)}</ol>}
-            <div className="csm-admin-preview-answer"><span>Correct answer</span><strong>{card.correctAnswer || 'No answer saved'}</strong></div>
-            {card.explanation && <p className="csm-admin-preview-detail"><strong>Explanation:</strong> {card.explanation}</p>}
-          </article>) : <div className="csm-admin-empty">This deck does not have any Bombcards yet.</div>}</section>
+      {flagDeckTarget && <div className="csm-modal-backdrop csm-admin-flag-backdrop" role="presentation" onClick={closeFlagModal}>
+        <form className="csm-admin-flag-modal" role="dialog" aria-modal="true" aria-labelledby="admin-flag-title" aria-describedby="admin-flag-description" onSubmit={submitFlagReview} onClick={event => event.stopPropagation()}>
+          <div className="csm-admin-flag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4m0 1h12l-2.5 4L17 13H5" /></svg></div>
+          <span className="csm-kicker">CONTENT MODERATION</span>
+          <h2 id="admin-flag-title">Flag “{flagDeckTarget.code || flagDeckTarget.title}” for review</h2>
+          <p id="admin-flag-description">Tell the moderation team why this reviewer needs attention. Your reason will be included in the private review queue.</p>
+          <label className="csm-admin-flag-label" htmlFor="admin-flag-reason">Reason for review</label>
+          <textarea id="admin-flag-reason" ref={flagReasonRef} value={flagReason} onChange={event => { setFlagReason(event.target.value); if (flagReasonError) setFlagReasonError(''); }} maxLength={1000} rows={4} placeholder="Describe the concern…" disabled={busy} aria-required="true" aria-invalid={Boolean(flagReasonError)} aria-describedby={flagReasonError ? 'admin-flag-description admin-flag-error' : 'admin-flag-description'} />
+          <div className="csm-admin-flag-meta"><span>{flagReason.length}/1000</span>{flagReasonError && <span id="admin-flag-error" className="csm-admin-flag-error" role="alert">{flagReasonError}</span>}</div>
+          <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeFlagModal} disabled={busy}>Cancel</button><button type="submit" className="csm-primary-button" disabled={busy}>{busy ? 'Submitting…' : 'Submit flag'}</button></div>
+        </form>
+      </div>}
+      {adminActionModal && <div className="csm-modal-backdrop csm-admin-action-backdrop" role="presentation" onClick={closeAdminActionModal}>
+        <form className="csm-admin-action-modal" role="dialog" aria-modal="true" aria-labelledby="admin-action-title" aria-describedby="admin-action-description" onSubmit={submitAdminAction} onClick={event => event.stopPropagation()}>
+          <div className={`csm-admin-action-icon ${adminActionModal.danger ? 'is-danger' : ''}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="M12 8v4m0 4h.01" /></svg></div>
+          <span className="csm-kicker">ADMIN ACTION</span>
+          <h2 id="admin-action-title">{adminActionModal.title}</h2>
+          <p id="admin-action-description">{adminActionModal.message}</p>
+          {adminActionModal.requiresReason && <>
+            <label className="csm-admin-flag-label" htmlFor="admin-action-reason">{adminActionModal.reasonLabel || 'Reason'}</label>
+            <textarea id="admin-action-reason" ref={adminActionReasonRef} value={adminActionReason} onChange={event => { setAdminActionReason(event.target.value); if (adminActionError) setAdminActionError(''); }} maxLength={1000} rows={4} placeholder="Add a clear note…" aria-required="true" aria-invalid={Boolean(adminActionError)} aria-describedby={adminActionError ? 'admin-action-description admin-action-error' : 'admin-action-description'} />
+            <div className="csm-admin-flag-meta"><span>{adminActionReason.length}/1000</span>{adminActionError && <span id="admin-action-error" className="csm-admin-flag-error" role="alert">{adminActionError}</span>}</div>
           </>}
-        </div>
-        {deckPreview.updated_at && <footer className="csm-admin-preview-footer">Last updated {new Date(`${deckPreview.updated_at}Z`).toLocaleString()}</footer>}
-      </section>
-    </div>}
+          <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" onClick={closeAdminActionModal} disabled={busy}>Cancel</button><button ref={adminActionConfirmRef} type="submit" className={adminActionModal.danger ? 'csm-admin-danger-button' : 'csm-primary-button'} disabled={busy}>{busy ? 'Working…' : adminActionModal.confirmLabel || 'Continue'}</button></div>
+        </form>
+      </div>}
+      {deckPreview && <div className="csm-modal-backdrop csm-admin-preview-backdrop" role="presentation" onClick={closeDeckPreview}>
+        <section className="csm-admin-preview-modal" role="dialog" aria-modal="true" aria-labelledby="admin-preview-title" aria-describedby="admin-preview-description" onClick={event => event.stopPropagation()}>
+          <header className="csm-admin-preview-header">
+            <div><span className="csm-kicker">AUTHORIZED STAFF · READ ONLY</span><h2 id="admin-preview-title">{deckPreview.title || deckPreview.code || 'Deck preview'}</h2><p>{deckPreview.owner ? `Owned by ${deckPreview.owner}` : 'Loading deck owner…'} · {deckPreview.subject || 'No subject'} · {deckPreview.document_count || 0} PDF(s)</p></div>
+            <div className="csm-admin-preview-header-actions"><button type="button" className="csm-secondary-button" onClick={() => loadDeckPreview(deckPreview)} disabled={deckPreviewLoading}>{deckPreviewLoading ? 'Refreshing…' : 'Refresh'}</button><button ref={deckPreviewCloseRef} type="button" className="csm-admin-preview-close" onClick={closeDeckPreview} aria-label="Close deck preview">×</button></div>
+          </header>
+          <p className="csm-admin-preview-description" id="admin-preview-description">Review this account’s Bombcards and attached PDFs. Staff access is read-only and recorded for moderation oversight.</p>
+          <div className="csm-admin-preview-content">
+            {deckPreviewLoading ? <div className="csm-admin-empty" role="status">Loading the latest deck contents…</div> : deckPreviewError ? <div className="csm-admin-alert is-error" role="alert">{deckPreviewError}</div> : <>
+              <section className="csm-admin-preview-documents" aria-label="PDF files attached to this deck">
+                <div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">REFERENCE FILES</span><h3>Attached PDFs</h3></div><span className="csm-admin-status">{deckPreview.documents?.length || 0} files</span></div>
+                {deckPreview.documents?.length ? <div className="csm-admin-preview-document-list">{deckPreview.documents.map(file => <article className="csm-admin-preview-document" key={file.id}><span className="csm-admin-preview-pdf-icon" aria-hidden="true">PDF</span><div className="csm-admin-preview-document-info"><strong>{file.title}</strong><small>{(Number(file.size) / 1048576).toFixed(2)} MB · Uploaded {new Date(`${file.uploadedAt}Z`).toLocaleDateString()}</small></div><a className="csm-secondary-button" href={file.url} target="_blank" rel="noreferrer">Open PDF ↗</a></article>)}</div> : <div className="csm-admin-empty csm-admin-preview-document-empty">No PDF files are attached to this deck.</div>}
+              </section>
+              <section className="csm-admin-preview-bombcards" aria-label="Bombcards in this deck"><div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">STUDY CONTENT</span><h3>Bombcards</h3></div><span className="csm-admin-status">{deckPreview.cards?.length || 0} cards</span></div>
+                {deckPreview.cards?.length ? deckPreview.cards.map((card, index) => <article className="csm-admin-preview-card" key={card.id || index}>
+                  <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</span></div>
+                  <h3>{card.prompt || 'Untitled question'}</h3>
+                  {card.hint && <p className="csm-admin-preview-detail"><strong>Hint:</strong> {card.hint}</p>}
+                  {card.type === 'MULTIPLE_CHOICE' && <ol className="csm-admin-preview-options">{(card.options || []).map((option, optionIndex) => <li className={optionIndex === Number(card.correctIndex) ? 'is-correct' : ''} key={`${card.id}-${optionIndex}`}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{optionIndex === Number(card.correctIndex) && <small>Correct</small>}</li>)}</ol>}
+                  <div className="csm-admin-preview-answer"><span>Correct answer</span><strong>{card.correctAnswer || 'No answer saved'}</strong></div>
+                  {card.explanation && <p className="csm-admin-preview-detail"><strong>Explanation:</strong> {card.explanation}</p>}
+                </article>) : <div className="csm-admin-empty">This deck does not have any Bombcards yet.</div>}</section>
+            </>}
+          </div>
+          {deckPreview.updated_at && <footer className="csm-admin-preview-footer">Last updated {new Date(`${deckPreview.updated_at}Z`).toLocaleString()}</footer>}
+        </section>
+      </div>}
     </>, document.body)}
   </div>;
 }
@@ -1003,25 +1003,34 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [creatorCorrectIndex, setCreatorCorrectIndex] = useState(0);
   const [creatorAnswer, setCreatorAnswer] = useState('');
   const [creatorAlternates, setCreatorAlternates] = useState('');
+  const [creatorStep, setCreatorStep] = useState(1); // 1 = Question, 2 = Answers & Details
+  const [creatorShowHint, setCreatorShowHint] = useState(false);
+  const [creatorShowAlternates, setCreatorShowAlternates] = useState(false);
+  const [creatorCardAddedAnimation, setCreatorCardAddedAnimation] = useState(false);
+  const [creatorSessionCount, setCreatorSessionCount] = useState(0);
 
   const handleSaveBombcard = async () => {
     if (!creatorPrompt.trim()) {
       triggerToast('Please enter a question prompt.');
+      setCreatorStep(1);
       return;
     }
     if (creatorType === 'MULTIPLE_CHOICE') {
       const filledOptions = creatorOptions.filter(opt => opt.trim());
       if (filledOptions.length < 2) {
         triggerToast('Please provide at least 2 multiple choice options.');
+        setCreatorStep(2);
         return;
       }
       if (!creatorOptions[creatorCorrectIndex]?.trim()) {
         triggerToast('The designated correct option cannot be blank.');
+        setCreatorStep(2);
         return;
       }
     } else {
       if (!creatorAnswer.trim()) {
         triggerToast('Please enter the correct answer.');
+        setCreatorStep(2);
         return;
       }
     }
@@ -1057,36 +1066,338 @@ function App({ isGuest = false, sharedDeck = null }) {
       status: 'Card added'
     });
 
+    try { sound.correct(); } catch (_) {}
     triggerToast(`Bombcard added to ${targetDeck.code || targetDeck.title}!`);
+    setCreatorSessionCount(prev => prev + 1);
+    setCreatorCardAddedAnimation(true);
+    setTimeout(() => setCreatorCardAddedAnimation(false), 900);
+
     setCreatorPrompt('');
     setCreatorHint('');
     setCreatorOptions(['', '', '', '']);
     setCreatorAnswer('');
     setCreatorAlternates('');
+    setCreatorCorrectIndex(0);
+    setCreatorShowHint(false);
+    setCreatorShowAlternates(false);
+    setCreatorStep(1);
+  };
+
+  // --- Dedicated Gemini AI Bombcards Generator State ---
+  const [aiGeneratorOpen, setAiGeneratorOpen] = useState(false);
+  const [aiTargetDeckId, setAiTargetDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
+  const [aiSourceType, setAiSourceType] = useState('pdf'); // 'pdf' | 'text'
+  const [aiNotes, setAiNotes] = useState('');
+  const [aiCount, setAiCount] = useState(5);
+  const [aiFormat, setAiFormat] = useState('MIXED'); // 'MIXED' | 'MULTIPLE_CHOICE' | 'IDENTIFICATION'
+  const [aiFocus, setAiFocus] = useState('comprehensive'); // 'comprehensive' | 'key_terms' | 'conceptual'
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiStage, setAiStage] = useState('input'); // 'input' | 'preview'
+  const [aiGeneratedCards, setAiGeneratedCards] = useState([]);
+
+  // Dedicated PDF Extraction & Source Management
+  const [aiPdfSourceMode, setAiPdfSourceMode] = useState('upload'); // 'upload' | 'library'
+  const [aiUploadedPdfFile, setAiUploadedPdfFile] = useState(null);
+  const [aiSelectedLibraryDoc, setAiSelectedLibraryDoc] = useState(null);
+  const [aiPdfTotalPages, setAiPdfTotalPages] = useState(0);
+  const [aiPdfPageRangeType, setAiPdfPageRangeType] = useState('all'); // 'all' | 'custom'
+  const [aiPdfStartPage, setAiPdfStartPage] = useState(1);
+  const [aiPdfEndPage, setAiPdfEndPage] = useState(1);
+  const [aiExtractingPdf, setAiExtractingPdf] = useState(false);
+  const [aiPdfExtractProgress, setAiPdfExtractProgress] = useState('');
+  const [aiPdfExtractedSummary, setAiPdfExtractedSummary] = useState(null);
+  const [aiShowNotesPreview, setAiShowNotesPreview] = useState(false);
+  const [aiSavePdfToDeck, setAiSavePdfToDeck] = useState(true);
+  const [aiPdfDragActive, setAiPdfDragActive] = useState(false);
+  const aiPdfFileInputRef = useRef(null);
+
+  const extractPdfText = async (source, pageRangeOverride = null) => {
+    if (!source) return;
+    setAiExtractingPdf(true);
+    setAiPdfExtractProgress('Connecting to PDF reader...');
+    try {
+      const pdfjs = window.pdfjsLib || (await window.pdfjsReady);
+      if (!pdfjs) throw new Error('PDF reader could not be initialized.');
+
+      let loadingTask;
+      let title = 'Document.pdf';
+
+      if (source.type === 'file') {
+        title = source.file.name;
+        const arrayBuffer = await source.file.arrayBuffer();
+        loadingTask = pdfjs.getDocument({ data: arrayBuffer });
+      } else {
+        title = source.doc.title;
+        loadingTask = pdfjs.getDocument({ url: source.doc.url, withCredentials: true });
+      }
+
+      const pdf = await loadingTask.promise;
+      const totalPages = pdf.numPages;
+      setAiPdfTotalPages(totalPages);
+
+      const rangeType = pageRangeOverride?.type || aiPdfPageRangeType;
+      let start = 1;
+      let end = totalPages;
+
+      if (rangeType === 'custom') {
+        const reqStart = Number(pageRangeOverride?.start ?? aiPdfStartPage);
+        const reqEnd = Number(pageRangeOverride?.end ?? aiPdfEndPage);
+        start = Math.max(1, Math.min(reqStart || 1, totalPages));
+        end = Math.max(start, Math.min(reqEnd || totalPages, totalPages));
+      }
+
+      setAiPdfStartPage(start);
+      setAiPdfEndPage(end);
+
+      let extractedFullText = '';
+      for (let p = start; p <= end; p++) {
+        setAiPdfExtractProgress(`Extracting page ${p} of ${end}...`);
+        const page = await pdf.getPage(p);
+        const textContent = await page.getTextContent();
+
+        let pageStr = '';
+        let lastY = null;
+        for (const item of textContent.items) {
+          if (!item.str) continue;
+          if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
+            pageStr += '\n';
+          } else if (pageStr.length > 0 && !pageStr.endsWith(' ') && !pageStr.endsWith('\n')) {
+            pageStr += ' ';
+          }
+          pageStr += item.str;
+          lastY = item.transform[5];
+        }
+
+        if (pageStr.trim()) {
+          extractedFullText += `--- Page ${p} ---\n${pageStr.trim()}\n\n`;
+        }
+      }
+
+      const cleanText = extractedFullText.trim();
+      if (!cleanText) {
+        triggerToast('No readable text found in this PDF range. It may be a scanned image.');
+        setAiPdfExtractProgress('');
+        return;
+      }
+
+      setAiNotes(cleanText);
+      const wordCount = cleanText.split(/\s+/).filter(Boolean).length;
+      setAiPdfExtractedSummary({
+        fileName: title,
+        pages: end - start + 1,
+        totalPages,
+        startPage: start,
+        endPage: end,
+        wordCount,
+        charCount: cleanText.length
+      });
+      setAiPdfExtractProgress('');
+      triggerToast(`✓ Extracted ${wordCount.toLocaleString()} words from ${title}!`);
+    } catch (err) {
+      console.error(err);
+      triggerToast('PDF Extraction failed: ' + (err.message || 'Unknown error'));
+      setAiPdfExtractProgress('');
+    } finally {
+      setAiExtractingPdf(false);
+    }
+  };
+
+  const handleOpenAiGenerator = (preferredDeckId, docOrFile = null) => {
+    const deckId = preferredDeckId || creatorTargetDeckId || (decks.length > 0 ? decks[0].id : '');
+    setAiTargetDeckId(deckId);
+    setAiStage('input');
+    setAiGeneratorOpen(true);
+
+    if (docOrFile) {
+      setAiSourceType('pdf');
+      if (docOrFile instanceof File) {
+        setAiPdfSourceMode('upload');
+        setAiUploadedPdfFile(docOrFile);
+        setAiSelectedLibraryDoc(null);
+        extractPdfText({ type: 'file', file: docOrFile });
+      } else if (docOrFile.url) {
+        setAiPdfSourceMode('library');
+        setAiSelectedLibraryDoc(docOrFile);
+        setAiUploadedPdfFile(null);
+        extractPdfText({ type: 'doc', doc: docOrFile });
+      }
+    } else {
+      const targetDeck = decks.find(d => d.id === deckId);
+      if (targetDeck?.documents && targetDeck.documents.length > 0) {
+        setAiSourceType('pdf');
+        setAiPdfSourceMode('library');
+        setAiSelectedLibraryDoc(targetDeck.documents[0]);
+        setAiUploadedPdfFile(null);
+        extractPdfText({ type: 'doc', doc: targetDeck.documents[0] });
+      } else {
+        setAiSourceType('pdf');
+        setAiPdfSourceMode('upload');
+      }
+    }
+  };
+
+  const handleTargetDeckChange = (newDeckId) => {
+    setAiTargetDeckId(newDeckId);
+    const newDeck = decks.find(d => d.id === newDeckId);
+    if (aiSourceType === 'pdf' && aiPdfSourceMode === 'library') {
+      if (newDeck?.documents && newDeck.documents.length > 0) {
+        setAiSelectedLibraryDoc(newDeck.documents[0]);
+        extractPdfText({ type: 'doc', doc: newDeck.documents[0] });
+      } else {
+        setAiSelectedLibraryDoc(null);
+        setAiPdfSourceMode('upload');
+      }
+    }
+  };
+
+  const handlePdfDrop = (e) => {
+    e.preventDefault();
+    setAiPdfDragActive(false);
+    const files = e.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setAiUploadedPdfFile(file);
+        setAiPdfSourceMode('upload');
+        setAiSelectedLibraryDoc(null);
+        extractPdfText({ type: 'file', file });
+      } else {
+        triggerToast('Please drop a valid PDF file.');
+      }
+    }
+  };
+
+  const handlePdfFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setAiUploadedPdfFile(file);
+        setAiPdfSourceMode('upload');
+        setAiSelectedLibraryDoc(null);
+        extractPdfText({ type: 'file', file });
+      } else {
+        triggerToast('Please select a valid PDF file.');
+      }
+    }
+  };
+
+  const handleGenerateWithAi = async () => {
+    if (!aiNotes.trim()) {
+      triggerToast('Please provide or extract study material first.');
+      return;
+    }
+    setAiLoading(true);
+
+    // If uploading a new PDF and savePdfToDeck is checked, ensure it is added to deck materials
+    if (aiSourceType === 'pdf' && aiPdfSourceMode === 'upload' && aiUploadedPdfFile && aiSavePdfToDeck && aiTargetDeckId) {
+      try {
+        const targetDeck = decks.find(d => d.id === aiTargetDeckId);
+        const alreadyExists = (targetDeck?.documents || []).some(d => d.title === aiUploadedPdfFile.name);
+        if (!alreadyExists) {
+          await CSM.upload(aiTargetDeckId, aiUploadedPdfFile);
+          await refreshWorkspace();
+        }
+      } catch (uploadErr) {
+        console.warn('Could not auto-save PDF to deck:', uploadErr);
+      }
+    }
+
+    try {
+      const res = await CSM.api('ai/generate', 'POST', {
+        deckId: aiTargetDeckId,
+        notes: aiNotes.trim(),
+        count: aiCount,
+        format: aiFormat,
+        focus: aiFocus,
+        saveDirectly: false
+      });
+      if (res && res.cards && res.cards.length > 0) {
+        setAiGeneratedCards(res.cards.map(c => ({ ...c, selected: true })));
+        setAiStage('preview');
+        try { sound.correct(); } catch (_) {}
+        triggerToast(`Gemini forged ${res.cards.length} high-yield Bombcards!`);
+      } else {
+        triggerToast('Could not generate flashcards. Please provide more detailed text.');
+      }
+    } catch (err) {
+      triggerToast(err.message || 'AI Generation failed.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSaveAiCardsToDeck = async () => {
+    const cardsToSave = aiGeneratedCards.filter(c => c.selected);
+    if (cardsToSave.length === 0) {
+      triggerToast('Please select at least one Bombcard to add.');
+      return;
+    }
+    const targetDeck = decks.find(d => d.id === aiTargetDeckId) || decks[0];
+    if (!targetDeck) {
+      triggerToast('Please select a target deck.');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      for (const card of cardsToSave) {
+        await CSM.api('cards', 'POST', {
+          deckId: targetDeck.id,
+          type: card.type,
+          prompt: card.prompt,
+          options: card.options,
+          correctIndex: card.correctIndex,
+          correctAnswer: card.correctAnswer,
+          hint: card.hint
+        });
+      }
+      await refreshWorkspace();
+      try { sound.correct(); } catch (_) {}
+      triggerToast(`Added ${cardsToSave.length} Bombcards to ${targetDeck.code || targetDeck.title}!`);
+      setAiGeneratorOpen(false);
+      setAiStage('input');
+      setAiNotes('');
+      setAiGeneratedCards([]);
+    } catch (err) {
+      triggerToast(err.message || 'Failed saving cards.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleLoadSampleNotes = () => {
+    const sample = `Computer Network Topologies and Protocols:
+1. Star Topology: In a star topology, each network host is connected to a central hub or switch with a point-to-point connection. If one cable fails, only that computer's connection is affected.
+2. Mesh Topology: Every node has a direct connection to every other node (full mesh) or some nodes (partial mesh). It provides maximum redundancy and fault tolerance.
+3. TCP (Transmission Control Protocol): Connection-oriented protocol providing reliable, ordered, and error-checked delivery of a stream of octets between applications. Uses a three-way handshake (SYN, SYN-ACK, ACK).
+4. UDP (User Datagram Protocol): Connectionless protocol offering lightweight communication without guarantee of delivery, order, or duplicate protection. Often used for real-time video streaming, DNS, and online gaming.
+5. ARP (Address Resolution Protocol): Resolves an IP address (Network Layer) to a physical MAC address (Data Link Layer).
+6. DNS (Domain Name System): Operates on Port 53, translates human-readable domain names (e.g., example.com) to machine-routable IP addresses.`;
+    setAiNotes(sample);
+    triggerToast('Loaded sample computer networking notes.');
   };
 
   // --- Bombstyle Arena State Controller ---
-      const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'gameplay' | 'results' | 'review_missed'
-      const [bombstyleDeckId, setBombstyleDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
-      const [bombstyleDifficulty, setBombstyleDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
-      const [bombstyleQueue, setBombstyleQueue] = useState([]);
-      const [bombstyleIndex, setBombstyleIndex] = useState(0);
-      const [bombstyleRevealed, setBombstyleRevealed] = useState(false);
-      const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(45);
-      const [bombstyleStreak, setBombstyleStreak] = useState(0);
-      const [bombstyleMaxStreak, setBombstyleMaxStreak] = useState(0);
-      const [bombstyleCorrectCount, setBombstyleCorrectCount] = useState(0);
-      const [bombstyleHistory, setBombstyleHistory] = useState([]);
-      const [bombstyleMissedCards, setBombstyleMissedCards] = useState([]);
-      const [bombstyleStartTime, setBombstyleStartTime] = useState(null);
-      const [bombstyleDurationSeconds, setBombstyleDurationSeconds] = useState(0);
-      const [bombstyleSessionId, setBombstyleSessionId] = useState(null);
-      const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
-      const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
-      const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
-      const [shareToast, setShareToast] = useState('');
+  const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'gameplay' | 'results' | 'review_missed'
+  const [bombstyleDeckId, setBombstyleDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
+  const [bombstyleDifficulty, setBombstyleDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
+  const [bombstyleQueue, setBombstyleQueue] = useState([]);
+  const [bombstyleIndex, setBombstyleIndex] = useState(0);
+  const [bombstyleRevealed, setBombstyleRevealed] = useState(false);
+  const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(45);
+  const [bombstyleStreak, setBombstyleStreak] = useState(0);
+  const [bombstyleMaxStreak, setBombstyleMaxStreak] = useState(0);
+  const [bombstyleCorrectCount, setBombstyleCorrectCount] = useState(0);
+  const [bombstyleHistory, setBombstyleHistory] = useState([]);
+  const [bombstyleMissedCards, setBombstyleMissedCards] = useState([]);
+  const [bombstyleStartTime, setBombstyleStartTime] = useState(null);
+  const [bombstyleDurationSeconds, setBombstyleDurationSeconds] = useState(0);
+  const [bombstyleSessionId, setBombstyleSessionId] = useState(null);
+  const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
+  const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
+  const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
+  const [shareToast, setShareToast] = useState('');
   const [selectedDeckIds, setSelectedDeckIds] = useState(() => (isGuest && sharedDeck) ? [sharedDeck.id] : [window.CSM?.initial?.decks?.[0]?.id].filter(Boolean));
-      const [soundMuted, setSoundMuted] = useState(false);
+  const [soundMuted, setSoundMuted] = useState(false);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
   const [highlightColor, setHighlightColor] = useState('#f5a23a');
@@ -1266,24 +1577,24 @@ function App({ isGuest = false, sharedDeck = null }) {
     }
 
     try {
-    const savedDeck = await CSM.api('decks', targetFolderForEdit ? 'PATCH' : 'POST', {
-      ...(targetFolderForEdit ? { id: targetFolderForEdit.id } : {}),
-      title: folderNameInput.trim(), subject: folderDescInput.trim(), category: targetFolderForEdit?.category || 'Recent'
-    });
-    await refreshWorkspace();
-    if (targetFolderForEdit) {
-      // Edit ONLY folder name & description (NOT content)
-      triggerToast(`Updated folder "${folderNameInput.trim()}"`);
-      showChangeConfirmation('Deck updated', `Your changes to "${folderNameInput.trim()}" were saved.`);
-    } else {
-      // Create new folder
-      setSelectedDeckIds(prev => [...prev, savedDeck.id]);
-      triggerToast(`Created new folder "${folderNameInput.trim()}"`);
-      showChangeConfirmation('Deck created', `"${folderNameInput.trim()}" is ready for your study materials.`);
-    }
+      const savedDeck = await CSM.api('decks', targetFolderForEdit ? 'PATCH' : 'POST', {
+        ...(targetFolderForEdit ? { id: targetFolderForEdit.id } : {}),
+        title: folderNameInput.trim(), subject: folderDescInput.trim(), category: targetFolderForEdit?.category || 'Recent'
+      });
+      await refreshWorkspace();
+      if (targetFolderForEdit) {
+        // Edit ONLY folder name & description (NOT content)
+        triggerToast(`Updated folder "${folderNameInput.trim()}"`);
+        showChangeConfirmation('Deck updated', `Your changes to "${folderNameInput.trim()}" were saved.`);
+      } else {
+        // Create new folder
+        setSelectedDeckIds(prev => [...prev, savedDeck.id]);
+        triggerToast(`Created new folder "${folderNameInput.trim()}"`);
+        showChangeConfirmation('Deck created', `"${folderNameInput.trim()}" is ready for your study materials.`);
+      }
 
-    setFolderInfoModalOpen(false);
-    setTargetFolderForEdit(null);
+      setFolderInfoModalOpen(false);
+      setTargetFolderForEdit(null);
     } catch (error) { triggerToast(error.message); }
   };
 
@@ -1524,12 +1835,12 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   useEffect(() => {
     if (!bombstyleExitModalOpen) return;
-        const handleExitModalKeyDown = (event) => {
-          if (event.key === 'Escape') setBombstyleExitModalOpen(false);
-        };
-        document.addEventListener('keydown', handleExitModalKeyDown);
-        return () => document.removeEventListener('keydown', handleExitModalKeyDown);
-      }, [bombstyleExitModalOpen]);
+    const handleExitModalKeyDown = (event) => {
+      if (event.key === 'Escape') setBombstyleExitModalOpen(false);
+    };
+    document.addEventListener('keydown', handleExitModalKeyDown);
+    return () => document.removeEventListener('keydown', handleExitModalKeyDown);
+  }, [bombstyleExitModalOpen]);
 
   const requestDeleteConfirmation = ({ title, message, confirmLabel = 'Delete', action }) => {
     setDeleteConfirmation({ title, message, confirmLabel, action });
@@ -1836,311 +2147,311 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   // ========================================================
-      // 6. BOMBSTYLE ARENA GAME ENGINE
-      // ========================================================
-      const bombstyleTimerRef = useRef(null);
-      const bombstyleAnswerSubmittedRef = useRef(false);
+  // 6. BOMBSTYLE ARENA GAME ENGINE
+  // ========================================================
+  const bombstyleTimerRef = useRef(null);
+  const bombstyleAnswerSubmittedRef = useRef(false);
 
-      const bombstyleActiveDeck = useMemo(() => {
-        return decks.find(d => d.id === bombstyleDeckId) || decks[0];
-      }, [decks, bombstyleDeckId]);
+  const bombstyleActiveDeck = useMemo(() => {
+    return decks.find(d => d.id === bombstyleDeckId) || decks[0];
+  }, [decks, bombstyleDeckId]);
 
-      const bombstyleAvailableCards = useMemo(() => {
-        return bombstyleActiveDeck?.cards || [];
-      }, [bombstyleActiveDeck]);
+  const bombstyleAvailableCards = useMemo(() => {
+    return bombstyleActiveDeck?.cards || [];
+  }, [bombstyleActiveDeck]);
 
-      const activeBombstyleCard = bombstyleQueue[bombstyleIndex] || null;
-      const BOMBSTYLE_DIFFICULTIES = {
-        easy: { label: 'Easy', seconds: 60, timeLabel: '1 minute' },
-        normal: { label: 'Normal', seconds: 45, timeLabel: '45 seconds' },
-        hard: { label: 'Hard', seconds: 30, timeLabel: '30 seconds' }
-      };
-      const selectedBombstyleDifficulty = BOMBSTYLE_DIFFICULTIES[bombstyleDifficulty] || BOMBSTYLE_DIFFICULTIES.normal;
-      const isBombDanger = bombstyleTimeRemaining <= 5.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
-      const bombTimerPercent = Math.max(0, Math.min(100, (bombstyleTimeRemaining / (selectedBombstyleDifficulty.seconds || 45)) * 100));
+  const activeBombstyleCard = bombstyleQueue[bombstyleIndex] || null;
+  const BOMBSTYLE_DIFFICULTIES = {
+    easy: { label: 'Easy', seconds: 60, timeLabel: '1 minute' },
+    normal: { label: 'Normal', seconds: 45, timeLabel: '45 seconds' },
+    hard: { label: 'Hard', seconds: 30, timeLabel: '30 seconds' }
+  };
+  const selectedBombstyleDifficulty = BOMBSTYLE_DIFFICULTIES[bombstyleDifficulty] || BOMBSTYLE_DIFFICULTIES.normal;
+  const isBombDanger = bombstyleTimeRemaining <= 5.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
+  const bombTimerPercent = Math.max(0, Math.min(100, (bombstyleTimeRemaining / (selectedBombstyleDifficulty.seconds || 45)) * 100));
 
-      const handleSelectBombstyleDeck = (deckId) => {
-        setBombstyleDeckId(deckId);
-        setBombstylePhase('configure');
-      };
+  const handleSelectBombstyleDeck = (deckId) => {
+    setBombstyleDeckId(deckId);
+    setBombstylePhase('configure');
+  };
 
-      const handleSetDifficulty = (diff) => {
-        if (BOMBSTYLE_DIFFICULTIES[diff]) setBombstyleDifficulty(diff);
-      };
+  const handleSetDifficulty = (diff) => {
+    if (BOMBSTYLE_DIFFICULTIES[diff]) setBombstyleDifficulty(diff);
+  };
 
-      const handleStartBombstyle = async (customCardQueue = null) => {
-        const deck = bombstyleActiveDeck;
-        let cardsToUse = customCardQueue ? [...customCardQueue] : (deck ? [...(deck.cards || [])] : []);
+  const handleStartBombstyle = async (customCardQueue = null) => {
+    const deck = bombstyleActiveDeck;
+    let cardsToUse = customCardQueue ? [...customCardQueue] : (deck ? [...(deck.cards || [])] : []);
 
-        if (cardsToUse.length === 0) {
-          triggerToast('Selected deck does not contain any Bombcards yet.');
-          return;
+    if (cardsToUse.length === 0) {
+      triggerToast('Selected deck does not contain any Bombcards yet.');
+      return;
+    }
+
+    if (isGuest) {
+      setBombstyleSessionId('guest-session-' + Date.now());
+      setBombstyleQueue(cardsToUse);
+      setBombstyleIndex(0);
+      setBombstyleRevealed(false);
+      bombstyleAnswerSubmittedRef.current = false;
+      setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
+      setBombstyleStreak(0);
+      setBombstyleMaxStreak(0);
+      setBombstyleCorrectCount(0);
+      setBombstyleHistory([]);
+      setBombstyleMissedCards([]);
+      setBombstyleFeedback(null);
+      setBombstyleStartTime(Date.now());
+      setBombstylePhase('gameplay');
+      setActiveTab('arena');
+      return;
+    }
+
+    try {
+      const session = await CSM.api('arena/start', 'POST', { deckId: deck.id, difficulty: bombstyleDifficulty });
+      setBombstyleSessionId(session.id);
+      cardsToUse = session.queue || cardsToUse;
+
+      setBombstyleQueue(cardsToUse);
+      setBombstyleIndex(0);
+      setBombstyleRevealed(false);
+      bombstyleAnswerSubmittedRef.current = false;
+      setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
+      setBombstyleStreak(0);
+      setBombstyleMaxStreak(0);
+      setBombstyleCorrectCount(0);
+      setBombstyleHistory([]);
+      setBombstyleMissedCards([]);
+      setBombstyleFeedback(null);
+      setBombstyleStartTime(Date.now());
+      setBombstylePhase('gameplay');
+      setActiveTab('arena');
+
+      recordActivity({
+        material: deck?.code || deck?.title || 'Bombstyle',
+        mode: 'Bombstyle Arena',
+        deckId: deck?.id || null,
+        screen: 'arena',
+        status: 'In progress'
+      });
+    } catch (error) { triggerToast(error.message); }
+  };
+
+  useEffect(() => {
+    if (isGuest) return;
+    CSM.api('arena/active').then(session => {
+      if (!session || session.status !== 'active') return;
+      setBombstyleSessionId(session.id); setBombstyleDeckId(session.deckId); setBombstyleDifficulty(session.difficulty);
+      const restoredQueue = session.queue || [];
+      setBombstyleQueue(restoredQueue); setBombstyleIndex(session.index || 0);
+      const restoredAnswers = (session.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
+      setBombstyleHistory(restoredAnswers); setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
+      setBombstyleTimeRemaining(session.remainingMs / 1000); setBombstyleStreak(session.streak || 0);
+      setBombstyleMaxStreak(session.maxStreak || 0); setBombstyleCorrectCount(session.correct || 0);
+      setBombstyleStartTime(Date.now() - (session.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
+      setBombstyleExitModalOpen(!!session.paused);
+    }).catch(error => console.warn('Could not restore the active Arena session:', error));
+  }, []);
+
+  // Countdown Timer for Bombstyle
+  useEffect(() => {
+    if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleExitModalOpen) {
+      if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+      return;
+    }
+
+    if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+    bombstyleTimerRef.current = setInterval(() => {
+      setBombstyleTimeRemaining(prev => {
+        if (prev <= 0.1) {
+          clearInterval(bombstyleTimerRef.current);
+          handleBombstyleTimeout();
+          return 0;
         }
-
-        if (isGuest) {
-          setBombstyleSessionId('guest-session-' + Date.now());
-          setBombstyleQueue(cardsToUse);
-          setBombstyleIndex(0);
-          setBombstyleRevealed(false);
-          bombstyleAnswerSubmittedRef.current = false;
-          setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
-          setBombstyleStreak(0);
-          setBombstyleMaxStreak(0);
-          setBombstyleCorrectCount(0);
-          setBombstyleHistory([]);
-          setBombstyleMissedCards([]);
-          setBombstyleFeedback(null);
-          setBombstyleStartTime(Date.now());
-          setBombstylePhase('gameplay');
-          setActiveTab('arena');
-          return;
+        // Brief warning ticks when the session timer is nearly out.
+        if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
+          sound.tick();
         }
+        return Math.max(0, +(prev - 0.1).toFixed(1));
+      });
+    }, 100);
 
-        try {
-        const session = await CSM.api('arena/start', 'POST', { deckId: deck.id, difficulty: bombstyleDifficulty });
-        setBombstyleSessionId(session.id);
-        cardsToUse = session.queue || cardsToUse;
+    return () => {
+      if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+    };
+  }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds]);
 
-        setBombstyleQueue(cardsToUse);
-        setBombstyleIndex(0);
-        setBombstyleRevealed(false);
-        bombstyleAnswerSubmittedRef.current = false;
-        setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
-        setBombstyleStreak(0);
-        setBombstyleMaxStreak(0);
-        setBombstyleCorrectCount(0);
-        setBombstyleHistory([]);
-        setBombstyleMissedCards([]);
-        setBombstyleFeedback(null);
-        setBombstyleStartTime(Date.now());
-        setBombstylePhase('gameplay');
-        setActiveTab('arena');
+  const handleBombstyleReveal = () => {
+    if (bombstyleRevealed || bombstyleFeedback) return;
+    setBombstyleRevealed(true);
+  };
 
-        recordActivity({
-          material: deck?.code || deck?.title || 'Bombstyle',
-          mode: 'Bombstyle Arena',
-          deckId: deck?.id || null,
-          screen: 'arena',
-          status: 'In progress'
-        });
-        } catch (error) { triggerToast(error.message); }
-      };
+  const handleBombstyleDecision = async (knewIt) => {
+    if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+    bombstyleAnswerSubmittedRef.current = true;
+    let serverResult = { status: 'active', remainingMs: 0 };
+    if (isGuest) {
+      const delta = knewIt ? 8 : -5;
+      setBombstyleTimeRemaining(prev => {
+        const next = Math.max(0, +(prev + delta).toFixed(1));
+        serverResult.remainingMs = next * 1000;
+        return next;
+      });
+    } else {
+      try { serverResult = await CSM.api('arena/answer', 'POST', { id: bombstyleSessionId, position: bombstyleIndex, result: knewIt ? 'correct' : 'wrong' }); }
+      catch (error) { bombstyleAnswerSubmittedRef.current = false; triggerToast(error.message); return; }
+      setBombstyleTimeRemaining(Math.max(0, serverResult.remainingMs / 1000));
+    }
 
-      useEffect(() => {
-        if (isGuest) return;
-        CSM.api('arena/active').then(session => {
-          if (!session || session.status !== 'active') return;
-          setBombstyleSessionId(session.id); setBombstyleDeckId(session.deckId); setBombstyleDifficulty(session.difficulty);
-          const restoredQueue = session.queue || [];
-          setBombstyleQueue(restoredQueue); setBombstyleIndex(session.index || 0);
-          const restoredAnswers = (session.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
-          setBombstyleHistory(restoredAnswers); setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
-          setBombstyleTimeRemaining(session.remainingMs / 1000); setBombstyleStreak(session.streak || 0);
-          setBombstyleMaxStreak(session.maxStreak || 0); setBombstyleCorrectCount(session.correct || 0);
-          setBombstyleStartTime(Date.now() - (session.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
-          setBombstyleExitModalOpen(!!session.paused);
-        }).catch(error => console.warn('Could not restore the active Arena session:', error));
-      }, []);
-
-      // Countdown Timer for Bombstyle
-      useEffect(() => {
-        if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleExitModalOpen) {
-          if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
-          return;
+    if (knewIt) {
+      sound.correct();
+      setBombstyleFeedback('defused');
+      const nextStreak = bombstyleStreak + 1;
+      setBombstyleStreak(nextStreak);
+      if (nextStreak > bombstyleMaxStreak) setBombstyleMaxStreak(nextStreak);
+      setBombstyleCorrectCount(c => c + 1);
+      setBombstyleHistory(prev => [
+        ...prev,
+        {
+          id: activeBombstyleCard.id,
+          prompt: activeBombstyleCard.prompt,
+          correctAnswer: activeBombstyleCard.correctAnswer,
+          result: 'defused'
         }
+      ]);
 
-        if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
-        bombstyleTimerRef.current = setInterval(() => {
-          setBombstyleTimeRemaining(prev => {
-            if (prev <= 0.1) {
-              clearInterval(bombstyleTimerRef.current);
-              handleBombstyleTimeout();
-              return 0;
-            }
-            // Brief warning ticks when the session timer is nearly out.
-            if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
-              sound.tick();
-            }
-            return Math.max(0, +(prev - 0.1).toFixed(1));
-          });
-        }, 100);
-
-        return () => {
-          if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
-        };
-      }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds]);
-
-      const handleBombstyleReveal = () => {
-        if (bombstyleRevealed || bombstyleFeedback) return;
-        setBombstyleRevealed(true);
-      };
-
-      const handleBombstyleDecision = async (knewIt) => {
-        if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
-        bombstyleAnswerSubmittedRef.current = true;
-        let serverResult = { status: 'active', remainingMs: 0 };
-        if (isGuest) {
-          const delta = knewIt ? 8 : -5;
-          setBombstyleTimeRemaining(prev => {
-            const next = Math.max(0, +(prev + delta).toFixed(1));
-            serverResult.remainingMs = next * 1000;
-            return next;
-          });
-        } else {
-          try { serverResult = await CSM.api('arena/answer', 'POST', { id: bombstyleSessionId, position: bombstyleIndex, result: knewIt ? 'correct' : 'wrong' }); }
-          catch (error) { bombstyleAnswerSubmittedRef.current = false; triggerToast(error.message); return; }
-          setBombstyleTimeRemaining(Math.max(0, serverResult.remainingMs / 1000));
+      setTimeout(() => advanceBombstyleCard(), 600);
+    } else {
+      sound.wrong();
+      sound.detonation();
+      setBombstyleFeedback('exploded');
+      const nextTime = Math.max(0, serverResult.remainingMs / 1000);
+      setBombstyleStreak(0);
+      setBombstyleHistory(prev => [
+        ...prev,
+        {
+          id: activeBombstyleCard.id,
+          prompt: activeBombstyleCard.prompt,
+          correctAnswer: activeBombstyleCard.correctAnswer,
+          result: 'exploded'
         }
+      ]);
+      setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
 
-        if (knewIt) {
-          sound.correct();
-          setBombstyleFeedback('defused');
-          const nextStreak = bombstyleStreak + 1;
-          setBombstyleStreak(nextStreak);
-          if (nextStreak > bombstyleMaxStreak) setBombstyleMaxStreak(nextStreak);
-          setBombstyleCorrectCount(c => c + 1);
-          setBombstyleHistory(prev => [
-            ...prev,
-            {
-              id: activeBombstyleCard.id,
-              prompt: activeBombstyleCard.prompt,
-              correctAnswer: activeBombstyleCard.correctAnswer,
-              result: 'defused'
-            }
-          ]);
-
-          setTimeout(() => advanceBombstyleCard(), 600);
-        } else {
-          sound.wrong();
-          sound.detonation();
-          setBombstyleFeedback('exploded');
-          const nextTime = Math.max(0, serverResult.remainingMs / 1000);
-          setBombstyleStreak(0);
-          setBombstyleHistory(prev => [
-            ...prev,
-            {
-              id: activeBombstyleCard.id,
-              prompt: activeBombstyleCard.prompt,
-              correctAnswer: activeBombstyleCard.correctAnswer,
-              result: 'exploded'
-            }
-          ]);
-          setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
-
-          setTimeout(() => {
-            if (nextTime <= 0) {
-              finishBombstyleSession();
-            } else {
-              advanceBombstyleCard();
-            }
-          }, 700);
-        }
-      };
-
-      const handleBombstyleTimeout = async () => {
-        if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
-        bombstyleAnswerSubmittedRef.current = true;
-        sound.wrong();
-        sound.detonation();
-        if (!isGuest && bombstyleSessionId) {
-          try { await CSM.api('arena/session&id=' + bombstyleSessionId); }
-          catch (error) { console.warn(error); }
-        }
-        setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleTimeRemaining(0);
-        setBombstyleStreak(0);
-        setBombstyleHistory(prev => [
-          ...prev,
-          {
-            id: activeBombstyleCard.id,
-            prompt: activeBombstyleCard.prompt,
-            correctAnswer: activeBombstyleCard.correctAnswer,
-            result: 'timeout'
-          }
-        ]);
-        setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
-
-        setTimeout(() => {
+      setTimeout(() => {
+        if (nextTime <= 0) {
           finishBombstyleSession();
-        }, 800);
-      };
-
-      const advanceBombstyleCard = () => {
-        setBombstyleFeedback(null);
-        setBombstyleRevealed(false);
-        bombstyleAnswerSubmittedRef.current = false;
-        if (bombstyleIndex + 1 < bombstyleQueue.length) {
-          setBombstyleIndex(i => i + 1);
         } else {
-          finishBombstyleSession();
+          advanceBombstyleCard();
         }
-      };
+      }, 700);
+    }
+  };
 
-      const finishBombstyleSession = () => {
-        if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
-        const duration = bombstyleStartTime ? Math.round((Date.now() - bombstyleStartTime) / 1000) : 0;
-        setBombstyleDurationSeconds(duration);
-        setBombstyleFeedback(null);
-        setBombstylePhase('results');
-        refreshWorkspace().catch(error => console.warn('Could not refresh Arena results:', error));
-      };
+  const handleBombstyleTimeout = async () => {
+    if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+    bombstyleAnswerSubmittedRef.current = true;
+    sound.wrong();
+    sound.detonation();
+    if (!isGuest && bombstyleSessionId) {
+      try { await CSM.api('arena/session&id=' + bombstyleSessionId); }
+      catch (error) { console.warn(error); }
+    }
+    setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleTimeRemaining(0);
+    setBombstyleStreak(0);
+    setBombstyleHistory(prev => [
+      ...prev,
+      {
+        id: activeBombstyleCard.id,
+        prompt: activeBombstyleCard.prompt,
+        correctAnswer: activeBombstyleCard.correctAnswer,
+        result: 'timeout'
+      }
+    ]);
+    setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
 
-      const handleStudyMissedDeck = () => {
-        setSelectedDeckIds([bombstyleDeckId]);
-        setSelectedDeckForFolderView(null);
-        setActiveTab('flashcards');
-      };
+    setTimeout(() => {
+      finishBombstyleSession();
+    }, 800);
+  };
 
-      // Keyboard Controls for Bombstyle & Flashcards
-      useEffect(() => {
-        const handleKeyDown = (e) => {
-          const tag = e.target?.tagName?.toLowerCase();
-          if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  const advanceBombstyleCard = () => {
+    setBombstyleFeedback(null);
+    setBombstyleRevealed(false);
+    bombstyleAnswerSubmittedRef.current = false;
+    if (bombstyleIndex + 1 < bombstyleQueue.length) {
+      setBombstyleIndex(i => i + 1);
+    } else {
+      finishBombstyleSession();
+    }
+  };
 
-          if (activeTab === 'arena') {
-            if (bombstylePhase === 'gameplay' && !bombstyleFeedback) {
-              if (e.key === 'Escape') {
-                CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }).catch(() => {});
-                setBombstyleExitModalOpen(true);
-                return;
-              }
-              if (!bombstyleRevealed) {
-                if (e.code === 'Space') {
-                  e.preventDefault();
-                  handleBombstyleReveal();
-                }
-              } else {
-                if (e.key === '1' || e.key === 'd' || e.key === 'D' || e.key === 'ArrowUp') {
-                  e.preventDefault();
-                  handleBombstyleDecision(true);
-                } else if (e.key === '2' || e.key === 'e' || e.key === 'E' || e.key === 'ArrowDown') {
-                  e.preventDefault();
-                  handleBombstyleDecision(false);
-                }
-              }
-            }
+  const finishBombstyleSession = () => {
+    if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+    const duration = bombstyleStartTime ? Math.round((Date.now() - bombstyleStartTime) / 1000) : 0;
+    setBombstyleDurationSeconds(duration);
+    setBombstyleFeedback(null);
+    setBombstylePhase('results');
+    refreshWorkspace().catch(error => console.warn('Could not refresh Arena results:', error));
+  };
+
+  const handleStudyMissedDeck = () => {
+    setSelectedDeckIds([bombstyleDeckId]);
+    setSelectedDeckForFolderView(null);
+    setActiveTab('flashcards');
+  };
+
+  // Keyboard Controls for Bombstyle & Flashcards
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+
+      if (activeTab === 'arena') {
+        if (bombstylePhase === 'gameplay' && !bombstyleFeedback) {
+          if (e.key === 'Escape') {
+            CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }).catch(() => { });
+            setBombstyleExitModalOpen(true);
+            return;
           }
-
-          if (activeTab === 'flashcards') {
+          if (!bombstyleRevealed) {
             if (e.code === 'Space') {
               e.preventDefault();
-              flipFlashcard();
-            } else if (e.key === 'ArrowLeft') {
+              handleBombstyleReveal();
+            }
+          } else {
+            if (e.key === '1' || e.key === 'd' || e.key === 'D' || e.key === 'ArrowUp') {
               e.preventDefault();
-              setFlashcardIndex(idx => Math.max(0, idx - 1));
-              setFlashcardFlipped(false);
-            } else if (e.key === 'ArrowRight') {
+              handleBombstyleDecision(true);
+            } else if (e.key === '2' || e.key === 'e' || e.key === 'E' || e.key === 'ArrowDown') {
               e.preventDefault();
-              setFlashcardIndex(idx => Math.min(Math.max((flashcards.length || 1) - 1, 0), idx + 1));
-              setFlashcardFlipped(false);
+              handleBombstyleDecision(false);
             }
           }
-        };
+        }
+      }
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-      }, [activeTab, bombstylePhase, bombstyleRevealed, bombstyleFeedback, activeBombstyleCard, flashcards.length]);
+      if (activeTab === 'flashcards') {
+        if (e.code === 'Space') {
+          e.preventDefault();
+          flipFlashcard();
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setFlashcardIndex(idx => Math.max(0, idx - 1));
+          setFlashcardFlipped(false);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          setFlashcardIndex(idx => Math.min(Math.max((flashcards.length || 1) - 1, 0), idx + 1));
+          setFlashcardFlipped(false);
+        }
+      }
+    };
 
-      const renderLibraryDeckCard = (deck) => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, bombstylePhase, bombstyleRevealed, bombstyleFeedback, activeBombstyleCard, flashcards.length]);
+
+  const renderLibraryDeckCard = (deck) => {
     const cardCount = deck.cards?.length || 0;
     const documentCount = deck.documents?.length || 0;
     const totalMaterials = cardCount + documentCount;
@@ -2243,50 +2554,57 @@ function App({ isGuest = false, sharedDeck = null }) {
                 <span className="csm-sidebar-label">Library</span>
               </button>
 
-              {/* Nested Navigation: Study & Create Bombcards (Revealed when Library is active) */}
-              {['library', 'flashcards', 'creator'].includes(activeTab) && (
-                <div className="csm-sidebar-subnav animate-fadeIn">
-                  {/* 2a. Study Mini Sidebar */}
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
-                    data-tooltip="Study"
-                    className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
-                    title="Study (Review Bombcards)"
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
-                      <path d="M6 6h10" />
-                      <path d="M6 10h10" />
-                    </svg>
-                    <span className="csm-sidebar-label">Study</span>
-                  </button>
+              {/* Nested Navigation: Study & Create Bombcards (Smooth Animated Accordion) */}
+              <div
+                className={`csm-sidebar-subnav-wrapper ${['library', 'flashcards', 'creator'].includes(activeTab) ? 'expanded' : 'collapsed'}`}
+                aria-hidden={!['library', 'flashcards', 'creator'].includes(activeTab)}
+              >
+                <div className="csm-sidebar-subnav-inner">
+                  <div className="csm-sidebar-subnav">
+                    {/* 2a. Study Mini Sidebar */}
+                    <button
+                      type="button"
+                      tabIndex={['library', 'flashcards', 'creator'].includes(activeTab) ? 0 : -1}
+                      onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
+                      data-tooltip="Study"
+                      className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
+                      title="Study (Review Bombcards)"
+                    >
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                        <path d="M6 6h10" />
+                        <path d="M6 10h10" />
+                      </svg>
+                      <span className="csm-sidebar-label">Study</span>
+                    </button>
 
-                  {/* 2b. Create Bombcards Mini Sidebar (Locked for Guest) */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isGuest) { setGuestLockedSection('creator'); return; }
-                      setSelectedDeckForFolderView(null);
-                      setActiveTab('creator');
-                    }}
-                    data-tooltip={isGuest ? 'Create Bombcards (Sign in to unlock)' : 'Create Bombcards'}
-                    className={`csm-sidebar-subitem flex items-center transition-all relative ${activeTab === 'creator' ? 'active' : ''}`}
-                    title={isGuest ? 'Create Bombcards (Sign in to unlock)' : 'Create Bombcards'}
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="3" />
-                      <path d="M12 8v8M8 12h8" />
-                    </svg>
-                    {isGuest && (
-                      <span className="csm-sidebar-lock-badge" title="Sign in to unlock">
-                        <IconLock className="w-2.5 h-2.5" />
-                      </span>
-                    )}
-                    <span className="csm-sidebar-label">Create Bombcards</span>
-                  </button>
+                    {/* 2b. Create Bombcards Mini Sidebar (Locked for Guest) */}
+                    <button
+                      type="button"
+                      tabIndex={['library', 'flashcards', 'creator'].includes(activeTab) ? 0 : -1}
+                      onClick={() => {
+                        if (isGuest) { setGuestLockedSection('creator'); return; }
+                        setSelectedDeckForFolderView(null);
+                        setActiveTab('creator');
+                      }}
+                      data-tooltip={isGuest ? 'Create Bombcards (Sign in to unlock)' : 'Create Bombcards'}
+                      className={`csm-sidebar-subitem flex items-center transition-all relative ${activeTab === 'creator' ? 'active' : ''}`}
+                      title={isGuest ? 'Create Bombcards (Sign in to unlock)' : 'Create Bombcards'}
+                    >
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="3" />
+                        <path d="M12 8v8M8 12h8" />
+                      </svg>
+                      {isGuest && (
+                        <span className="csm-sidebar-lock-badge" title="Sign in to unlock">
+                          <IconLock className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      <span className="csm-sidebar-label">Create Bombcards</span>
+                    </button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>}
 
             {/* 3. Game Mode Section (Launch Lobby - Locked for Guest) */}
@@ -2344,7 +2662,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               title="Admin console" data-tooltip="Admin console" aria-label="Admin console"
               onClick={() => setActiveTab('admin')}
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
               <span className="csm-sidebar-label">Admin</span>
             </button>}
           </div>
@@ -2379,176 +2697,176 @@ function App({ isGuest = false, sharedDeck = null }) {
 
         {/* Unified fintech-inspired application header - hidden during active arena drill */}
         <header className="csm-topbar">
-            <div className="csm-topbar-context">
-              <span className="csm-topbar-workspace">Workspace</span>
-              <span className="csm-topbar-sep">/</span>
-              <span className="csm-topbar-current">
-                {activeTab === 'home' && 'Overview'}
-                {activeTab === 'library' && (selectedDeckForFolderView ? (currentSelectedDeck?.code || currentSelectedDeck?.title) : 'Reviewer Library')}
-                {activeTab === 'flashcards' && (
-                  <>
-                    <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
-                    <span className="csm-topbar-sep">/</span>
-                    <span className="text-slate-900 font-extrabold">Study</span>
-                  </>
-                )}
-                {activeTab === 'creator' && (
-                  <>
-                    <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
-                    <span className="csm-topbar-sep">/</span>
-                    <span className="text-slate-900 font-extrabold">Create Bombcards</span>
-                  </>
-                )}
-                {activeTab === 'highlighter' && 'PDF Study Tool'}
-                {(activeTab === 'arena' || activeTab === 'game') && (
-                      <>
-                        <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Arena</span>
-                        <span className="csm-topbar-sep">/</span>
-                        <span className="text-slate-900 font-extrabold cursor-pointer hover:text-slate-700 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Bombstyle</span>
-                        {bombstylePhase === 'configure' && (
-                          <>
-                            <span className="csm-topbar-sep">/</span>
-                            <span className="text-slate-500 font-medium">{bombstyleActiveDeck?.code || 'Configure'}</span>
-                          </>
-                        )}
-                        {bombstylePhase === 'gameplay' && bombstyleActiveDeck && (
-                          <>
-                            <span className="csm-topbar-sep">/</span>
-                            <span className="text-slate-500 font-medium">{bombstyleActiveDeck.code}</span>
-                          </>
-                        )}
-                        {bombstylePhase === 'results' && (
-                          <>
-                            <span className="csm-topbar-sep">/</span>
-                            <span className="text-slate-500 font-medium">Results</span>
-                          </>
-                        )}
-                        {bombstylePhase === 'review_missed' && (
-                          <>
-                            <span className="csm-topbar-sep">/</span>
-                            <span className="text-slate-500 font-medium">Missed Cards</span>
-                          </>
-                        )}
-                      </>
-                    )}
-                {activeTab === 'account' && 'Account Settings'}
-                {activeTab === 'admin' && 'Admin Console'}
-              </span>
-            </div>
-            <div className="csm-topbar-role-slot">
-              {['admin', 'superadmin'].includes(profile.role) && (
-                <span
-                  className={`csm-topbar-role ${profile.role === 'superadmin' ? 'is-super' : ''}`}
-                  aria-label={`Account role: ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
-                  title={`Signed in as ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
-                >
-                  <span className="csm-topbar-role-dot" aria-hidden="true" />
-                  {profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}
-                </span>
-              )}
-            </div>
-            <div className="csm-top-actions">
-              {isGuest ? (
-                <div className="flex items-center gap-2.5">
-                  <span className="csm-guest-badge">
-                    <span className="csm-guest-dot animate-pulse" />
-                    Guest Mode
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const shareUrl = sharedDeck?.share?.url || window.location.href;
-                      navigator.clipboard.writeText(shareUrl).then(() => triggerToast('Shared deck link copied!'));
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#f04824] border border-[#f04824]/20 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
-                    title="Copy link to this shared reviewer"
-                  >
-                    <IconShare className="w-3.5 h-3.5" />
-                    <span>Copy Link</span>
-                  </button>
-                  <a
-                    href="login.html?mode=signin"
-                    className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
-                  >
-                    Sign In
-                  </a>
-                  <a
-                    href="login.html?mode=signup"
-                    className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#f04824] hover:bg-[#e03e1b] rounded-xl shadow-sm transition-all"
-                  >
-                    Sign Up
-                  </a>
-                </div>
-              ) : (
+          <div className="csm-topbar-context">
+            <span className="csm-topbar-workspace">Workspace</span>
+            <span className="csm-topbar-sep">/</span>
+            <span className="csm-topbar-current">
+              {activeTab === 'home' && 'Overview'}
+              {activeTab === 'library' && (selectedDeckForFolderView ? (currentSelectedDeck?.code || currentSelectedDeck?.title) : 'Reviewer Library')}
+              {activeTab === 'flashcards' && (
                 <>
-                  <div className="csm-notifications-wrap">
-                    <button className={`csm-icon-button csm-notification ${notificationsUnread ? 'has-unread' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-                      {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 9 ? '9+' : notificationsUnread}</span>}
-                    </button>
-                    {notificationsOpen && (
-                      <div className="csm-notifications-panel" role="dialog" aria-label="Notifications panel">
-                        <div className="csm-notifications-header"><strong>Notifications</strong><span>{notificationsUnread ? `${notificationsUnread} unread` : 'All caught up'}</span></div>
-                        <div className="csm-notifications-list">
-                          {notifications.length ? notifications.map(notification => <article className={`csm-notification-item ${notification.isRead ? '' : 'is-unread'}`} key={notification.id}>
-                            <span className="csm-notification-item-icon" aria-hidden="true">{notification.type?.startsWith('deck') ? '▦' : '•'}</span>
-                            <div className="csm-notification-item-copy"><strong>{notification.title}</strong><p>{notification.message}</p><time dateTime={notification.createdAt}>{new Date(`${notification.createdAt}Z`).toLocaleString()}</time></div>
-                            {!notification.isRead && <button className="csm-notification-mark-read" type="button" aria-label={`Mark ${notification.title} as read`} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', { id: notification.id }); setNotifications(items => items.map(item => item.id === notification.id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); setNotificationsUnread(count => Math.max(0, count - 1)); } catch (error) { triggerToast(error.message); } }}>Mark read</button>}
-                          </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
-                        </div>
-                        <div className="csm-notifications-actions"><button type="button" disabled={!notificationsUnread} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', {}); setNotifications(items => items.map(item => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }))); setNotificationsUnread(0); } catch (error) { triggerToast(error.message); } }}>Mark all as read</button><button type="button" disabled={!notifications.length} onClick={() => { if (!notifications.length) return; requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: async () => { try { await CSM.api('notifications', 'DELETE'); setNotifications([]); setNotificationsUnread(0); triggerToast('Notifications cleared'); } catch (error) { triggerToast(error.message); } } }); }}>Clear all</button></div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="csm-profile-wrap relative">
-                    <button
-                      className="csm-profile cursor-pointer"
-                      type="button"
-                      aria-label="Open profile menu"
-                      aria-expanded={accountMenuOpen}
-                      onClick={() => setAccountMenuOpen(v => !v)}
-                    >
-                      <span className="csm-profile-avatar" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span>
-                      <span className="csm-profile-copy"><strong>{displayName}</strong><small>@{profile.username || defaultProfile.username}</small></span>
-                      <svg className={`transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                    </button>
-                    {accountMenuOpen && (
-                      <div className="csm-account-dropdown animate-fadeIn" role="menu">
-                        <div className="csm-account-dropdown-user">
-                          <p>{displayName}</p>
-                          <span>@{profile.username || defaultProfile.username}</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="csm-account-dropdown-item"
-                          onClick={() => {
-                            setAccountMenuOpen(false);
-                            handleOpenAccount();
-                          }}
-                        >
-                          <IconUser />
-                          <span>Profile Settings</span>
-                        </button>
-                        <div className="csm-account-dropdown-divider" />
-                        <button
-                          type="button"
-                          className="csm-account-dropdown-item danger"
-                          onClick={async () => {
-                            setAccountMenuOpen(false);
-                            try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin'); }
-                            catch (error) { triggerToast(error.message); }
-                          }}
-                        >
-                          <IconLogout />
-                          <span>Sign out</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                  <span className="csm-topbar-sep">/</span>
+                  <span className="text-slate-900 font-extrabold">Study</span>
                 </>
               )}
-            </div>
-          </header>
+              {activeTab === 'creator' && (
+                <>
+                  <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}>Reviewer Library</span>
+                  <span className="csm-topbar-sep">/</span>
+                  <span className="text-slate-900 font-extrabold">Create Bombcards</span>
+                </>
+              )}
+              {activeTab === 'highlighter' && 'PDF Study Tool'}
+              {(activeTab === 'arena' || activeTab === 'game') && (
+                <>
+                  <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Arena</span>
+                  <span className="csm-topbar-sep">/</span>
+                  <span className="text-slate-900 font-extrabold cursor-pointer hover:text-slate-700 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Bombstyle</span>
+                  {bombstylePhase === 'configure' && (
+                    <>
+                      <span className="csm-topbar-sep">/</span>
+                      <span className="text-slate-500 font-medium">{bombstyleActiveDeck?.code || 'Configure'}</span>
+                    </>
+                  )}
+                  {bombstylePhase === 'gameplay' && bombstyleActiveDeck && (
+                    <>
+                      <span className="csm-topbar-sep">/</span>
+                      <span className="text-slate-500 font-medium">{bombstyleActiveDeck.code}</span>
+                    </>
+                  )}
+                  {bombstylePhase === 'results' && (
+                    <>
+                      <span className="csm-topbar-sep">/</span>
+                      <span className="text-slate-500 font-medium">Results</span>
+                    </>
+                  )}
+                  {bombstylePhase === 'review_missed' && (
+                    <>
+                      <span className="csm-topbar-sep">/</span>
+                      <span className="text-slate-500 font-medium">Missed Cards</span>
+                    </>
+                  )}
+                </>
+              )}
+              {activeTab === 'account' && 'Account Settings'}
+              {activeTab === 'admin' && 'Admin Console'}
+            </span>
+          </div>
+          <div className="csm-topbar-role-slot">
+            {['admin', 'superadmin'].includes(profile.role) && (
+              <span
+                className={`csm-topbar-role ${profile.role === 'superadmin' ? 'is-super' : ''}`}
+                aria-label={`Account role: ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
+                title={`Signed in as ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
+              >
+                <span className="csm-topbar-role-dot" aria-hidden="true" />
+                {profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}
+              </span>
+            )}
+          </div>
+          <div className="csm-top-actions">
+            {isGuest ? (
+              <div className="flex items-center gap-2.5">
+                <span className="csm-guest-badge">
+                  <span className="csm-guest-dot animate-pulse" />
+                  Guest Mode
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const shareUrl = sharedDeck?.share?.url || window.location.href;
+                    navigator.clipboard.writeText(shareUrl).then(() => triggerToast('Shared deck link copied!'));
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#f04824] border border-[#f04824]/20 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  title="Copy link to this shared reviewer"
+                >
+                  <IconShare className="w-3.5 h-3.5" />
+                  <span>Copy Link</span>
+                </button>
+                <a
+                  href="login.html?mode=signin"
+                  className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors"
+                >
+                  Sign In
+                </a>
+                <a
+                  href="login.html?mode=signup"
+                  className="px-3.5 py-1.5 text-xs font-bold text-white bg-[#f04824] hover:bg-[#e03e1b] rounded-xl shadow-sm transition-all"
+                >
+                  Sign Up
+                </a>
+              </div>
+            ) : (
+              <>
+                <div className="csm-notifications-wrap">
+                  <button className={`csm-icon-button csm-notification ${notificationsUnread ? 'has-unread' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
+                    {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 9 ? '9+' : notificationsUnread}</span>}
+                  </button>
+                  {notificationsOpen && (
+                    <div className="csm-notifications-panel" role="dialog" aria-label="Notifications panel">
+                      <div className="csm-notifications-header"><strong>Notifications</strong><span>{notificationsUnread ? `${notificationsUnread} unread` : 'All caught up'}</span></div>
+                      <div className="csm-notifications-list">
+                        {notifications.length ? notifications.map(notification => <article className={`csm-notification-item ${notification.isRead ? '' : 'is-unread'}`} key={notification.id}>
+                          <span className="csm-notification-item-icon" aria-hidden="true">{notification.type?.startsWith('deck') ? '▦' : '•'}</span>
+                          <div className="csm-notification-item-copy"><strong>{notification.title}</strong><p>{notification.message}</p><time dateTime={notification.createdAt}>{new Date(`${notification.createdAt}Z`).toLocaleString()}</time></div>
+                          {!notification.isRead && <button className="csm-notification-mark-read" type="button" aria-label={`Mark ${notification.title} as read`} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', { id: notification.id }); setNotifications(items => items.map(item => item.id === notification.id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); setNotificationsUnread(count => Math.max(0, count - 1)); } catch (error) { triggerToast(error.message); } }}>Mark read</button>}
+                        </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
+                      </div>
+                      <div className="csm-notifications-actions"><button type="button" disabled={!notificationsUnread} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', {}); setNotifications(items => items.map(item => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }))); setNotificationsUnread(0); } catch (error) { triggerToast(error.message); } }}>Mark all as read</button><button type="button" disabled={!notifications.length} onClick={() => { if (!notifications.length) return; requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: async () => { try { await CSM.api('notifications', 'DELETE'); setNotifications([]); setNotificationsUnread(0); triggerToast('Notifications cleared'); } catch (error) { triggerToast(error.message); } } }); }}>Clear all</button></div>
+                    </div>
+                  )}
+                </div>
+                <div className="csm-profile-wrap relative">
+                  <button
+                    className="csm-profile cursor-pointer"
+                    type="button"
+                    aria-label="Open profile menu"
+                    aria-expanded={accountMenuOpen}
+                    onClick={() => setAccountMenuOpen(v => !v)}
+                  >
+                    <span className="csm-profile-avatar" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span>
+                    <span className="csm-profile-copy"><strong>{displayName}</strong><small>@{profile.username || defaultProfile.username}</small></span>
+                    <svg className={`transition-transform duration-200 ${accountMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                  </button>
+                  {accountMenuOpen && (
+                    <div className="csm-account-dropdown animate-fadeIn" role="menu">
+                      <div className="csm-account-dropdown-user">
+                        <p>{displayName}</p>
+                        <span>@{profile.username || defaultProfile.username}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="csm-account-dropdown-item"
+                        onClick={() => {
+                          setAccountMenuOpen(false);
+                          handleOpenAccount();
+                        }}
+                      >
+                        <IconUser />
+                        <span>Profile Settings</span>
+                      </button>
+                      <div className="csm-account-dropdown-divider" />
+                      <button
+                        type="button"
+                        className="csm-account-dropdown-item danger"
+                        onClick={async () => {
+                          setAccountMenuOpen(false);
+                          try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin'); }
+                          catch (error) { triggerToast(error.message); }
+                        }}
+                      >
+                        <IconLogout />
+                        <span>Sign out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </header>
 
         {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={() => setActiveTab('admin')} />}
         {activeTab === 'admin' && isStaff && <AdminPanel profile={profile} />}
@@ -2996,7 +3314,25 @@ function App({ isGuest = false, sharedDeck = null }) {
                       return (
                         <div key={doc.id} className="csm-library-document">
                           <div className="csm-library-document-main"><span className="csm-library-document-icon">PDF</span><div className="csm-library-document-copy"><button type="button" onClick={() => handleOpenDocument(currentSelectedDeck, doc)}>{doc.title}</button><small>PDF reference · Click to open in PDF Tools</small></div></div>
-                          <div className="csm-material-actions"><button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}>•••</button>{documentMenuOpen && <div className="csm-material-menu"><button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button><button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button></div>}</div>
+                          <div className="csm-material-actions flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAiGenerator(currentSelectedDeck.id, doc)}
+                              className="h-7 px-2.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                              title="Generate Bombcards from this PDF with Gemini AI"
+                            >
+                              <IconSparkles className="w-3 h-3 text-purple-600" />
+                              <span>AI Cards</span>
+                            </button>
+                            <button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}>•••</button>
+                            {documentMenuOpen && (
+                              <div className="csm-material-menu">
+                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button>
+                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenAiGenerator(currentSelectedDeck.id, doc); }}>✨ Generate AI Flashcards</button>
+                                <button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -3160,332 +3496,516 @@ function App({ isGuest = false, sharedDeck = null }) {
         )}
 
         {/* ========================================================
-                VIEW B3: CREATE BOMBCARDS (Dedicated Full Page Experience)
+                VIEW B3: BOMBCARD CREATION STUDIO
                 ======================================================== */}
         {activeTab === 'creator' && (() => {
           const currentTargetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
           const deckCards = currentTargetDeck?.cards || [];
+          const mcqCards = deckCards.filter(c => c.type === 'MULTIPLE_CHOICE');
+          const idCards = deckCards.filter(c => c.type === 'IDENTIFICATION');
+
           return (
             <div className="csm-screen csm-creator-screen custom-scroll">
-              {/* Page Header */}
-              <div className="csm-page-head">
-                <div>
-                  <span className="csm-kicker">BOMBCARD AUTHORING</span>
-                  <h1>Create Bombcards</h1>
-                  <p>Draft new study questions manually or prepare materials for your reviewer decks.</p>
-                </div>
-                <div className="csm-page-actions">
-                  <button
-                    type="button"
-                    className="csm-secondary-button"
-                    onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                  >
-                    Back to Library
-                  </button>
-                  <button
-                    type="button"
-                    className="csm-primary-button"
-                    onClick={() => setActiveTab('flashcards')}
-                  >
-                    Go to Study <span>→</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Creation Options Header Banner */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {/* Option A: Create Bombcards Manually (ACTIVE & AVAILABLE) */}
-                <div className="bg-white p-5 rounded-2xl border-2 border-[#f04824] shadow-sm flex items-start gap-4 transition-all">
-                  <div className="w-11 h-11 rounded-xl bg-orange-50 text-[#f04824] border border-orange-100 flex items-center justify-center flex-shrink-0">
-                    <IconCards className="w-6 h-6" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-sm font-extrabold text-slate-900">Create Bombcards Manually</h3>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-[#f04824]">Active Mode</span>
-                    </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Write custom questions, correct answers, and optional hints directly into your selected reviewer deck.
+              <div className="csm-studio-container">
+                {/* 1. Header */}
+                <div className="csm-page-head mb-5">
+                  <div>
+                    <span className="csm-kicker flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-[#f04824] animate-pulse"></span>
+                      BOMBCARD STUDIO
+                    </span>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Bombcards</h1>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Craft high-retention questions step-by-step for your reviewer deck.
                     </p>
                   </div>
-                </div>
-
-                {/* Option B: Generate AI Bombcards (COMING SOON / DISABLED) */}
-                <div className="bg-white/70 p-5 rounded-2xl border border-slate-200/90 shadow-sm flex items-start gap-4 relative overflow-hidden select-none cursor-not-allowed">
-                  <div className="opacity-35 blur-[1.2px] flex items-start gap-4 w-full pointer-events-none">
-                    <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 flex items-center justify-center flex-shrink-0">
-                      <IconSparkles className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-sm font-extrabold text-slate-900">Generate AI Bombcards</h3>
-                      </div>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        Automatically extract key question-and-answer pairs from uploaded lecture notes and PDFs.
-                      </p>
-                    </div>
-                  </div>
-                  {/* Prominent Coming Soon badge overlay */}
-                  <div className="absolute inset-0 bg-slate-900/5 backdrop-blur-[1px] flex items-center justify-center">
-                    <span className="px-3.5 py-1.5 bg-slate-900 text-white text-[11px] font-black uppercase tracking-wider rounded-full shadow-md border border-slate-700/40 flex items-center gap-1.5">
-                      <svg className="w-3.5 h-3.5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-                      Coming Soon
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Manual Creation Workspace Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Left Column: Authoring Form */}
-                <div className="lg:col-span-7 bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-                  <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
-                    <div>
-                      <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block">MANUAL AUTHORING</span>
-                      <h2 className="text-base font-extrabold text-slate-900">Card Specifications</h2>
-                    </div>
-                    <span className="text-xs text-slate-400 font-semibold">
-                      Deck: <b className="text-slate-800">{currentTargetDeck?.code || 'None'}</b>
-                    </span>
-                  </div>
-
-                  {/* 1. Target Deck Selection */}
-                  <label className="block mb-4">
-                    <span className="text-xs font-bold text-slate-700 block mb-1.5">Target Reviewer Deck *</span>
-                    <select
-                      value={creatorTargetDeckId}
-                      onChange={(e) => setCreatorTargetDeckId(e.target.value)}
-                      className="w-full h-10 px-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all cursor-pointer"
-                    >
-                      {decks.map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.code} — {d.title || d.subject} ({d.cards?.length || 0} cards)
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  {/* 2. Format Toggle */}
-                  <div className="mb-4">
-                    <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Format</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setCreatorType('MULTIPLE_CHOICE')}
-                        className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${creatorType === 'MULTIPLE_CHOICE'
-                          ? 'bg-slate-900 text-white shadow-sm'
-                          : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                      >
-                        Multiple Choice
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCreatorType('IDENTIFICATION')}
-                        className={`h-8 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${creatorType === 'IDENTIFICATION'
-                          ? 'bg-slate-900 text-white shadow-sm'
-                          : 'bg-[#f8f9fa] text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                      >
-                        Identification
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 3. Question Prompt */}
-                  <label className="block mb-4">
-                    <span className="text-xs font-bold text-slate-700 block mb-1.5">Question Prompt *</span>
-                    <textarea
-                      value={creatorPrompt}
-                      onChange={(e) => setCreatorPrompt(e.target.value)}
-                      placeholder="e.g. Which SQL command removes all rows from a table without logging individual row deletions?"
-                      rows="3"
-                      className="w-full p-3.5 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-[#f04824] focus:bg-white resize-none transition-all leading-relaxed"
-                    />
-                  </label>
-
-                  {/* 4. Answer Area */}
-                  {creatorType === 'MULTIPLE_CHOICE' ? (
-                    <div className="mb-4 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-700">Answer Options *</span>
-                        <span className="text-[11px] text-slate-400 font-medium">Select radio to set the correct answer</span>
-                      </div>
-                      {creatorOptions.map((opt, idx) => (
-                        <div key={idx} className="flex items-center gap-2.5">
-                          <input
-                            type="radio"
-                            name="creatorRadioCorrect"
-                            checked={creatorCorrectIndex === idx}
-                            onChange={() => setCreatorCorrectIndex(idx)}
-                            className="w-4 h-4 text-[#f04824] accent-[#f04824] cursor-pointer"
-                            title="Designate as correct answer"
-                          />
-                          <input
-                            type="text"
-                            value={opt}
-                            onChange={(e) => {
-                              const updated = [...creatorOptions];
-                              updated[idx] = e.target.value;
-                              setCreatorOptions(updated);
-                            }}
-                            placeholder={`Option ${String.fromCharCode(65 + idx)}${idx === creatorCorrectIndex ? ' (Correct Answer)' : ''}`}
-                            className={`flex-1 h-9 px-3 bg-[#f8f9fa] border rounded-xl text-xs text-slate-800 outline-none focus:bg-white transition-all ${creatorCorrectIndex === idx
-                              ? 'border-[#f04824] bg-orange-50/20 font-bold'
-                              : 'border-slate-200 focus:border-slate-400'
-                              }`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mb-4 space-y-3">
-                      <label className="block">
-                        <span className="text-xs font-bold text-slate-700 block mb-1.5">Correct Answer *</span>
-                        <input
-                          type="text"
-                          value={creatorAnswer}
-                          onChange={(e) => setCreatorAnswer(e.target.value)}
-                          placeholder="e.g. TRUNCATE"
-                          className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-bold text-slate-500 block mb-1.5">Accepted Alternates (Optional)</span>
-                        <input
-                          type="text"
-                          value={creatorAlternates}
-                          onChange={(e) => setCreatorAlternates(e.target.value)}
-                          placeholder="e.g. truncate, TRUNCATE TABLE"
-                          className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {/* 5. Optional Hint */}
-                  <label className="block mb-6">
-                    <span className="text-xs font-bold text-slate-500 block mb-1.5">Study Hint / Tag (Optional)</span>
-                    <input
-                      type="text"
-                      value={creatorHint}
-                      onChange={(e) => setCreatorHint(e.target.value)}
-                      placeholder="e.g. DDL Command, Fast Erase, Chapter 2"
-                      className="w-full h-9 px-3 bg-[#f8f9fa] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
-                    />
-                  </label>
-
-                  {/* Form Actions Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                  <div className="csm-page-actions flex items-center gap-2.5">
                     <button
                       type="button"
-                      onClick={() => {
-                        setCreatorPrompt('');
-                        setCreatorHint('');
-                        setCreatorOptions(['', '', '', '']);
-                        setCreatorAnswer('');
-                        setCreatorAlternates('');
-                      }}
-                      className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                      className="csm-secondary-button"
+                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
                     >
-                      Clear fields
+                      Back to Library
                     </button>
                     <button
                       type="button"
-                      onClick={handleSaveBombcard}
                       className="csm-primary-button"
+                      onClick={() => {
+                        if (currentTargetDeck) setSelectedDeckIds([currentTargetDeck.id]);
+                        setActiveTab('flashcards');
+                      }}
                     >
-                      <IconPlus /> Add Bombcard
+                      Go to Study <span>→</span>
                     </button>
                   </div>
                 </div>
 
-                {/* Right Column: Live Card Preview & Existing Cards in Deck */}
-                <div className="lg:col-span-5 space-y-5">
-                  {/* Live Card Preview */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                      <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider">LIVE PREVIEW</span>
-                      <span className="text-[11px] font-bold text-slate-500">
-                        {creatorType === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
+                {/* 2. Compact Studio Context & Control Bar */}
+                <div className="csm-studio-control-bar">
+                  {/* Left: Deck Context Selector */}
+                  <div className="flex items-center gap-2">
+                    <label className="csm-studio-deck-pill">
+                      <span className="text-[11px] font-bold text-slate-400">Creating in:</span>
+                      <select
+                        value={creatorTargetDeckId}
+                        onChange={(e) => setCreatorTargetDeckId(e.target.value)}
+                        className="csm-studio-deck-select"
+                      >
+                        {decks.map(d => (
+                          <option key={d.id} value={d.id}>
+                            {d.code} — {d.title || d.subject}
+                          </option>
+                        ))}
+                      </select>
+                      <IconChevronDown className="w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                    </label>
+                    <span className="text-[11px] font-bold px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
+                      {deckCards.length} cards
+                    </span>
+                  </div>
+
+                  {/* Center: Interactive Question Format Switcher */}
+                  <div className="csm-studio-type-selector" role="tablist">
+                    <button
+                      type="button"
+                      onClick={() => setCreatorType('MULTIPLE_CHOICE')}
+                      className={`csm-studio-type-btn ${creatorType === 'MULTIPLE_CHOICE' ? 'active' : ''}`}
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <circle cx="6" cy="6" r="2" fill="currentColor"/>
+                        <circle cx="18" cy="6" r="2" fill="currentColor"/>
+                        <circle cx="6" cy="18" r="2" fill="currentColor"/>
+                        <circle cx="18" cy="18" r="2" fill="currentColor"/>
+                      </svg>
+                      Multiple Choice
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreatorType('IDENTIFICATION')}
+                      className={`csm-studio-type-btn ${creatorType === 'IDENTIFICATION' ? 'active' : ''}`}
+                    >
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="4" y1="7" x2="20" y2="7"/>
+                        <line x1="4" y1="12" x2="14" y2="12"/>
+                        <line x1="4" y1="17" x2="18" y2="17"/>
+                      </svg>
+                      Identification
+                    </button>
+                  </div>
+
+                  {/* Right: Session Tracker & AI Generator Trigger */}
+                  <div className="flex items-center gap-2">
+                    {creatorSessionCount > 0 && (
+                      <span className="text-[11px] font-extrabold text-[#f04824] bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full flex items-center gap-1.5 animate-fadeIn">
+                        <IconFlame /> {creatorSessionCount} created this session
                       </span>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-[#fbfcfd] to-[#f4f7fb] border border-slate-200/90 rounded-xl min-h-[160px] flex flex-col justify-between">
-                      <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                          {currentTargetDeck?.code || 'Deck'} • Question Preview
-                        </span>
-                        <p className="text-xs font-bold text-slate-800 leading-relaxed">
-                          {creatorPrompt.trim() || 'Your question prompt will appear here as you type...'}
-                        </p>
-                        {creatorHint.trim() && (
-                          <span className="inline-block mt-2 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
-                            Hint: {creatorHint}
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAiGenerator(currentTargetDeck?.id)}
+                      className="text-[11px] font-extrabold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/90 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                      title="Generate flashcards with Gemini AI"
+                    >
+                      <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>AI Generator ✨</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. Main Studio Workspace Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  {/* Left Column: Interactive Card Builder */}
+                  <div className="lg:col-span-8">
+                    <div className="csm-studio-card">
+                      {/* Top Bar of the Studio Card */}
+                      <div className="csm-studio-card-head">
+                        <div className="csm-studio-steps">
+                          <button
+                            type="button"
+                            onClick={() => setCreatorStep(1)}
+                            className={`csm-studio-step-tab ${creatorStep === 1 ? 'active' : (creatorPrompt.trim() ? 'completed' : '')}`}
+                          >
+                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-slate-200/80 text-slate-700">
+                              {creatorPrompt.trim() ? '✓' : '1'}
+                            </span>
+                            Question
+                          </button>
+                          <svg className="w-3.5 h-3.5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!creatorPrompt.trim()) {
+                                triggerToast('Please write the question prompt first.');
+                                return;
+                              }
+                              setCreatorStep(2);
+                            }}
+                            className={`csm-studio-step-tab ${creatorStep === 2 ? 'active' : ''}`}
+                          >
+                            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black bg-slate-200/80 text-slate-700">
+                              2
+                            </span>
+                            Answers & Details
+                          </button>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-600">
+                            {creatorType === 'MULTIPLE_CHOICE' ? '4-Choice MCQ' : 'Identification'}
                           </span>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="p-6 md:p-8">
+                        {creatorStep === 1 ? (
+                          /* --- STEP 1: THE QUESTION --- */
+                          <div className="animate-fadeIn">
+                            <div className="flex items-center justify-between mb-2">
+                              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                                Write Your Question *
+                              </label>
+                              <span className="text-[11px] font-semibold text-slate-400">
+                                Step 1 of 2
+                              </span>
+                            </div>
+
+                            <div className="relative">
+                              <textarea
+                                value={creatorPrompt}
+                                onChange={(e) => setCreatorPrompt(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || !e.shiftKey)) {
+                                    if (creatorPrompt.trim()) {
+                                      e.preventDefault();
+                                      setCreatorStep(2);
+                                    }
+                                  }
+                                }}
+                                autoFocus
+                                placeholder="e.g. Which SQL command removes all rows from a table without logging individual row deletions?"
+                                rows="4"
+                                className="w-full p-4 bg-[#f8fafc] border-2 border-slate-200/90 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 outline-none focus:border-[#f04824] focus:bg-white resize-none transition-all leading-relaxed"
+                              />
+                            </div>
+
+                            <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                              <span className="text-[11px] font-medium text-slate-400 flex items-center gap-1">
+                                Press <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">Enter</kbd> to continue
+                              </span>
+                              <button
+                                type="button"
+                                disabled={!creatorPrompt.trim()}
+                                onClick={() => setCreatorStep(2)}
+                                className={`h-10 px-5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
+                                  creatorPrompt.trim()
+                                    ? 'bg-[#f04824] hover:bg-[#e03e1b] text-white shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer'
+                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                }`}
+                              >
+                                Next: Set Answers
+                                <span>→</span>
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* --- STEP 2: ANSWERS & DETAILS --- */
+                          <div className="animate-fadeIn">
+                            {/* Question Summary Bar */}
+                            <div className="csm-studio-q-summary">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-orange-100 text-[#f04824] flex-shrink-0">
+                                  Q
+                                </span>
+                                <p className="text-xs font-bold text-slate-800 truncate" title={creatorPrompt}>
+                                  {creatorPrompt}
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setCreatorStep(1)}
+                                className="text-[11px] font-bold text-[#f04824] hover:underline flex-shrink-0 ml-2"
+                              >
+                                Edit Question
+                              </button>
+                            </div>
+
+                            {/* Options Area */}
+                            {creatorType === 'MULTIPLE_CHOICE' ? (
+                              <div className="space-y-3 mb-5">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                                    Answer Options *
+                                  </label>
+                                  <span className="text-[11px] font-semibold text-[#f04824]">
+                                    Click any option letter to mark as correct
+                                  </span>
+                                </div>
+
+                                {creatorOptions.map((opt, idx) => {
+                                  const isCorrect = creatorCorrectIndex === idx;
+                                  const letter = String.fromCharCode(65 + idx);
+                                  return (
+                                    <div
+                                      key={idx}
+                                      onClick={() => setCreatorCorrectIndex(idx)}
+                                      className={`csm-studio-option-row cursor-pointer ${isCorrect ? 'is-correct' : ''}`}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setCreatorCorrectIndex(idx); }}
+                                        className="csm-studio-letter-badge"
+                                        title="Designate as correct answer"
+                                      >
+                                        {isCorrect ? '✓' : letter}
+                                      </button>
+                                      <input
+                                        type="text"
+                                        value={opt}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => {
+                                          const updated = [...creatorOptions];
+                                          updated[idx] = e.target.value;
+                                          setCreatorOptions(updated);
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                            handleSaveBombcard();
+                                          }
+                                        }}
+                                        placeholder={`Option ${letter}${isCorrect ? ' (Write the correct answer here)' : ''}`}
+                                        className="flex-1 bg-transparent text-xs font-semibold text-slate-800 outline-none placeholder-slate-400"
+                                      />
+                                      {isCorrect ? (
+                                        <span className="text-[10px] font-black uppercase tracking-wider text-[#f04824] bg-white px-2 py-0.5 rounded-md border border-orange-200/80 shadow-xs flex-shrink-0">
+                                          Correct Choice
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); setCreatorCorrectIndex(idx); }}
+                                          className="text-[10px] font-bold text-slate-400 hover:text-slate-600 px-1.5 py-0.5 rounded flex-shrink-0 transition-colors"
+                                        >
+                                          Mark correct
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              /* Identification Answer */
+                              <div className="space-y-4 mb-5">
+                                <div>
+                                  <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
+                                    Target Correct Answer *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={creatorAnswer}
+                                    onChange={(e) => setCreatorAnswer(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                        handleSaveBombcard();
+                                      }
+                                    }}
+                                    autoFocus
+                                    placeholder="e.g. TRUNCATE"
+                                    className="w-full h-11 px-4 bg-[#f8fafc] border-2 border-slate-200/90 rounded-xl text-sm font-bold text-slate-800 outline-none focus:border-[#f04824] focus:bg-white transition-all"
+                                  />
+                                </div>
+
+                                {!creatorShowAlternates && !creatorAlternates ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setCreatorShowAlternates(true)}
+                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                  >
+                                    <IconPlus className="w-3 h-3 text-[#f04824]" /> Add accepted alternate spellings (Optional)
+                                  </button>
+                                ) : (
+                                  <div className="animate-fadeIn">
+                                    <label className="text-[11px] font-bold text-slate-500 block mb-1">
+                                      Accepted Alternates (Comma separated)
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={creatorAlternates}
+                                      onChange={(e) => setCreatorAlternates(e.target.value)}
+                                      placeholder="e.g. truncate, TRUNCATE TABLE"
+                                      className="w-full h-9 px-3 bg-[#f8fafc] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Optional Study Hint Pill */}
+                            <div className="mb-6 pt-3 border-t border-slate-100">
+                              {!creatorShowHint && !creatorHint ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setCreatorShowHint(true)}
+                                  className="text-[11px] font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                >
+                                  <IconPlus className="w-3 h-3 text-amber-500" /> Add study hint or topic tag (Optional)
+                                </button>
+                              ) : (
+                                <div className="animate-fadeIn">
+                                  <label className="text-[11px] font-bold text-slate-500 block mb-1">
+                                    Study Hint / Tag
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={creatorHint}
+                                    onChange={(e) => setCreatorHint(e.target.value)}
+                                    placeholder="e.g. DDL Command, Fast Erase, Chapter 2"
+                                    className="w-full h-9 px-3 bg-[#f8fafc] border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-slate-400 focus:bg-white transition-all"
+                                  />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Bottom Actions Footer */}
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                              <div className="flex items-center gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setCreatorStep(1)}
+                                  className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                >
+                                  ← Back to Question
+                                </button>
+                                <span className="text-slate-300">·</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCreatorPrompt('');
+                                    setCreatorHint('');
+                                    setCreatorOptions(['', '', '', '']);
+                                    setCreatorAnswer('');
+                                    setCreatorAlternates('');
+                                    setCreatorCorrectIndex(0);
+                                    setCreatorStep(1);
+                                  }}
+                                  className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-3">
+                                <span className="hidden sm:inline-block text-[11px] font-medium text-slate-400">
+                                  <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold text-slate-600">Enter</kbd>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveBombcard}
+                                  className="h-11 px-6 rounded-xl bg-[#f04824] hover:bg-[#e03e1b] text-white font-extrabold text-xs shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                                >
+                                  <IconPlus className="w-4 h-4" />
+                                  Add Bombcard
+                                </button>
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </div>
-                      <div className="mt-3 pt-3 border-t border-slate-200/80">
-                        <span className="text-[10px] font-bold text-[#f04824] uppercase tracking-wider block mb-1">
-                          Correct Answer
-                        </span>
-                        <span className="text-xs font-extrabold text-slate-900 bg-white px-2.5 py-1 rounded-md border border-slate-200 inline-block">
-                          {creatorType === 'MULTIPLE_CHOICE'
-                            ? (creatorOptions[creatorCorrectIndex]?.trim() || `Option ${String.fromCharCode(65 + creatorCorrectIndex)} (Designated)`)
-                            : (creatorAnswer.trim() || 'Answer not specified yet')}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Cards in Deck Overview */}
-                  <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <IconCards className="w-4 h-4 text-slate-600" />
-                        <h3 className="text-xs font-extrabold text-slate-900">
-                          Cards in {currentTargetDeck?.code}
-                        </h3>
+                  {/* Right Column: Deck Collection & Quick Study */}
+                  <div className="lg:col-span-4 space-y-5">
+                    {/* Visual Deck Stack Card */}
+                    <div className={`csm-studio-card-stack ${creatorCardAddedAnimation ? 'csm-studio-pulse-anim' : ''}`}>
+                      <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <IconCards className="w-4 h-4 text-slate-700 flex-shrink-0" />
+                          <h3 className="text-xs font-extrabold text-slate-900 truncate">Deck Collection</h3>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-400 truncate max-w-[130px] text-right" title={currentTargetDeck?.code || currentTargetDeck?.title}>
+                          {currentTargetDeck?.code || currentTargetDeck?.title}
+                        </span>
                       </div>
-                      <span className="text-xs font-extrabold text-[#f04824] bg-orange-50 px-2 py-0.5 rounded-full">
-                        {deckCards.length} cards
-                      </span>
-                    </div>
-                    {deckCards.length === 0 ? (
-                      <p className="text-xs text-slate-400 italic py-3 text-center">
-                        No cards in this deck yet. Use the form to add your first card!
-                      </p>
-                    ) : (
-                      <div className="space-y-2 max-h-56 overflow-y-auto custom-scroll pr-1">
-                        {deckCards.map((card, idx) => (
-                          <div
-                            key={card.id || idx}
-                            className="p-2.5 bg-[#f8f9fa] border border-slate-200/80 rounded-xl text-xs flex items-start justify-between gap-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-bold text-slate-400 block">
-                                #{idx + 1} • {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
-                              </span>
-                              <p className="font-semibold text-slate-800 truncate mt-0.5">{card.prompt}</p>
-                            </div>
-                            <span className="text-[10px] font-extrabold text-[#f04824] bg-white border border-slate-200 px-2 py-0.5 rounded whitespace-nowrap">
-                              {card.correctAnswer || 'Answer'}
-                            </span>
-                          </div>
-                        ))}
+
+                      {/* Card Pile Visual Representation */}
+                      <div className="text-center py-4 bg-white/70 rounded-2xl border border-slate-200/80 mb-4 shadow-xs">
+                        <span className="text-3xl font-black text-slate-900 tracking-tight block">
+                          {deckCards.length}
+                        </span>
+                        <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mt-0.5 block">
+                          Total Bombcards
+                        </span>
+                        <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-slate-100 text-[11px] font-bold text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                            {mcqCards.length} MCQ
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                            {idCards.length} ID
+                          </span>
+                        </div>
                       </div>
-                    )}
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+
                       <button
                         type="button"
                         onClick={() => {
-                          setSelectedDeckIds([currentTargetDeck.id]);
+                          if (currentTargetDeck) setSelectedDeckIds([currentTargetDeck.id]);
                           setActiveTab('flashcards');
                         }}
-                        className="text-xs font-extrabold text-[#f04824] hover:underline cursor-pointer flex items-center gap-1"
+                        className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm px-3"
                       >
-                        <span>Review deck in Study</span>
-                        <span>→</span>
+                        <span className="truncate">Study {currentTargetDeck?.code || 'Deck'} Now</span>
+                        <span className="flex-shrink-0">→</span>
                       </button>
+                    </div>
+
+                    {/* Cards in Deck List */}
+                    <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
+                      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                        <h4 className="text-xs font-extrabold text-slate-900">Cards in this Deck</h4>
+                        <span className="text-[11px] font-bold text-slate-400">{deckCards.length} total</span>
+                      </div>
+
+                      {deckCards.length === 0 ? (
+                        <div className="py-6 text-center">
+                          <div className="w-10 h-10 rounded-full bg-orange-50 text-[#f04824] flex items-center justify-center mx-auto mb-2">
+                            <IconCards className="w-5 h-5" />
+                          </div>
+                          <p className="text-xs font-bold text-slate-700">No cards yet</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Write your question on the left to forge your first card!
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1">
+                          {deckCards.map((card, idx) => (
+                            <div
+                              key={card.id || idx}
+                              className="p-2.5 bg-[#f8fafc] hover:bg-slate-50 border border-slate-200/70 rounded-xl text-xs flex items-start justify-between gap-2 transition-colors"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-slate-200/70 text-slate-600">
+                                    #{idx + 1}
+                                  </span>
+                                  <span className="text-[9px] font-extrabold text-slate-400">
+                                    {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                                  </span>
+                                </div>
+                                <p className="font-semibold text-slate-800 truncate mt-1">{card.prompt}</p>
+                              </div>
+                              <span className="text-[10px] font-black text-[#f04824] bg-white border border-slate-200 px-2 py-0.5 rounded max-w-[100px] truncate flex-shrink-0">
+                                {card.correctAnswer || 'Answer'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -3499,12 +4019,44 @@ function App({ isGuest = false, sharedDeck = null }) {
                 ======================================================== */}
         {activeTab === 'highlighter' && (
           <div className="csm-screen csm-highlighter-screen custom-scroll">
-            <div className="csm-page-head csm-pdf-page-head"><div><span className="csm-kicker">PDF STUDY TOOL</span><h1>Highlight your notes</h1><p>Select a passage, save it as a study note, or turn it into a Bombcard.</p></div><div className="csm-page-actions"><button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button></div></div>
+            <div className="csm-page-head csm-pdf-page-head">
+              <div>
+                <span className="csm-kicker">PDF STUDY TOOL</span>
+                <h1>Highlight your notes</h1>
+                <p>Select a passage, save it as a study note, or turn it into a Bombcard.</p>
+              </div>
+              <div className="csm-page-actions flex items-center gap-2">
+                {activeDocument && (
+                  <button
+                    type="button"
+                    className="csm-primary-button flex items-center gap-1.5 cursor-pointer"
+                    style={{ background: '#7c3aed', borderColor: '#6d28d9', color: '#ffffff' }}
+                    onClick={() => handleOpenAiGenerator(activeDocument.deckId, activeDocument)}
+                    title="Extract text from this PDF and generate Bombcards with Gemini AI"
+                  >
+                    <IconSparkles className="w-3.5 h-3.5 text-white" />
+                    <span>Generate AI Flashcards ✨</span>
+                  </button>
+                )}
+                <button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button>
+              </div>
+            </div>
             <div className="csm-highlighter-layout">
               <section className="csm-pdf-card">
                 <div className="csm-pdf-toolbar">
                   <div className="csm-pdf-document-title"><strong>{activeDocument?.title || 'Choose a PDF to study'}</strong><span>{activeDocument ? `${decks.find(deck => deck.id === activeDocument.deckId)?.title || 'Your reviewer'} · private to your account` : 'Choose from your saved reviewer documents'}</span></div>
-                  <div className="csm-pdf-tools">
+                  <div className="csm-pdf-tools flex items-center gap-2">
+                    {activeDocument && (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenAiGenerator(activeDocument.deckId, activeDocument)}
+                        className="h-8 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                        title="Generate Bombcards from this PDF with Gemini AI"
+                      >
+                        <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
+                        <span>AI Flashcards ✨</span>
+                      </button>
+                    )}
                     {!activeDocument && <select className="csm-pdf-document-select" value="" aria-label="Choose a PDF" onChange={event => { const found = decks.flatMap(deck => (deck.documents || []).map(document => ({ deck, document }))).find(item => item.document.id === event.target.value); if (found) handleOpenDocument(found.deck, found.document); }}><option value="">Choose PDF…</option>{decks.flatMap(deck => (deck.documents || []).map(document => <option key={document.id} value={document.id}>{document.title} · {deck.title}</option>))}</select>}
                     {['#f5a23a', '#8dc7ef', '#a8d8a8'].map((color, index) => <button key={color} type="button" className={`csm-pdf-color ${highlightColor === color ? 'active' : ''}`} onClick={() => setHighlightColor(color)} aria-label={['Orange', 'Blue', 'Green'][index] + ' highlight color'} aria-pressed={highlightColor === color} style={{ '--swatch': color }} />)}
                     {activeDocument && <a className="csm-pdf-open-link" href={activeDocument.url} target="_blank" rel="noreferrer">Open PDF ↗</a>}
@@ -3530,637 +4082,637 @@ function App({ isGuest = false, sharedDeck = null }) {
         {/* ========================================================
                 VIEW C: BOMBSTYLE ARENA (CO-STUDYMAXX SYSTEM-CONSISTENT)
                 ======================================================== */}
-            {(activeTab === 'arena' || activeTab === 'game') && (
-              <div className="csm-screen csm-arena-screen custom-scroll">
+        {(activeTab === 'arena' || activeTab === 'game') && (
+          <div className="csm-screen csm-arena-screen custom-scroll">
 
-                {/* PHASE 1: DECK SELECTION HUB */}
-                {bombstylePhase === 'select_deck' && (
+            {/* PHASE 1: DECK SELECTION HUB */}
+            {bombstylePhase === 'select_deck' && (
+              <div>
+                <div className="csm-page-head">
                   <div>
-                    <div className="csm-page-head">
-                      <div>
-                        <span className="csm-kicker">ARENA • BOMBSTYLE</span>
-                        <h1>Bombstyle Arena</h1>
-                        <p>Test your Bombcards under pressure. Active recall and one countdown for the whole round. Choose a deck to start.</p>
-                      </div>
+                    <span className="csm-kicker">ARENA • BOMBSTYLE</span>
+                    <h1>Bombstyle Arena</h1>
+                    <p>Test your Bombcards under pressure. Active recall and one countdown for the whole round. Choose a deck to start.</p>
+                  </div>
+                </div>
+
+                {/* Arena High-Level Stats Overview */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center font-bold">
+                      <IconCards className="w-5 h-5" />
                     </div>
-
-                    {/* Arena High-Level Stats Overview */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                        <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center font-bold">
-                          <IconCards className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Ready Decks</span>
-                          <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.filter(d => d.cards && d.cards.length > 0).length} Decks</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                        <div className="w-10 h-10 rounded-xl bg-[#f04824] text-white flex items-center justify-center font-bold shadow-sm">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Playable Cards</span>
-                          <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.reduce((acc, d) => acc + (d.cards?.length || 0), 0)} Bombcards</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                        <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                            <path d="M12 21a6 6 0 0 0 6-6c0-2.1-1.1-4.1-3.2-6.1.1 1.8-.7 3-1.8 3.9.2-3.6-1.8-6.2-4.3-8.8.2 3.3-2.7 5.4-2.7 9A6 6 0 0 0 12 21Z" />
-                            <path d="M12 17.5a2.5 2.5 0 0 0 2.5-2.5c0-.6-.2-1.2-.6-1.7-.2.8-.7 1.3-1.3 1.7-.1-1.1-.7-1.9-1.5-2.6.1 1.1-.8 1.8-.8 2.9a2.5 2.5 0 0 0 1.7 2.2Z" />
-                          </svg>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Best Streak</span>
-                          <span className="text-xl font-extrabold text-slate-900 leading-none">{bombstyleMaxStreak}x Recall</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Time Pressure</span>
-                          <span className="text-xl font-extrabold text-slate-900 leading-none">10s – 30s</span>
-                        </div>
-                      </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Ready Decks</span>
+                      <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.filter(d => d.cards && d.cards.length > 0).length} Decks</span>
                     </div>
+                  </div>
 
-                    <div className="csm-arena-deck-grid">
-                      {decks.map(deck => {
-                        const cardCount = deck.cards ? deck.cards.length : 0;
-                        const hasCards = cardCount > 0;
-                        const isSelected = bombstyleDeckId === deck.id;
+                  <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-[#f04824] text-white flex items-center justify-center font-bold shadow-sm">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Playable Cards</span>
+                      <span className="text-xl font-extrabold text-slate-900 leading-none">{decks.reduce((acc, d) => acc + (d.cards?.length || 0), 0)} Bombcards</span>
+                    </div>
+                  </div>
 
-                        return (
-                          <div
-                            key={deck.id}
-                            className={`csm-arena-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''}`}
-                            onClick={() => {
-                              if (!hasCards) {
-                                triggerToast('This deck has no Bombcards. Create cards in Library first!');
-                                return;
-                              }
-                              handleSelectBombstyleDeck(deck.id);
-                            }}
-                          >
-                            <div>
-                              <div className="csm-arena-deck-top">
-                                <span className="csm-arena-deck-code">{deck.code || deck.title}</span>
-                                <span className={`csm-arena-deck-badge ${hasCards ? 'has-cards' : ''}`}>
-                                  {cardCount} {cardCount === 1 ? 'Bombcard' : 'Bombcards'}
-                                </span>
-                              </div>
-                              <p className="csm-arena-deck-subject">{deck.subject || 'General Studies'}</p>
-                            </div>
+                  <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-base">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 21a6 6 0 0 0 6-6c0-2.1-1.1-4.1-3.2-6.1.1 1.8-.7 3-1.8 3.9.2-3.6-1.8-6.2-4.3-8.8.2 3.3-2.7 5.4-2.7 9A6 6 0 0 0 12 21Z" />
+                        <path d="M12 17.5a2.5 2.5 0 0 0 2.5-2.5c0-.6-.2-1.2-.6-1.7-.2.8-.7 1.3-1.3 1.7-.1-1.1-.7-1.9-1.5-2.6.1 1.1-.8 1.8-.8 2.9a2.5 2.5 0 0 0 1.7 2.2Z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Best Streak</span>
+                      <span className="text-xl font-extrabold text-slate-900 leading-none">{bombstyleMaxStreak}x Recall</span>
+                    </div>
+                  </div>
 
-                            <div className="csm-arena-deck-bottom">
-                              <span className="csm-arena-deck-meta">
-                                {deck.category || 'Deck'} &bull; {deck.cards?.length || 0} items
-                              </span>
-                              <span className="csm-arena-deck-action">
-                                {hasCards ? 'Select Deck →' : 'No cards yet'}
-                              </span>
-                            </div>
+                  <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Time Pressure</span>
+                      <span className="text-xl font-extrabold text-slate-900 leading-none">10s – 30s</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="csm-arena-deck-grid">
+                  {decks.map(deck => {
+                    const cardCount = deck.cards ? deck.cards.length : 0;
+                    const hasCards = cardCount > 0;
+                    const isSelected = bombstyleDeckId === deck.id;
+
+                    return (
+                      <div
+                        key={deck.id}
+                        className={`csm-arena-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''}`}
+                        onClick={() => {
+                          if (!hasCards) {
+                            triggerToast('This deck has no Bombcards. Create cards in Library first!');
+                            return;
+                          }
+                          handleSelectBombstyleDeck(deck.id);
+                        }}
+                      >
+                        <div>
+                          <div className="csm-arena-deck-top">
+                            <span className="csm-arena-deck-code">{deck.code || deck.title}</span>
+                            <span className={`csm-arena-deck-badge ${hasCards ? 'has-cards' : ''}`}>
+                              {cardCount} {cardCount === 1 ? 'Bombcard' : 'Bombcards'}
+                            </span>
                           </div>
+                          <p className="csm-arena-deck-subject">{deck.subject || 'General Studies'}</p>
+                        </div>
+
+                        <div className="csm-arena-deck-bottom">
+                          <span className="csm-arena-deck-meta">
+                            {deck.category || 'Deck'} &bull; {deck.cards?.length || 0} items
+                          </span>
+                          <span className="csm-arena-deck-action">
+                            {hasCards ? 'Select Deck →' : 'No cards yet'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* PHASE 2: SESSION CONFIGURATION */}
+            {bombstylePhase === 'configure' && (
+              <div className="csm-bombstyle-config">
+                <header className="csm-bombstyle-config-head">
+                  <span className="csm-kicker">SESSION SETUP</span>
+                  <h1>Build your challenge.</h1>
+                  <p>Your deck. Your pace. A little pressure.</p>
+                </header>
+
+                <div className="csm-bombstyle-config-layout">
+                  <section className="csm-bombstyle-settings-card" aria-labelledby="bombstyle-difficulty-title">
+                    <div className="csm-bombstyle-selected-deck">
+                      <span className="csm-bombstyle-deck-icon"><IconCards className="w-7 h-7" /></span>
+                      <div className="csm-bombstyle-deck-copy">
+                        <span>Selected Deck</span>
+                        <strong>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title || 'Your deck'}</strong>
+                        <small>{bombstyleAvailableCards.length} Bombcards available</small>
+                      </div>
+                      <button type="button" className="csm-bombstyle-change-deck" onClick={() => setBombstylePhase('select_deck')}>
+                        Change deck
+                      </button>
+                    </div>
+
+                    <div className="csm-bombstyle-difficulty-heading">
+                      <span className="csm-bombstyle-step">01</span>
+                      <div>
+                        <h2 id="bombstyle-difficulty-title">Pick your difficulty</h2>
+                        <p>Choose your starting time. The countdown runs for the whole round.</p>
+                      </div>
+                    </div>
+
+                    <div className="csm-bombstyle-difficulty-grid" role="radiogroup" aria-label="Difficulty">
+                      {Object.entries(BOMBSTYLE_DIFFICULTIES).map(([key, difficulty]) => {
+                        const isSelected = bombstyleDifficulty === key;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            role="radio"
+                            aria-checked={isSelected}
+                            className={`csm-bombstyle-difficulty-card ${isSelected ? 'is-selected' : ''}`}
+                            onClick={() => handleSetDifficulty(key)}
+                          >
+                            <span className="csm-bombstyle-difficulty-icon" aria-hidden="true">
+                              {key === 'easy' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4C11 4 5 7 5 14c0 3 2 5 5 5 7 0 10-6 10-15Z" /><path d="M4 21c3-5 6-8 11-11" /></svg>}
+                              {key === 'normal' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z" /><path d="M19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z" /></svg>}
+                              {key === 'hard' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" /></svg>}
+                            </span>
+                            <strong>{difficulty.label}</strong>
+                            <span>{difficulty.timeLabel}</span>
+                            {isSelected && <span className="csm-bombstyle-selected-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg></span>}
+                          </button>
                         );
                       })}
                     </div>
-                  </div>
-                )}
 
-                {/* PHASE 2: SESSION CONFIGURATION */}
-                {bombstylePhase === 'configure' && (
-                  <div className="csm-bombstyle-config">
-                    <header className="csm-bombstyle-config-head">
-                      <span className="csm-kicker">SESSION SETUP</span>
-                      <h1>Build your challenge.</h1>
-                      <p>Your deck. Your pace. A little pressure.</p>
-                    </header>
+                    <button
+                      type="button"
+                      className="csm-bombstyle-timer-toggle"
+                      aria-expanded={bombstyleTimerHelpOpen}
+                      aria-controls="bombstyle-timer-explanation"
+                      onClick={() => setBombstyleTimerHelpOpen(open => !open)}
+                    >
+                      <span className="csm-bombstyle-info-icon" aria-hidden="true">i</span>
+                      <span>How the timer works</span>
+                      <svg className="csm-bombstyle-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
 
-                    <div className="csm-bombstyle-config-layout">
-                      <section className="csm-bombstyle-settings-card" aria-labelledby="bombstyle-difficulty-title">
-                        <div className="csm-bombstyle-selected-deck">
-                          <span className="csm-bombstyle-deck-icon"><IconCards className="w-7 h-7" /></span>
-                          <div className="csm-bombstyle-deck-copy">
-                            <span>Selected Deck</span>
-                            <strong>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title || 'Your deck'}</strong>
-                            <small>{bombstyleAvailableCards.length} Bombcards available</small>
-                          </div>
-                          <button type="button" className="csm-bombstyle-change-deck" onClick={() => setBombstylePhase('select_deck')}>
-                            Change deck
-                          </button>
-                        </div>
-
-                        <div className="csm-bombstyle-difficulty-heading">
-                          <span className="csm-bombstyle-step">01</span>
-                          <div>
-                            <h2 id="bombstyle-difficulty-title">Pick your difficulty</h2>
-                            <p>Choose your starting time. The countdown runs for the whole round.</p>
-                          </div>
-                        </div>
-
-                        <div className="csm-bombstyle-difficulty-grid" role="radiogroup" aria-label="Difficulty">
-                          {Object.entries(BOMBSTYLE_DIFFICULTIES).map(([key, difficulty]) => {
-                            const isSelected = bombstyleDifficulty === key;
-                            return (
-                              <button
-                                key={key}
-                                type="button"
-                                role="radio"
-                                aria-checked={isSelected}
-                                className={`csm-bombstyle-difficulty-card ${isSelected ? 'is-selected' : ''}`}
-                                onClick={() => handleSetDifficulty(key)}
-                              >
-                                <span className="csm-bombstyle-difficulty-icon" aria-hidden="true">
-                                  {key === 'easy' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 4C11 4 5 7 5 14c0 3 2 5 5 5 7 0 10-6 10-15Z"/><path d="M4 21c3-5 6-8 11-11"/></svg>}
-                                  {key === 'normal' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l1.7 6.3L20 10l-6.3 1.7L12 18l-1.7-6.3L4 10l6.3-1.7L12 2Z"/><path d="M19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z"/></svg>}
-                                  {key === 'hard' && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg>}
-                                </span>
-                                <strong>{difficulty.label}</strong>
-                                <span>{difficulty.timeLabel}</span>
-                                {isSelected && <span className="csm-bombstyle-selected-check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg></span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <button
-                          type="button"
-                          className="csm-bombstyle-timer-toggle"
-                          aria-expanded={bombstyleTimerHelpOpen}
-                          aria-controls="bombstyle-timer-explanation"
-                          onClick={() => setBombstyleTimerHelpOpen(open => !open)}
-                        >
-                          <span className="csm-bombstyle-info-icon" aria-hidden="true">i</span>
-                          <span>How the timer works</span>
-                          <svg className="csm-bombstyle-toggle-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-                        </button>
-
-                        <div id="bombstyle-timer-explanation" className={`csm-bombstyle-timer-explanation ${bombstyleTimerHelpOpen ? 'is-open' : ''}`} aria-hidden={!bombstyleTimerHelpOpen}>
-                          <div className="csm-bombstyle-explanation-inner">
-                            <h3>Keep your bomb ticking</h3>
-                            <p>Correct answers add 8 seconds to your remaining time. Wrong answers subtract 5 seconds.</p>
-                            <div className="csm-bombstyle-timer-effects">
-                              <div><span className="csm-bombstyle-effect-icon is-correct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></span><span><small>Correct answer</small><strong>+8 seconds</strong></span></div>
-                              <div><span className="csm-bombstyle-effect-icon is-wrong"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg></span><span><small>Wrong answer</small><strong>&minus;5 seconds</strong></span></div>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="csm-bombstyle-one-timer">One timer for the entire round.</p>
-                      </section>
-
-                      <aside className="csm-bombstyle-summary-card" aria-labelledby="bombstyle-summary-title">
-                        <div className="csm-bombstyle-illustration">
-                          <img src="csm-mascot.png" alt="Friendly bomb mascot" />
-                        </div>
-                        <h2 id="bombstyle-summary-title">Ready when you are.</h2>
-                        <p className="csm-bombstyle-summary-subtitle">Here&rsquo;s your game plan.</p>
-                        <div className="csm-bombstyle-summary-list">
-                          <div><span className="csm-bombstyle-summary-icon"><IconSparkles /></span><span>Difficulty</span><strong>{selectedBombstyleDifficulty.label}</strong></div>
-                          <div><span className="csm-bombstyle-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" /></svg></span><span>Starting time</span><strong>{selectedBombstyleDifficulty.timeLabel}</strong></div>
-                          <div><span className="csm-bombstyle-summary-icon is-positive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 8v8M8 12h8" /></svg></span><span>Correct answer</span><strong>+8 seconds</strong></div>
-                          <div><span className="csm-bombstyle-summary-icon is-negative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 12h8" /></svg></span><span>Wrong answer</span><strong>&minus;5 seconds</strong></div>
-                        </div>
-                        <button type="button" className="csm-bombstyle-start-button" disabled={bombstyleAvailableCards.length === 0} onClick={() => handleStartBombstyle()}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 8 6-8 6V6Z" /></svg>
-                          Start Bombstyle
-                        </button>
-                        <button type="button" className="csm-bombstyle-cancel-button" onClick={() => setBombstylePhase('select_deck')}>Cancel</button>
-                      </aside>
-                    </div>
-                  </div>
-                )}
-
-                {/* PHASE 3: GAMEPLAY SCREEN */}
-                {bombstylePhase === 'gameplay' && (
-                  <div className="csm-arena-gameplay-wrap">
-                    {/* Top HUD */}
-                    <header className="csm-arena-hud">
-                      {/* Left: Exit & Deck Title */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button
-                          type="button"
-                          className="csm-secondary-button"
-                          style={{ height: '34px', width: '34px', padding: 0 }}
-                          title="Exit Run to Arena Hub"
-                          onClick={async () => { try { await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(true); }}
-                        >
-                          <IconArrowLeft />
-                        </button>
-                        <div>
-                          <span style={{ fontSize: '9px', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, display: 'block', lineHeight: 1 }}>DECK</span>
-                          <span style={{ fontSize: '13px', fontWeight: 800, color: '#090d14' }}>
-                            {bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Center: Card Progress */}
-                      <div style={{ textAlign: 'center' }}>
-                        <span className="csm-arena-hud-progress">
-                          {bombstyleIndex + 1} / {bombstyleQueue.length} BOMBCARDS
-                        </span>
-                      </div>
-
-                      {/* Right: Sound & Streak */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button
-                          type="button"
-                          className="csm-secondary-button"
-                          style={{ height: '34px', width: '34px', padding: 0 }}
-                          onClick={() => setSoundMuted(sound.toggleMute())}
-                          title={soundMuted ? 'Unmute' : 'Mute'}
-                        >
-                          <IconSpeaker muted={soundMuted} />
-                        </button>
-
-                        {/* Streak Badge */}
-                        <div className={`csm-arena-streak-badge ${bombstyleStreak >= 3 ? 'streak-hot' : ''}`}>
-                          <svg className="w-3.5 h-3.5 inline-block mr-1 text-amber-500 fill-amber-500" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
-                          STREAK ×{bombstyleStreak}
-                        </div>
-
-                      </div>
-                    </header>
-
-                    {/* Central Stage */}
-                    <div className="csm-arena-stage-center relative">
-                      {/* Micro Feedback Popup */}
-                      {bombstyleFeedback === 'defused' && (
-                        <div className="bombstyle-feedback-pill defused">
-                          <svg className="w-4 h-4 inline-block mr-1 fill-emerald-500" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                          DEFUSED!
-                        </div>
-                      )}
-                      {bombstyleFeedback === 'exploded' && (
-                        <div className="bombstyle-feedback-pill exploded">
-                          <svg className="w-4 h-4 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-                          EXPLODED!
-                        </div>
-                      )}
-
-                      {/* Animated SVG Bomb Mascot */}
-                      <div className={`relative transition-transform duration-150 ${isBombDanger ? 'animate-shake-danger' : ''}`}>
-                        {/* Glow Aura */}
-                        <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isBombDanger ? 'bg-red-500/25 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
-
-                        <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-xl">
-                          <defs>
-                            <radialGradient id="bsBombBody" cx="35%" cy="35%" r="65%">
-                              <stop offset="0%" stopColor="#2e2a28" />
-                              <stop offset="45%" stopColor="#141110" />
-                              <stop offset="100%" stopColor="#050403" />
-                            </radialGradient>
-                            <radialGradient id="bsBombDangerBody" cx="35%" cy="35%" r="65%">
-                              <stop offset="0%" stopColor="#4a1515" />
-                              <stop offset="50%" stopColor="#240808" />
-                              <stop offset="100%" stopColor="#0a0202" />
-                            </radialGradient>
-                            <radialGradient id="bsBombDefusedBody" cx="35%" cy="35%" r="65%">
-                              <stop offset="0%" stopColor="#14532d" />
-                              <stop offset="50%" stopColor="#052e16" />
-                              <stop offset="100%" stopColor="#021a0c" />
-                            </radialGradient>
-                            <radialGradient id="bsSpark" cx="50%" cy="50%" r="50%">
-                              <stop offset="0%" stopColor="#ffffff" />
-                              <stop offset="40%" stopColor="#fef08a" />
-                              <stop offset="80%" stopColor="#f04824" />
-                              <stop offset="100%" stopColor="transparent" />
-                            </radialGradient>
-                          </defs>
-
-                          {/* Fuse */}
-                          <path
-                            d="M 100 42 C 100 25, 125 32, 132 15"
-                            fill="none"
-                            stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#ca8a04'}
-                            strokeWidth="6"
-                            strokeLinecap="round"
-                          />
-
-                          {/* Fuse Spark */}
-                          {bombstyleFeedback !== 'defused' && (
-                            <g transform="translate(132, 15)">
-                              <circle cx="0" cy="0" r="10" fill="url(#bsSpark)" className="animate-spark-pulse" />
-                              <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={isBombDanger ? "#f87171" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
-                              <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
-                            </g>
-                          )}
-
-                          {/* Cap & Horns */}
-                          <rect x="86" y="38" width="28" height="12" rx="4" fill="#3f3f46" stroke="#18181b" strokeWidth="2" />
-                          <path d="M 52 75 C 38 48, 48 30, 68 46 C 60 56, 56 68, 52 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
-                          <path d="M 148 75 C 162 48, 152 30, 132 46 C 140 56, 144 68, 148 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
-
-                          {/* Sphere */}
-                          <circle
-                            cx="100"
-                            cy="116"
-                            r="74"
-                            fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : isBombDanger ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
-                            stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#2e2a28'}
-                            strokeWidth="3.5"
-                          />
-
-                          {/* Eyes & Mouth Expression */}
-                          {bombstyleFeedback === 'defused' ? (
-                            <g fill="#22c55e">
-                              <circle cx="82" cy="108" r="8" />
-                              <circle cx="118" cy="108" r="8" />
-                              <path d="M 82 128 Q 100 148 118 128" fill="none" stroke="#22c55e" strokeWidth="3.5" strokeLinecap="round" />
-                            </g>
-                          ) : isBombDanger ? (
-                            <g fill="#ef4444">
-                              <circle cx="82" cy="108" r="8" />
-                              <circle cx="118" cy="108" r="8" />
-                              <circle cx="82" cy="108" r="3" fill="#ffffff" />
-                              <circle cx="118" cy="108" r="3" fill="#ffffff" />
-                              <path d="M 80 136 Q 90 126 100 136 T 120 136" fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" />
-                            </g>
-                          ) : (
-                            <g>
-                              <circle cx="82" cy="108" r="7.5" fill="#ffffff" />
-                              <circle cx="118" cy="108" r="7.5" fill="#ffffff" />
-                              <circle cx="84" cy="107" r="2.5" fill="#0f0d0c" />
-                              <circle cx="120" cy="107" r="2.5" fill="#0f0d0c" />
-                              <rect x="85" y="130" width="30" height="10" rx="5" fill="#242220" stroke="#3d3835" strokeWidth="1.5" />
-                              <line x1="95" y1="130" x2="95" y2="140" stroke="#3d3835" strokeWidth="1.5" />
-                              <line x1="105" y1="130" x2="105" y2="140" stroke="#3d3835" strokeWidth="1.5" />
-                            </g>
-                          )}
-                        </svg>
-                      </div>
-
-                      {/* Session Timer Progress Bar */}
-                      <div className="csm-arena-timer-box">
-                        <div className={`csm-arena-timer-text ${isBombDanger ? 'danger' : ''}`}>
-                          {bombstyleTimeRemaining.toFixed(1)}s
-                        </div>
-                        <div className="csm-arena-timer-bar">
-                          <div
-                            className={`csm-arena-timer-fill ${isBombDanger ? 'danger' : ''}`}
-                            style={{ width: `${bombTimerPercent}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Question Card (Consistent High Contrast) */}
-                      {activeBombstyleCard && (
-                        <div className="csm-arena-question-card">
-                          <div className="csm-arena-question-kicker">
-                            QUESTION #{bombstyleIndex + 1} {activeBombstyleCard.hint ? `• ${activeBombstyleCard.hint}` : ''}
-                          </div>
-                          <div className="csm-arena-question-prompt">
-                            {activeBombstyleCard.prompt}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Answer Box (Shown when Revealed) */}
-                      {bombstyleRevealed && activeBombstyleCard && (
-                        <div className="csm-arena-answer-box">
-                          <div className="csm-arena-answer-label">CORRECT ANSWER</div>
-                          <div className="csm-arena-answer-content">
-                            {activeBombstyleCard.correctAnswer}
-                          </div>
-                          {activeBombstyleCard.explanation && (
-                            <div className="csm-arena-answer-explanation">
-                              {activeBombstyleCard.explanation}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Action / Decision Zone */}
-                      <div className="csm-arena-controls-zone">
-                        {!bombstyleRevealed ? (
-                          <button
-                            type="button"
-                            className="csm-arena-reveal-btn"
-                            onClick={handleBombstyleReveal}
-                          >
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            REVEAL ANSWER &nbsp;<span style={{ fontSize: '12px', opacity: 0.85 }}>(Space)</span>
-                          </button>
-                        ) : (
-                          <div className="csm-arena-decision-grid">
-                            <button
-                              type="button"
-                              className="csm-arena-defuse-btn"
-                              disabled={bombstyleFeedback !== null}
-                              onClick={() => handleBombstyleDecision(true)}
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                              I KNEW IT [Defuse]
-                            </button>
-                            <button
-                              type="button"
-                              className="csm-arena-explode-btn"
-                              disabled={bombstyleFeedback !== null}
-                              onClick={() => handleBombstyleDecision(false)}
-                            >
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                              I DIDN'T KNOW [Boom]
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* PHASE 4: RESULTS SCREEN */}
-                {bombstylePhase === 'results' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div className="csm-arena-results-card">
-                      <div className={`csm-arena-results-icon ${bombstyleTimeRemaining > 0 ? 'complete' : 'detonated'}`}>
-                        {bombstyleTimeRemaining > 0 ? (
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        ) : (
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7"/><path d="M12 7V4"/><path d="M9 4h6"/></svg>
-                        )}
-                      </div>
-
-                      <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#090d14', margin: '0' }}>
-                        {bombstyleTimeRemaining > 0 ? 'BOMBSTYLE COMPLETE' : 'SESSION DETONATED'}
-                      </h2>
-                      <p style={{ fontSize: '13px', color: '#64748b', margin: '8px auto 0', maxWidth: '480px' }}>
-                        {bombstyleTimeRemaining > 0
-                          ? 'Outstanding recall! You defused the cards and beat the countdown.'
-                          : 'The countdown reached zero under pressure. Review your missed cards below to lock in the concepts.'}
-                      </p>
-
-                      {/* Stats Grid */}
-                      <div className="csm-arena-stats-grid">
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">DEFUSED</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#10b981' }}>
-                            {bombstyleCorrectCount} / {bombstyleQueue.length}
-                          </span>
-                        </div>
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">ACCURACY</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#090d14' }}>
-                            {Math.round((bombstyleCorrectCount / (bombstyleQueue.length || 1)) * 100)}%
-                          </span>
-                        </div>
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">BEST STREAK</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#f04824' }}>
-                            {bombstyleMaxStreak}x
-                          </span>
-                        </div>
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">EXPLOSIONS</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#ef4444' }}>
-                            {bombstyleQueue.length - bombstyleCorrectCount}
-                          </span>
-                        </div>
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">TIME SPENT</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#334155' }}>
-                            {Math.floor(bombstyleDurationSeconds / 60)}m {bombstyleDurationSeconds % 60}s
-                          </span>
-                        </div>
-                        <div className="csm-arena-stat-cell">
-                          <span className="csm-arena-stat-label">MISSED CARDS</span>
-                          <span className="csm-arena-stat-val" style={{ color: '#f59e0b' }}>
-                            {bombstyleMissedCards.length}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {bombstyleMissedCards.length > 0 && (
-                          <button
-                            type="button"
-                            className="csm-arena-primary-btn"
-                            style={{ background: '#f59e0b', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}
-                            onClick={() => setBombstylePhase('review_missed')}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                            REVIEW MISSED CARDS ({bombstyleMissedCards.length})
-                          </button>
-                        )}
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button
-                            type="button"
-                            className="csm-arena-primary-btn"
-                            onClick={() => handleStartBombstyle()}
-                          >
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                            PLAY AGAIN
-                          </button>
-                          <button
-                            type="button"
-                            className="csm-arena-secondary-btn"
-                            onClick={() => setBombstylePhase('select_deck')}
-                          >
-                            BACK TO ARENA
-                          </button>
+                    <div id="bombstyle-timer-explanation" className={`csm-bombstyle-timer-explanation ${bombstyleTimerHelpOpen ? 'is-open' : ''}`} aria-hidden={!bombstyleTimerHelpOpen}>
+                      <div className="csm-bombstyle-explanation-inner">
+                        <h3>Keep your bomb ticking</h3>
+                        <p>Correct answers add 8 seconds to your remaining time. Wrong answers subtract 5 seconds.</p>
+                        <div className="csm-bombstyle-timer-effects">
+                          <div><span className="csm-bombstyle-effect-icon is-correct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg></span><span><small>Correct answer</small><strong>+8 seconds</strong></span></div>
+                          <div><span className="csm-bombstyle-effect-icon is-wrong"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18" /></svg></span><span><small>Wrong answer</small><strong>&minus;5 seconds</strong></span></div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                    <p className="csm-bombstyle-one-timer">One timer for the entire round.</p>
+                  </section>
 
-                {/* PHASE 5: MISSED CARD REVIEW */}
-                {bombstylePhase === 'review_missed' && (
-                  <div>
-                    <div className="csm-page-head">
-                      <div>
-                        <span className="csm-kicker">POST-SESSION LEARNING</span>
-                        <h1>Missed Bombcards ({bombstyleMissedCards.length})</h1>
-                        <p>
-                          These are the cards you missed during the pressure run for {bombstyleActiveDeck?.code || 'this deck'}. Review them below, then jump to Study to commit them to memory.
-                        </p>
-                      </div>
-                      <div className="csm-page-actions">
-                        <button
-                          type="button"
-                          className="csm-primary-button"
-                          onClick={handleStudyMissedDeck}
-                        >
-                          <IconCards /> STUDY THIS DECK IN LIBRARY
-                        </button>
-                        <button
-                          type="button"
-                          className="csm-secondary-button"
-                          onClick={() => handleStartBombstyle(bombstyleMissedCards)}
-                        >
-                          RETRY MISSED IN BOMBSTYLE
-                        </button>
-                        <button
-                          type="button"
-                          className="csm-secondary-button"
-                          onClick={() => setBombstylePhase('results')}
-                        >
-                          Back to Results
-                        </button>
-                      </div>
+                  <aside className="csm-bombstyle-summary-card" aria-labelledby="bombstyle-summary-title">
+                    <div className="csm-bombstyle-illustration">
+                      <img src="csm-mascot.png" alt="Friendly bomb mascot" />
                     </div>
-
-                    {/* Cards List */}
-                    <div className="csm-arena-missed-list">
-                      {bombstyleMissedCards.map((card, idx) => (
-                        <div key={card.id || idx} className="csm-arena-missed-item">
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                            <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                              CARD #{idx + 1} {card.hint ? `• ${card.hint}` : ''}
-                            </span>
-                            <span className="csm-arena-missed-tag">
-                              {card.resultReason === 'timed_out' ? (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                  <svg style={{ width: '12px', height: '12px', color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9" strokeWidth="2"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 7v5l3 2"/></svg>
-                                  Timed Out
-                                </span>
-                              ) : (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                  <svg style={{ width: '12px', height: '12px', color: '#ef4444' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                                  Failed Recall
-                                </span>
-                              )}
-                            </span>
-                          </div>
-                          <div className="csm-arena-missed-prompt">
-                            {card.prompt}
-                          </div>
-                          <div style={{ marginTop: '4px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
-                            <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 800, display: 'block' }}>Correct Answer</span>
-                            <div className="csm-arena-missed-answer">
-                              {card.correctAnswer}
-                            </div>
-                            {card.explanation && (
-                              <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                                {card.explanation}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                    <h2 id="bombstyle-summary-title">Ready when you are.</h2>
+                    <p className="csm-bombstyle-summary-subtitle">Here&rsquo;s your game plan.</p>
+                    <div className="csm-bombstyle-summary-list">
+                      <div><span className="csm-bombstyle-summary-icon"><IconSparkles /></span><span>Difficulty</span><strong>{selectedBombstyleDifficulty.label}</strong></div>
+                      <div><span className="csm-bombstyle-summary-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span><span>Starting time</span><strong>{selectedBombstyleDifficulty.timeLabel}</strong></div>
+                      <div><span className="csm-bombstyle-summary-icon is-positive"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 8v8M8 12h8" /></svg></span><span>Correct answer</span><strong>+8 seconds</strong></div>
+                      <div><span className="csm-bombstyle-summary-icon is-negative"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M8 12h8" /></svg></span><span>Wrong answer</span><strong>&minus;5 seconds</strong></div>
                     </div>
-                  </div>
-                )}
-
+                    <button type="button" className="csm-bombstyle-start-button" disabled={bombstyleAvailableCards.length === 0} onClick={() => handleStartBombstyle()}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 8 6-8 6V6Z" /></svg>
+                      Start Bombstyle
+                    </button>
+                    <button type="button" className="csm-bombstyle-cancel-button" onClick={() => setBombstylePhase('select_deck')}>Cancel</button>
+                  </aside>
+                </div>
               </div>
             )}
-</main>
+
+            {/* PHASE 3: GAMEPLAY SCREEN */}
+            {bombstylePhase === 'gameplay' && (
+              <div className="csm-arena-gameplay-wrap">
+                {/* Top HUD */}
+                <header className="csm-arena-hud">
+                  {/* Left: Exit & Deck Title */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      style={{ height: '34px', width: '34px', padding: 0 }}
+                      title="Exit Run to Arena Hub"
+                      onClick={async () => { try { await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(true); }}
+                    >
+                      <IconArrowLeft />
+                    </button>
+                    <div>
+                      <span style={{ fontSize: '9px', textTransform: 'uppercase', color: '#94a3b8', fontWeight: 800, display: 'block', lineHeight: 1 }}>DECK</span>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: '#090d14' }}>
+                        {bombstyleActiveDeck?.code || bombstyleActiveDeck?.title}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Center: Card Progress */}
+                  <div style={{ textAlign: 'center' }}>
+                    <span className="csm-arena-hud-progress">
+                      {bombstyleIndex + 1} / {bombstyleQueue.length} BOMBCARDS
+                    </span>
+                  </div>
+
+                  {/* Right: Sound & Streak */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      style={{ height: '34px', width: '34px', padding: 0 }}
+                      onClick={() => setSoundMuted(sound.toggleMute())}
+                      title={soundMuted ? 'Unmute' : 'Mute'}
+                    >
+                      <IconSpeaker muted={soundMuted} />
+                    </button>
+
+                    {/* Streak Badge */}
+                    <div className={`csm-arena-streak-badge ${bombstyleStreak >= 3 ? 'streak-hot' : ''}`}>
+                      <svg className="w-3.5 h-3.5 inline-block mr-1 text-amber-500 fill-amber-500" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" /></svg>
+                      STREAK ×{bombstyleStreak}
+                    </div>
+
+                  </div>
+                </header>
+
+                {/* Central Stage */}
+                <div className="csm-arena-stage-center relative">
+                  {/* Micro Feedback Popup */}
+                  {bombstyleFeedback === 'defused' && (
+                    <div className="bombstyle-feedback-pill defused">
+                      <svg className="w-4 h-4 inline-block mr-1 fill-emerald-500" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+                      DEFUSED!
+                    </div>
+                  )}
+                  {bombstyleFeedback === 'exploded' && (
+                    <div className="bombstyle-feedback-pill exploded">
+                      <svg className="w-4 h-4 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+                      EXPLODED!
+                    </div>
+                  )}
+
+                  {/* Animated SVG Bomb Mascot */}
+                  <div className={`relative transition-transform duration-150 ${isBombDanger ? 'animate-shake-danger' : ''}`}>
+                    {/* Glow Aura */}
+                    <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isBombDanger ? 'bg-red-500/25 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
+
+                    <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-xl">
+                      <defs>
+                        <radialGradient id="bsBombBody" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stopColor="#2e2a28" />
+                          <stop offset="45%" stopColor="#141110" />
+                          <stop offset="100%" stopColor="#050403" />
+                        </radialGradient>
+                        <radialGradient id="bsBombDangerBody" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stopColor="#4a1515" />
+                          <stop offset="50%" stopColor="#240808" />
+                          <stop offset="100%" stopColor="#0a0202" />
+                        </radialGradient>
+                        <radialGradient id="bsBombDefusedBody" cx="35%" cy="35%" r="65%">
+                          <stop offset="0%" stopColor="#14532d" />
+                          <stop offset="50%" stopColor="#052e16" />
+                          <stop offset="100%" stopColor="#021a0c" />
+                        </radialGradient>
+                        <radialGradient id="bsSpark" cx="50%" cy="50%" r="50%">
+                          <stop offset="0%" stopColor="#ffffff" />
+                          <stop offset="40%" stopColor="#fef08a" />
+                          <stop offset="80%" stopColor="#f04824" />
+                          <stop offset="100%" stopColor="transparent" />
+                        </radialGradient>
+                      </defs>
+
+                      {/* Fuse */}
+                      <path
+                        d="M 100 42 C 100 25, 125 32, 132 15"
+                        fill="none"
+                        stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#ca8a04'}
+                        strokeWidth="6"
+                        strokeLinecap="round"
+                      />
+
+                      {/* Fuse Spark */}
+                      {bombstyleFeedback !== 'defused' && (
+                        <g transform="translate(132, 15)">
+                          <circle cx="0" cy="0" r="10" fill="url(#bsSpark)" className="animate-spark-pulse" />
+                          <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={isBombDanger ? "#f87171" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
+                          <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
+                        </g>
+                      )}
+
+                      {/* Cap & Horns */}
+                      <rect x="86" y="38" width="28" height="12" rx="4" fill="#3f3f46" stroke="#18181b" strokeWidth="2" />
+                      <path d="M 52 75 C 38 48, 48 30, 68 46 C 60 56, 56 68, 52 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
+                      <path d="M 148 75 C 162 48, 152 30, 132 46 C 140 56, 144 68, 148 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
+
+                      {/* Sphere */}
+                      <circle
+                        cx="100"
+                        cy="116"
+                        r="74"
+                        fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : isBombDanger ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
+                        stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#2e2a28'}
+                        strokeWidth="3.5"
+                      />
+
+                      {/* Eyes & Mouth Expression */}
+                      {bombstyleFeedback === 'defused' ? (
+                        <g fill="#22c55e">
+                          <circle cx="82" cy="108" r="8" />
+                          <circle cx="118" cy="108" r="8" />
+                          <path d="M 82 128 Q 100 148 118 128" fill="none" stroke="#22c55e" strokeWidth="3.5" strokeLinecap="round" />
+                        </g>
+                      ) : isBombDanger ? (
+                        <g fill="#ef4444">
+                          <circle cx="82" cy="108" r="8" />
+                          <circle cx="118" cy="108" r="8" />
+                          <circle cx="82" cy="108" r="3" fill="#ffffff" />
+                          <circle cx="118" cy="108" r="3" fill="#ffffff" />
+                          <path d="M 80 136 Q 90 126 100 136 T 120 136" fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" />
+                        </g>
+                      ) : (
+                        <g>
+                          <circle cx="82" cy="108" r="7.5" fill="#ffffff" />
+                          <circle cx="118" cy="108" r="7.5" fill="#ffffff" />
+                          <circle cx="84" cy="107" r="2.5" fill="#0f0d0c" />
+                          <circle cx="120" cy="107" r="2.5" fill="#0f0d0c" />
+                          <rect x="85" y="130" width="30" height="10" rx="5" fill="#242220" stroke="#3d3835" strokeWidth="1.5" />
+                          <line x1="95" y1="130" x2="95" y2="140" stroke="#3d3835" strokeWidth="1.5" />
+                          <line x1="105" y1="130" x2="105" y2="140" stroke="#3d3835" strokeWidth="1.5" />
+                        </g>
+                      )}
+                    </svg>
+                  </div>
+
+                  {/* Session Timer Progress Bar */}
+                  <div className="csm-arena-timer-box">
+                    <div className={`csm-arena-timer-text ${isBombDanger ? 'danger' : ''}`}>
+                      {bombstyleTimeRemaining.toFixed(1)}s
+                    </div>
+                    <div className="csm-arena-timer-bar">
+                      <div
+                        className={`csm-arena-timer-fill ${isBombDanger ? 'danger' : ''}`}
+                        style={{ width: `${bombTimerPercent}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Question Card (Consistent High Contrast) */}
+                  {activeBombstyleCard && (
+                    <div className="csm-arena-question-card">
+                      <div className="csm-arena-question-kicker">
+                        QUESTION #{bombstyleIndex + 1} {activeBombstyleCard.hint ? `• ${activeBombstyleCard.hint}` : ''}
+                      </div>
+                      <div className="csm-arena-question-prompt">
+                        {activeBombstyleCard.prompt}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Answer Box (Shown when Revealed) */}
+                  {bombstyleRevealed && activeBombstyleCard && (
+                    <div className="csm-arena-answer-box">
+                      <div className="csm-arena-answer-label">CORRECT ANSWER</div>
+                      <div className="csm-arena-answer-content">
+                        {activeBombstyleCard.correctAnswer}
+                      </div>
+                      {activeBombstyleCard.explanation && (
+                        <div className="csm-arena-answer-explanation">
+                          {activeBombstyleCard.explanation}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action / Decision Zone */}
+                  <div className="csm-arena-controls-zone">
+                    {!bombstyleRevealed ? (
+                      <button
+                        type="button"
+                        className="csm-arena-reveal-btn"
+                        onClick={handleBombstyleReveal}
+                      >
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                        REVEAL ANSWER &nbsp;<span style={{ fontSize: '12px', opacity: 0.85 }}>(Space)</span>
+                      </button>
+                    ) : (
+                      <div className="csm-arena-decision-grid">
+                        <button
+                          type="button"
+                          className="csm-arena-defuse-btn"
+                          disabled={bombstyleFeedback !== null}
+                          onClick={() => handleBombstyleDecision(true)}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                          I KNEW IT [Defuse]
+                        </button>
+                        <button
+                          type="button"
+                          className="csm-arena-explode-btn"
+                          disabled={bombstyleFeedback !== null}
+                          onClick={() => handleBombstyleDecision(false)}
+                        >
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                          I DIDN'T KNOW [Boom]
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PHASE 4: RESULTS SCREEN */}
+            {bombstylePhase === 'results' && (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div className="csm-arena-results-card">
+                  <div className={`csm-arena-results-icon ${bombstyleTimeRemaining > 0 ? 'complete' : 'detonated'}`}>
+                    {bombstyleTimeRemaining > 0 ? (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : (
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="14" r="7" /><path d="M12 7V4" /><path d="M9 4h6" /></svg>
+                    )}
+                  </div>
+
+                  <h2 style={{ fontSize: '26px', fontWeight: 800, color: '#090d14', margin: '0' }}>
+                    {bombstyleTimeRemaining > 0 ? 'BOMBSTYLE COMPLETE' : 'SESSION DETONATED'}
+                  </h2>
+                  <p style={{ fontSize: '13px', color: '#64748b', margin: '8px auto 0', maxWidth: '480px' }}>
+                    {bombstyleTimeRemaining > 0
+                      ? 'Outstanding recall! You defused the cards and beat the countdown.'
+                      : 'The countdown reached zero under pressure. Review your missed cards below to lock in the concepts.'}
+                  </p>
+
+                  {/* Stats Grid */}
+                  <div className="csm-arena-stats-grid">
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">DEFUSED</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#10b981' }}>
+                        {bombstyleCorrectCount} / {bombstyleQueue.length}
+                      </span>
+                    </div>
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">ACCURACY</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#090d14' }}>
+                        {Math.round((bombstyleCorrectCount / (bombstyleQueue.length || 1)) * 100)}%
+                      </span>
+                    </div>
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">BEST STREAK</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#f04824' }}>
+                        {bombstyleMaxStreak}x
+                      </span>
+                    </div>
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">EXPLOSIONS</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#ef4444' }}>
+                        {bombstyleQueue.length - bombstyleCorrectCount}
+                      </span>
+                    </div>
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">TIME SPENT</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#334155' }}>
+                        {Math.floor(bombstyleDurationSeconds / 60)}m {bombstyleDurationSeconds % 60}s
+                      </span>
+                    </div>
+                    <div className="csm-arena-stat-cell">
+                      <span className="csm-arena-stat-label">MISSED CARDS</span>
+                      <span className="csm-arena-stat-val" style={{ color: '#f59e0b' }}>
+                        {bombstyleMissedCards.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {bombstyleMissedCards.length > 0 && (
+                      <button
+                        type="button"
+                        className="csm-arena-primary-btn"
+                        style={{ background: '#f59e0b', boxShadow: '0 4px 14px rgba(245, 158, 11, 0.3)' }}
+                        onClick={() => setBombstylePhase('review_missed')}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                        REVIEW MISSED CARDS ({bombstyleMissedCards.length})
+                      </button>
+                    )}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        type="button"
+                        className="csm-arena-primary-btn"
+                        onClick={() => handleStartBombstyle()}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
+                        PLAY AGAIN
+                      </button>
+                      <button
+                        type="button"
+                        className="csm-arena-secondary-btn"
+                        onClick={() => setBombstylePhase('select_deck')}
+                      >
+                        BACK TO ARENA
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* PHASE 5: MISSED CARD REVIEW */}
+            {bombstylePhase === 'review_missed' && (
+              <div>
+                <div className="csm-page-head">
+                  <div>
+                    <span className="csm-kicker">POST-SESSION LEARNING</span>
+                    <h1>Missed Bombcards ({bombstyleMissedCards.length})</h1>
+                    <p>
+                      These are the cards you missed during the pressure run for {bombstyleActiveDeck?.code || 'this deck'}. Review them below, then jump to Study to commit them to memory.
+                    </p>
+                  </div>
+                  <div className="csm-page-actions">
+                    <button
+                      type="button"
+                      className="csm-primary-button"
+                      onClick={handleStudyMissedDeck}
+                    >
+                      <IconCards /> STUDY THIS DECK IN LIBRARY
+                    </button>
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      onClick={() => handleStartBombstyle(bombstyleMissedCards)}
+                    >
+                      RETRY MISSED IN BOMBSTYLE
+                    </button>
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      onClick={() => setBombstylePhase('results')}
+                    >
+                      Back to Results
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards List */}
+                <div className="csm-arena-missed-list">
+                  {bombstyleMissedCards.map((card, idx) => (
+                    <div key={card.id || idx} className="csm-arena-missed-item">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          CARD #{idx + 1} {card.hint ? `• ${card.hint}` : ''}
+                        </span>
+                        <span className="csm-arena-missed-tag">
+                          {card.resultReason === 'timed_out' ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <svg style={{ width: '12px', height: '12px', color: '#f59e0b' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="9" strokeWidth="2" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 7v5l3 2" /></svg>
+                              Timed Out
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              <svg style={{ width: '12px', height: '12px', color: '#ef4444' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                              Failed Recall
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="csm-arena-missed-prompt">
+                        {card.prompt}
+                      </div>
+                      <div style={{ marginTop: '4px', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }}>
+                        <span style={{ fontSize: '10px', textTransform: 'uppercase', color: '#64748b', fontWeight: 800, display: 'block' }}>Correct Answer</span>
+                        <div className="csm-arena-missed-answer">
+                          {card.correctAnswer}
+                        </div>
+                        {card.explanation && (
+                          <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                            {card.explanation}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+      </main>
 
       {bombstyleExitModalOpen && (
-        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(false); }}>
+        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(false); }}>
           <div className="csm-bombstyle-exit-modal" role="dialog" aria-modal="true" aria-labelledby="bombstyle-exit-title" aria-describedby="bombstyle-exit-description" onClick={(event) => event.stopPropagation()}>
             <div className="csm-bombstyle-exit-icon" aria-hidden="true"><IconArrowLeft /></div>
             <span className="csm-kicker">LEAVE SESSION?</span>
             <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
             <p id="bombstyle-exit-description">Your answers are saved. Exit this session and return to the Arena?</p>
             <div className="csm-bombstyle-exit-actions">
-              <button type="button" className="csm-secondary-button" autoFocus onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) {} setBombstyleExitModalOpen(false); }}>Cancel</button>
+              <button type="button" className="csm-secondary-button" autoFocus onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(false); }}>Cancel</button>
               <button
                 type="button"
                 className="csm-danger-button"
@@ -4481,36 +5033,739 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </div>
               </div>
 
-              {/* Option 3: Generate AI Bombcards (COMING SOON / DISABLED) */}
+              {/* Option 3: Generate AI Bombcards */}
               <div
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                className="bg-[#f8f9fa] border border-slate-200/80 rounded-2xl p-4 flex flex-col justify-between relative overflow-hidden select-none cursor-not-allowed group"
-                title="Coming soon"
+                onClick={() => {
+                  const targetDeck = targetDeckForAddMaterial || decks[0];
+                  setIsAddMaterialPopupOpen(false);
+                  handleOpenAiGenerator(targetDeck?.id);
+                }}
+                className="bg-[#f8f9fa] hover:bg-purple-50/40 border border-slate-200/90 hover:border-purple-300 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group text-left"
               >
-                {/* Visually blurred / reduced emphasis content */}
-                <div className="opacity-35 blur-[1.5px] flex flex-col pointer-events-none">
-                  <div className="w-10 h-10 rounded-xl bg-purple-600/20 text-purple-600 flex items-center justify-center mb-3">
+                <div>
+                  <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
                     <IconSparkles className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-slate-900">
-                      Generate AI Bombcards
-                    </h4>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-black text-slate-900 group-hover:text-purple-700 transition-colors">
+                        Generate with AI
+                      </h4>
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700">
+                        Gemini
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      Generate flashcards with AI
+                      Generate Bombcards from notes with AI
                     </p>
                   </div>
-                </div>
-
-                {/* Prominent COMING SOON Badge Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px]">
-                  <span className="px-3 py-1 bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md border border-slate-700/30">
-                    Coming Soon
-                  </span>
                 </div>
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+              MODAL: GEMINI AI BOMBCARD GENERATOR
+              ======================================================== */}
+      {aiGeneratorOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => { if (!aiLoading) setAiGeneratorOpen(false); }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl bg-white rounded-[26px] p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] relative overflow-hidden"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center shadow-xs">
+                  <IconSparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight">
+                      AI Bombcard Maker
+                    </h3>
+                    <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                      Gemini 3.5 Flash
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {aiStage === 'input'
+                      ? 'Paste lecture notes or summaries to forge high-retention questions.'
+                      : `Review & approve ${aiGeneratedCards.length} generated Bombcards before adding to deck.`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={aiLoading}
+                onClick={() => setAiGeneratorOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500 hover:text-slate-900 transition-colors text-xl font-bold cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto custom-scroll py-5 space-y-5 pr-1">
+              {aiStage === 'input' ? (
+                <>
+                  {/* Top Source Mode Tabs */}
+                  <div className="flex p-1 bg-slate-100/90 rounded-2xl gap-1 border border-slate-200/80">
+                    <button
+                      type="button"
+                      onClick={() => setAiSourceType('pdf')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        aiSourceType === 'pdf'
+                          ? 'bg-white text-purple-900 shadow-sm border border-slate-200/60'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <IconPdf className="w-3.5 h-4 text-purple-600" />
+                      <span>From PDF Document</span>
+                      {aiPdfExtractedSummary && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold ml-1">
+                          ✓ Ready
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAiSourceType('text')}
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        aiSourceType === 'text'
+                          ? 'bg-white text-purple-900 shadow-sm border border-slate-200/60'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      <span>📝</span>
+                      <span>From Pasted Text / Notes</span>
+                    </button>
+                  </div>
+
+                  {/* Target Reviewer Deck Selector */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                        Target Reviewer Deck
+                      </label>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        Flashcards will be added here
+                      </span>
+                    </div>
+                    <select
+                      value={aiTargetDeckId}
+                      onChange={(e) => handleTargetDeckChange(e.target.value)}
+                      className="w-full h-11 px-3.5 bg-[#f8fafc] border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-purple-400 focus:bg-white transition-all cursor-pointer"
+                    >
+                      {decks.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.code} — {d.title || d.subject} ({d.cards?.length || 0} cards · {d.documents?.length || 0} PDFs)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* SOURCE 1: FROM PDF DOCUMENT */}
+                  {aiSourceType === 'pdf' ? (
+                    <div className="space-y-4 animate-fadeIn">
+                      {/* Sub-selector: Upload New PDF vs Pick Attached Document */}
+                      {(() => {
+                        const currentDeck = decks.find(d => d.id === aiTargetDeckId);
+                        const deckDocs = currentDeck?.documents || [];
+                        return (
+                          <div className="space-y-3">
+                            {deckDocs.length > 0 && (
+                              <div className="flex items-center gap-2 pb-1">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAiPdfSourceMode('upload');
+                                    if (aiUploadedPdfFile) {
+                                      extractPdfText({ type: 'file', file: aiUploadedPdfFile });
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                                    aiPdfSourceMode === 'upload'
+                                      ? 'bg-purple-600 text-white shadow-xs'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  Upload / Drop PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setAiPdfSourceMode('library');
+                                    const defaultDoc = aiSelectedLibraryDoc || deckDocs[0];
+                                    setAiSelectedLibraryDoc(defaultDoc);
+                                    extractPdfText({ type: 'doc', doc: defaultDoc });
+                                  }}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    aiPdfSourceMode === 'library'
+                                      ? 'bg-purple-600 text-white shadow-xs'
+                                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                  }`}
+                                >
+                                  <span>Deck PDFs ({deckDocs.length})</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Option A: Dropzone / Upload View */}
+                            {aiPdfSourceMode === 'upload' && (
+                              <div>
+                                <input
+                                  type="file"
+                                  ref={aiPdfFileInputRef}
+                                  accept=".pdf,application/pdf"
+                                  onChange={handlePdfFileSelect}
+                                  className="hidden"
+                                />
+
+                                {!aiUploadedPdfFile ? (
+                                  <div
+                                    onDragOver={(e) => { e.preventDefault(); setAiPdfDragActive(true); }}
+                                    onDragLeave={() => setAiPdfDragActive(false)}
+                                    onDrop={handlePdfDrop}
+                                    onClick={() => aiPdfFileInputRef.current?.click()}
+                                    className={`p-6 sm:p-7 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
+                                      aiPdfDragActive
+                                        ? 'border-purple-600 bg-purple-50/70 shadow-inner'
+                                        : 'border-slate-300 bg-[#f8fafc] hover:bg-purple-50/30 hover:border-purple-400'
+                                    }`}
+                                  >
+                                    <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mb-3 shadow-xs">
+                                      <IconUpload className="w-6 h-6" />
+                                    </div>
+                                    <h4 className="text-sm font-black text-slate-900">
+                                      Drag & drop your PDF file here, or click to browse
+                                    </h4>
+                                    <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                                      Supports lecture slides, textbook chapters, study summaries, and course notes (.pdf)
+                                    </p>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        aiPdfFileInputRef.current?.click();
+                                      }}
+                                      className="mt-3.5 h-8 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow-sm transition-all cursor-pointer"
+                                    >
+                                      Browse PDF Files
+                                    </button>
+                                  </div>
+                                ) : (
+                                  /* Active Uploaded File Card */
+                                  <div className="p-4 rounded-2xl bg-purple-50/40 border border-purple-200">
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shadow-xs flex-shrink-0">
+                                          <IconPdf className="w-5 h-6 text-purple-700" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h4 className="text-xs font-black text-slate-900 truncate">
+                                            {aiUploadedPdfFile.name}
+                                          </h4>
+                                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500 font-semibold">
+                                            <span>{(aiUploadedPdfFile.size / 1024).toFixed(0)} KB</span>
+                                            {aiPdfTotalPages > 0 && (
+                                              <>
+                                                <span>·</span>
+                                                <span className="text-purple-700 font-bold">
+                                                  {aiPdfTotalPages} {aiPdfTotalPages === 1 ? 'page' : 'pages'}
+                                                </span>
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => aiPdfFileInputRef.current?.click()}
+                                        className="text-xs font-bold text-purple-700 hover:text-purple-900 bg-white border border-purple-200 px-3 py-1.5 rounded-xl shadow-xs hover:bg-purple-50 transition-all cursor-pointer flex-shrink-0"
+                                      >
+                                        Change PDF
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Option B: Choose Attached Deck Document */}
+                            {aiPdfSourceMode === 'library' && deckDocs.length > 0 && (
+                              <div className="space-y-2">
+                                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block">
+                                  Select Deck PDF Document
+                                </label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {deckDocs.map(doc => {
+                                    const isSelected = aiSelectedLibraryDoc?.id === doc.id;
+                                    return (
+                                      <div
+                                        key={doc.id}
+                                        onClick={() => {
+                                          setAiSelectedLibraryDoc(doc);
+                                          extractPdfText({ type: 'doc', doc });
+                                        }}
+                                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                                          isSelected
+                                            ? 'border-purple-500 bg-purple-50 shadow-xs'
+                                            : 'border-slate-200 bg-[#f8fafc] hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                          <IconPdf className={`w-4 h-5 ${isSelected ? 'text-purple-700' : 'text-slate-500'}`} />
+                                          <div className="min-w-0">
+                                            <p className={`text-xs font-black truncate ${isSelected ? 'text-purple-950' : 'text-slate-800'}`}>
+                                              {doc.title}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400">Attached reviewer doc</p>
+                                          </div>
+                                        </div>
+                                        {isSelected && (
+                                          <span className="w-5 h-5 rounded-full bg-purple-600 text-white text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                                            ✓
+                                          </span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Page Range Controls (Active when a PDF is loaded and has multiple pages) */}
+                      {aiPdfTotalPages > 1 && (
+                        <div className="bg-[#f8fafc] p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                              Pages to Forge Cards From
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setAiPdfPageRangeType('all');
+                                  const src = aiPdfSourceMode === 'upload' ? { type: 'file', file: aiUploadedPdfFile } : { type: 'doc', doc: aiSelectedLibraryDoc };
+                                  extractPdfText(src, { type: 'all', start: 1, end: aiPdfTotalPages });
+                                }}
+                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                                  aiPdfPageRangeType === 'all'
+                                    ? 'bg-purple-600 text-white shadow-xs'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                All ({aiPdfTotalPages} pages)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setAiPdfPageRangeType('custom')}
+                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                                  aiPdfPageRangeType === 'custom'
+                                    ? 'bg-purple-600 text-white shadow-xs'
+                                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                Custom Range
+                              </button>
+                            </div>
+                          </div>
+
+                          {aiPdfPageRangeType === 'custom' && (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <div className="flex items-center gap-1.5 text-xs text-slate-700 font-bold">
+                                <span>Page</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={aiPdfEndPage}
+                                  value={aiPdfStartPage}
+                                  onChange={(e) => setAiPdfStartPage(Math.max(1, Math.min(Number(e.target.value) || 1, aiPdfTotalPages)))}
+                                  className="w-14 h-8 px-2 text-center font-bold bg-white border border-slate-300 rounded-lg text-xs"
+                                />
+                                <span>to</span>
+                                <input
+                                  type="number"
+                                  min={aiPdfStartPage}
+                                  max={aiPdfTotalPages}
+                                  value={aiPdfEndPage}
+                                  onChange={(e) => setAiPdfEndPage(Math.max(aiPdfStartPage, Math.min(Number(e.target.value) || 1, aiPdfTotalPages)))}
+                                  className="w-14 h-8 px-2 text-center font-bold bg-white border border-slate-300 rounded-lg text-xs"
+                                />
+                                <span className="text-slate-400">of {aiPdfTotalPages}</span>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={aiExtractingPdf}
+                                onClick={() => {
+                                  const src = aiPdfSourceMode === 'upload' ? { type: 'file', file: aiUploadedPdfFile } : { type: 'doc', doc: aiSelectedLibraryDoc };
+                                  extractPdfText(src, { type: 'custom', start: aiPdfStartPage, end: aiPdfEndPage });
+                                }}
+                                className="h-8 px-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs transition-all cursor-pointer ml-auto"
+                              >
+                                {aiExtractingPdf ? 'Extracting...' : 'Extract Range'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Extraction Status Bar */}
+                      {aiExtractingPdf && (
+                        <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200 flex items-center gap-3 animate-pulse">
+                          <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          <div className="text-xs font-bold text-purple-900">
+                            {aiPdfExtractProgress || 'Reading PDF text layers...'}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Extraction Success & Preview Card */}
+                      {aiPdfExtractedSummary && !aiExtractingPdf && (
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white text-[11px] font-black flex items-center justify-center flex-shrink-0">
+                                ✓
+                              </span>
+                              <span className="text-xs font-bold text-emerald-950">
+                                Extracted {aiPdfExtractedSummary.wordCount.toLocaleString()} words from {aiPdfExtractedSummary.pages} {aiPdfExtractedSummary.pages === 1 ? 'page' : 'pages'}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setAiShowNotesPreview(!aiShowNotesPreview)}
+                              className="text-[11px] font-extrabold text-emerald-800 hover:text-emerald-950 underline cursor-pointer"
+                            >
+                              {aiShowNotesPreview ? 'Hide Text ▲' : 'View / Edit Text ▼'}
+                            </button>
+                          </div>
+
+                          {aiShowNotesPreview && (
+                            <div className="pt-2 border-t border-emerald-200/60">
+                              <textarea
+                                value={aiNotes}
+                                onChange={(e) => setAiNotes(e.target.value)}
+                                rows="5"
+                                className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-xs text-slate-800 font-mono resize-y outline-none focus:border-emerald-400 custom-scroll leading-relaxed"
+                                placeholder="Extracted text from PDF..."
+                              />
+                              <p className="text-[10px] text-emerald-700 mt-1">
+                                You can trim, modify, or add notes before generating cards.
+                              </p>
+                            </div>
+                          )}
+
+                          {aiPdfSourceMode === 'upload' && aiUploadedPdfFile && (
+                            <label className="flex items-center gap-2 pt-1 text-xs text-slate-700 font-semibold cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={aiSavePdfToDeck}
+                                onChange={(e) => setAiSavePdfToDeck(e.target.checked)}
+                                className="w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                              />
+                              <span>
+                                Also attach this PDF to reviewer materials in <strong>{decks.find(d => d.id === aiTargetDeckId)?.title || 'selected deck'}</strong>
+                              </span>
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* SOURCE 2: FROM RAW PASTED TEXT */
+                    <div className="space-y-2 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                          Study Material / Notes *
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleLoadSampleNotes}
+                          className="text-[11px] font-bold text-purple-700 hover:text-purple-900 underline cursor-pointer"
+                        >
+                          Load Sample Notes
+                        </button>
+                      </div>
+
+                      <textarea
+                        value={aiNotes}
+                        onChange={(e) => setAiNotes(e.target.value)}
+                        rows="6"
+                        placeholder="Paste your study notes, textbook summary, definitions, or exam guide here... Gemini will distill it into crisp Multiple Choice and Identification flashcards."
+                        className="w-full p-3.5 bg-[#f8fafc] border border-slate-200 rounded-2xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-purple-400 focus:bg-white resize-y transition-all leading-relaxed custom-scroll"
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>Minimum ~50 words recommended for highest question quality</span>
+                        <span>{aiNotes.length} characters</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Generation Controls: Format & Quantity */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
+                        Question Format
+                      </label>
+                      <div className="flex items-center p-1 bg-[#f1f5f9] border border-slate-200 rounded-xl gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setAiFormat('MIXED')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiFormat === 'MIXED' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          Mixed
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAiFormat('MULTIPLE_CHOICE')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiFormat === 'MULTIPLE_CHOICE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          MCQ Only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAiFormat('IDENTIFICATION')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiFormat === 'IDENTIFICATION' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          ID Only
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
+                        Card Quantity
+                      </label>
+                      <div className="flex items-center p-1 bg-[#f1f5f9] border border-slate-200 rounded-xl gap-1">
+                        {[3, 5, 8, 12, 15].map(num => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setAiCount(num)}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiCount === num ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Study Focus */}
+                  <div>
+                    <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
+                      Focus Style
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAiFocus('comprehensive')}
+                        className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${aiFocus === 'comprehensive' ? 'border-purple-400 bg-purple-50/60 font-bold text-purple-900 shadow-xs' : 'border-slate-200 bg-[#f8fafc] text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <span className="block font-black">Comprehensive</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Balanced mix of cards</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAiFocus('key_terms')}
+                        className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${aiFocus === 'key_terms' ? 'border-purple-400 bg-purple-50/60 font-bold text-purple-900 shadow-xs' : 'border-slate-200 bg-[#f8fafc] text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <span className="block font-black">Key Terms</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Definitions & acronyms</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAiFocus('conceptual')}
+                        className={`p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${aiFocus === 'conceptual' ? 'border-purple-400 bg-purple-50/60 font-bold text-purple-900 shadow-xs' : 'border-slate-200 bg-[#f8fafc] text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        <span className="block font-black">Application</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">Scenarios & concepts</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* --- PREVIEW STAGE --- */
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="flex items-center justify-between bg-purple-50/80 border border-purple-200 p-3 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                      <span className="text-xs font-bold text-purple-950">
+                        {aiGeneratedCards.filter(c => c.selected).length} of {aiGeneratedCards.length} cards selected
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAiGeneratedCards(cards => cards.map(c => ({ ...c, selected: true })))}
+                        className="text-[11px] font-bold text-purple-700 hover:underline cursor-pointer"
+                      >
+                        Select All
+                      </button>
+                      <span className="text-purple-300">·</span>
+                      <button
+                        type="button"
+                        onClick={() => setAiGeneratedCards(cards => cards.map(c => ({ ...c, selected: false })))}
+                        className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
+                      >
+                        Deselect All
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {aiGeneratedCards.map((card, idx) => {
+                      return (
+                        <div
+                          key={card.id || idx}
+                          onClick={() => {
+                            const updated = [...aiGeneratedCards];
+                            updated[idx].selected = !updated[idx].selected;
+                            setAiGeneratedCards(updated);
+                          }}
+                          className={`p-4 rounded-2xl border-2 transition-all cursor-pointer ${card.selected ? 'border-purple-300 bg-purple-50/20 shadow-xs' : 'border-slate-200 bg-slate-50 opacity-60'}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={!!card.selected}
+                              onChange={() => {}}
+                              className="mt-1 w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                  #{idx + 1} {card.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
+                                </span>
+                                {card.hint && (
+                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+                                    💡 {card.hint}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs font-bold text-slate-900 leading-snug">
+                                {card.prompt}
+                              </p>
+
+                              {card.type === 'MULTIPLE_CHOICE' && card.options && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-2.5">
+                                  {card.options.map((opt, oIdx) => {
+                                    const isCorrect = oIdx === card.correctIndex || opt === card.correctAnswer;
+                                    return (
+                                      <div
+                                        key={oIdx}
+                                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 ${isCorrect ? 'bg-orange-50 text-[#f04824] border border-orange-200 font-bold' : 'bg-white border border-slate-200/80 text-slate-600'}`}
+                                      >
+                                        <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-700 text-[9px] font-black flex items-center justify-center flex-shrink-0">
+                                          {String.fromCharCode(65 + oIdx)}
+                                        </span>
+                                        <span className="truncate">{opt}</span>
+                                        {isCorrect && <span className="ml-auto text-[9px] font-black text-[#f04824]">✓</span>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {card.type === 'IDENTIFICATION' && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-[10px] font-extrabold uppercase text-slate-400">Correct Answer:</span>
+                                  <span className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#f04824] border border-orange-200 text-xs font-bold">
+                                    {card.correctAnswer}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-between flex-shrink-0">
+              {aiStage === 'input' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAiGeneratorOpen(false)}
+                    className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={aiLoading || aiExtractingPdf || !aiNotes.trim()}
+                    onClick={handleGenerateWithAi}
+                    className={`h-11 px-6 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+                      aiLoading || aiExtractingPdf || !aiNotes.trim()
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 active:scale-95'
+                    }`}
+                  >
+                    {aiLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Gemini is forging Bombcards...</span>
+                      </>
+                    ) : aiExtractingPdf ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-slate-300 border-t-purple-600 rounded-full animate-spin" />
+                        <span>Reading PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <IconSparkles className="w-4 h-4" />
+                        <span>Forge Bombcards with Gemini ✨</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setAiStage('input')}
+                    className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                  >
+                    ← Back to Notes
+                  </button>
+                  <button
+                    type="button"
+                    disabled={aiLoading || aiGeneratedCards.filter(c => c.selected).length === 0}
+                    onClick={handleSaveAiCardsToDeck}
+                    className="h-11 px-6 rounded-xl bg-[#f04824] hover:bg-[#e03e1b] text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-orange-500/25 active:scale-95 transition-all cursor-pointer"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                        <span>Saving to deck...</span>
+                      </>
+                    ) : (
+                      <>
+                        <IconPlus className="w-4 h-4" />
+                        <span>Add {aiGeneratedCards.filter(c => c.selected).length} Bombcards to Deck</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -4813,7 +6068,7 @@ function renderSharedDeckUnavailable(msg) {
         </div>
         <span style="font-size:10px;font-weight:800;letter-spacing:0.08em;color:#f04824;text-transform:uppercase;">SHARED REVIEWER</span>
         <h2 style="font-size:20px;font-weight:800;color:#18233a;margin:6px 0 10px;font-family:'Outfit',sans-serif;">Reviewer Deck Unavailable</h2>
-        <p style="font-size:13px;line-height:1.6;color:#64748b;margin:0 0 24px;">${String(msg || 'This deck link may have been deactivated by its owner or does not exist.').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</p>
+        <p style="font-size:13px;line-height:1.6;color:#64748b;margin:0 0 24px;">${String(msg || 'This deck link may have been deactivated by its owner or does not exist.').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</p>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <a href="login.html" style="display:block;width:100%;padding:11px 16px;background:#f04824;color:#fff;font-weight:700;font-size:12px;border-radius:12px;text-decoration:none;box-sizing:border-box;box-shadow:0 4px 12px rgba(240,72,36,0.25);">
             Sign In to Co-StudyMaxx
@@ -4891,6 +6146,6 @@ function renderSharedDeckUnavailable(msg) {
     CSM.initial = await CSM.api('workspace');
     ReactDOM.render(<App isGuest={false} sharedDeck={null} />, root);
   }).catch(error => {
-    root.innerHTML = `<div style="margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:16px system-ui"><h2>Workspace unavailable</h2><p>${String(error.message || 'Could not load your account data.').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</p><button onclick="location.href='login.html'">Back to sign in</button></div>`;
+    root.innerHTML = `<div style="margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:16px system-ui"><h2>Workspace unavailable</h2><p>${String(error.message || 'Could not load your account data.').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</p><button onclick="location.href='login.html'">Back to sign in</button></div>`;
   });
 })();

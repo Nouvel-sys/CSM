@@ -1,6 +1,25 @@
 <?php
 declare(strict_types=1);
 date_default_timezone_set('UTC');ini_set('display_errors','0');
+(function(): void {
+    $envFile = dirname(__DIR__) . '/.env';
+    if (!is_file($envFile)) return;
+    $lines = @file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) return;
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) continue;
+        [$name, $value] = explode('=', $line, 2);
+        $name = trim($name);
+        $value = trim($value);
+        if (preg_match('/^(["\'])(.*)\1$/s', $value, $matches)) $value = $matches[2];
+        if (getenv($name) === false) {
+            putenv("$name=$value");
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+})();
 foreach(glob(dirname(__DIR__).'/classes/*.php') as $classFile)require_once $classFile;
 function respond($data,int $status=200):void{http_response_code($status);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);exit;}
 function fail(int $status,string $message):void{if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();respond(['error'=>$message],$status);}
@@ -11,8 +30,9 @@ $config=require __DIR__.'/config.local.php';$config+=[
  'app_base_url'=>getenv('APP_BASE_URL')?:'',
  'mailer_url'=>getenv('CSM_MAILER_URL')?:'http://127.0.0.1:8091/send',
  'mailer_secret'=>getenv('CSM_MAILER_SECRET')?:'',
+ 'gemini_api_key'=>getenv('GEMINI_API_KEY')?:($config['gemini_api_key']??''),
 ];$database=new Database($config);$db=$database->getConnection();
-foreach(['APP_BASE_URL'=>'app_base_url','CSM_MAILER_URL'=>'mailer_url','CSM_MAILER_SECRET'=>'mailer_secret'] as $environmentKey=>$configKey){$environmentValue=getenv($environmentKey);if($environmentValue!==false&&$environmentValue!=='')$config[$configKey]=$environmentValue;}
+foreach(['APP_BASE_URL'=>'app_base_url','CSM_MAILER_URL'=>'mailer_url','CSM_MAILER_SECRET'=>'mailer_secret','GEMINI_API_KEY'=>'gemini_api_key'] as $environmentKey=>$configKey){$environmentValue=getenv($environmentKey);if($environmentValue!==false&&$environmentValue!=='')$config[$configKey]=$environmentValue;}
 $users=new User($database);$passwordRecovery=new PasswordRecovery($database,$users);$decksService=new Deck($database);$bombcardsService=new Bombcard($database);$materialsService=new Material($database);$progressService=new StudyProgress($database);$bombstyleService=new BombstyleSession($database);$deckSharesService=new DeckShare($database);
 function app_base_url():string{global $config;if(!empty($config['app_base_url']))return rtrim($config['app_base_url'],'/');$scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')||(isset($_SERVER['SERVER_PORT'])&&(int)$_SERVER['SERVER_PORT']===443)?'https':'http';$host=$_SERVER['HTTP_HOST']??'localhost';$script=str_replace('\\','/',$_SERVER['SCRIPT_NAME']??'');$basePath=preg_replace('~/api(?:/index\.php)?$~i','',dirname($script));$basePath=rtrim(str_replace('\\','/',$basePath),'/');return $scheme.'://'.$host.($basePath!==''?'/'.ltrim($basePath,'/'):'');}
 function query(string $sql,array $params=[]):PDOStatement{global $database;return $database->query($sql,$params);}
@@ -67,7 +87,7 @@ function deck_data(array $row):array{global $bombcardsService,$materialsService;
 function save_card(array $data,string $deck,?string $id=null,int $position=0):string{global $bombcardsService;return $bombcardsService->save($data,$deck,$id,$position);}
 function workspace(string $user):array{
  global $decksService,$progressService,$bombstyleService,$users;
- if(in_array(current_role($user),['admin','superadmin'],true))return ['profile'=>$users->profile($user),'decks'=>[],'activities'=>[],'stats'=>['decks'=>0,'cards'=>0,'documents'=>0,'decksTrend'=>0,'cardsTrend'=>0,'studyDays'=>0,'studyBestDays'=>0,'accuracy'=>0,'accuracyTrend'=>0,'activityChart'=>[]],'sessions'=>[],'studyProgress'=>[]];
+ if(in_array(current_role($user),['admin','superadmin'],true))return ['profile'=>$users->profile($user),'decks'=>[],'activities'=>[],'stats'=>['decks'=>0,'cards'=>0,'documents'=>0,'decksTrend'=>0,'cardsTrend'=>0,'studyDays'=>0,'studyBestDays'=>0,'accuracy'=>0,'accuracyTrend'=>0,'activityChart'=>[]],'sessions'=>[],'studyProgress'=>[],'aiConfigured'=>!empty($config['gemini_api_key'])];
  $decks=array_map('deck_data',$decksService->allForUser($user));
  $activities=query('SELECT id,deck_id AS deckId,material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC LIMIT 100',[$user])->fetchAll();
  foreach($activities as &$a){$a['timestamp']=timestamp_ms($a['created_at']);$a['accuracy']=$a['accuracy']===null?'—':round((float)$a['accuracy']).'%';}
@@ -86,5 +106,5 @@ function workspace(string $user):array{
  $days=query('SELECT DISTINCT DATE(created_at) FROM study_activity WHERE user_id=? ORDER BY DATE(created_at)',[$user])->fetchAll(PDO::FETCH_COLUMN);$streak=0;$day=gmdate('Y-m-d');if(!in_array($day,$days,true))$day=gmdate('Y-m-d',time()-86400);while(in_array($day,$days,true)){$streak++;$day=gmdate('Y-m-d',strtotime($day)-86400);}$stats['studyDays']=$streak;
  $best=0;$run=0;$previousDay=null;foreach($days as $date){$run=$previousDay!==null&&strtotime($date)===strtotime($previousDay.' +1 day')?$run+1:1;$best=max($best,$run);$previousDay=$date;}$stats['studyBestDays']=$best;
  $sessions=$bombstyleService->history($user);$sessions=array_map(fn($s)=>['id'=>$s['id'],'deckId'=>$s['deck_id'],'title'=>$s['deck_title'],'difficulty'=>$s['difficulty'],'status'=>$s['status'],'correctCount'=>(int)$s['correct_count'],'answered'=>(int)$s['current_index'],'bestStreak'=>(int)$s['max_streak'],'started_at'=>$s['started_at'],'ended_at'=>$s['ended_at']],$sessions);
- return ['profile'=>$users->profile($user),'decks'=>$decks,'activities'=>$activities,'stats'=>$stats,'sessions'=>$sessions,'studyProgress'=>$progressService->forUser($user)];
+ return ['profile'=>$users->profile($user),'decks'=>$decks,'activities'=>$activities,'stats'=>$stats,'sessions'=>$sessions,'studyProgress'=>$progressService->forUser($user),'aiConfigured'=>!empty($config['gemini_api_key'])];
 }

@@ -10,4 +10,5 @@ return [
     'app_base_url'=>getenv('APP_BASE_URL')?:'http://127.0.0.1:8080', // trusted public app URL; never derived from Host
     'mailer_url'=>getenv('CSM_MAILER_URL')?:'http://127.0.0.1:8091/send', // localhost-only Nodemailer bridge
     'mailer_secret'=>getenv('CSM_MAILER_SECRET')?:'replace-with-the-same-random-64-character-secret-as-mailer-env',
+    'gemini_api_key'=>getenv('GEMINI_API_KEY')?:'', // configured in root .env
 ];

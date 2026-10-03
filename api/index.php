@@ -127,6 +127,58 @@ if($route==='decks/share'){
  }
 }
 if($route==='cards'&&in_array($method,['POST','PATCH','DELETE'],true)){$data=input();$deck=owned_deck(id_field($data,'deckId'),$user);$db->beginTransaction();if($method==='DELETE'){$id=id_field($data);if(!$bombcardsService->delete($id,$deck['id']))fail(404,'Bombcard not found.');}else{$position=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$deck['id']])->fetchColumn();$id=save_card($data,$deck['id'],$method==='PATCH'?id_field($data):null,$position);}activity($user,$deck['id'],$deck['title'],'Bombcards','library',$method==='DELETE'?'Removed':($method==='POST'?'Created':'Edited'));$db->commit();respond(['id'=>$id],$method==='POST'?201:200);}
+if($route==='ai/generate'&&$method==='POST'){
+ $apiKey=(string)($config['gemini_api_key']??'');if($apiKey==='')fail(503,'Gemini AI is not configured on this server.');
+ $data=input();$notes=field($data,'notes',60000);$deckId=isset($data['deckId'])&&is_string($data['deckId'])&&$data['deckId']!==''?id_field($data,'deckId'):null;
+ $count=isset($data['count'])?max(1,min(25,(int)$data['count'])):5;$format=field($data,'format',32,false)?:'MIXED';$focus=field($data,'focus',64,false)?:'comprehensive';
+ $deck=$deckId?owned_deck($deckId,$user):null;
+ $instruction="You are an expert academic study assistant for Co-StudyMaxx.\nGenerate exactly {$count} high-yield study flashcards based SOLELY on the study notes below.\n";
+ if($format==='MULTIPLE_CHOICE'){$instruction.="All {$count} flashcards must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";}
+ elseif($format==='IDENTIFICATION'){$instruction.="All {$count} flashcards must be IDENTIFICATION with prompt and clear concise correctAnswer term/concept.\n";}
+ else{$instruction.="Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer) and IDENTIFICATION (prompt, correctAnswer).\n";}
+ if($focus==='key_terms')$instruction.="Focus: Emphasize key vocabulary, acronyms, and foundational definitions.\n";
+ elseif($focus==='conceptual')$instruction.="Focus: Emphasize conceptual understanding, cause-and-effect relationships, and practical scenarios.\n";
+ $instruction.="Output schema: Return ONLY a raw JSON array matching this structure:\n[{\"type\":\"MULTIPLE_CHOICE\"|\"IDENTIFICATION\",\"prompt\":\"...\",\"options\":[\"...\"],\"correctIndex\":0,\"correctAnswer\":\"...\",\"hint\":\"...\"}]\nDo NOT wrap in markdown fences like ```json. Return ONLY valid JSON array.\n\nSTUDY MATERIAL:\n".$notes;
+ $modelsToTry=['gemini-3.5-flash-lite','gemini-3.5-flash','gemini-3.8-flash'];$geminiResponse=null;$lastErr='';
+ foreach($modelsToTry as $mName){
+  $url='https://generativelanguage.googleapis.com/v1beta/models/'.$mName.':generateContent?key='.rawurlencode($apiKey);
+  $payload=json_encode(['contents'=>[['parts'=>[['text'=>$instruction]]]],'generationConfig'=>['responseMimeType'=>'application/json','temperature'=>0.3,'maxOutputTokens'=>4096]]);
+  $ch=curl_init($url);curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);curl_setopt($ch,CURLOPT_POST,true);curl_setopt($ch,CURLOPT_POSTFIELDS,$payload);curl_setopt($ch,CURLOPT_HTTPHEADER,['Content-Type: application/json']);curl_setopt($ch,CURLOPT_TIMEOUT,45);curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
+  $raw=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_HTTP_CODE);$cErr=curl_error($ch);curl_close($ch);
+  if($code===200&&is_string($raw)&&$raw!==''){$p=json_decode($raw,true);$txt=$p['candidates'][0]['content']['parts'][0]['text']??'';if($txt!==''){$geminiResponse=$txt;break;}}
+  else{$lastErr="Model $mName HTTP $code: ".($raw?:$cErr);}
+ }
+ if(!$geminiResponse)fail(502,'Could not generate flashcards with Gemini. Please try again in a moment.');
+ $clean=trim($geminiResponse);
+ if(str_starts_with($clean,'```')){$clean=preg_replace('/^```(?:json)?\s*/i','',$clean);$clean=preg_replace('/\s*```$/','',$clean);$clean=trim($clean);}
+ $cardsData=json_decode($clean,true);if(!is_array($cardsData)&&isset($cardsData['cards'])&&is_array($cardsData['cards']))$cardsData=$cardsData['cards'];
+ if(!is_array($cardsData))fail(502,'Gemini returned an unparseable response. Please try again.');
+ $normalized=[];
+ foreach($cardsData as $idx=>$c){
+  if(!is_array($c)||empty($c['prompt']))continue;
+  $type=($c['type']??'MULTIPLE_CHOICE')==='IDENTIFICATION'?'IDENTIFICATION':'MULTIPLE_CHOICE';
+  $prompt=trim((string)$c['prompt']);$hint=!empty($c['hint'])?trim((string)$c['hint']):null;
+  if($type==='MULTIPLE_CHOICE'){
+   $rawOpts=is_array($c['options']??null)?$c['options']:[];$options=[];
+   foreach($rawOpts as $opt){if(is_string($opt)||is_numeric($opt))$options[]=trim((string)$opt);}
+   while(count($options)<4)$options[]='Option '.(count($options)+1);
+   $options=array_slice($options,0,4);$cIdx=isset($c['correctIndex'])&&is_numeric($c['correctIndex'])?(int)$c['correctIndex']:0;
+   if($cIdx<0||$cIdx>3)$cIdx=0;$ans=$options[$cIdx];
+   $normalized[]=['id'=>'ai-'.($idx+1).'-'.uid(),'type'=>'MULTIPLE_CHOICE','prompt'=>$prompt,'options'=>$options,'correctIndex'=>$cIdx,'correctAnswer'=>$ans,'hint'=>$hint];
+  }else{
+   $ans=trim((string)($c['correctAnswer']??''));if($ans==='')continue;
+   $normalized[]=['id'=>'ai-'.($idx+1).'-'.uid(),'type'=>'IDENTIFICATION','prompt'=>$prompt,'correctAnswer'=>$ans,'hint'=>$hint];
+  }
+ }
+ if(empty($normalized))fail(422,'Could not extract valid questions from the provided notes. Please supply more detailed study text.');
+ $saveDirectly=($data['saveDirectly']??false)===true;
+ if($saveDirectly&&$deck){
+  $db->beginTransaction();$startPos=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$deck['id']])->fetchColumn();
+  foreach($normalized as $i=>$card){save_card($card,$deck['id'],null,$startPos+$i);}
+  activity($user,$deck['id'],$deck['title'],'AI Bombcards','creator','Created');$db->commit();
+ }
+ respond(['ok'=>true,'count'=>count($normalized),'deckId'=>$deckId,'saved'=>$saveDirectly&&$deck!==null,'cards'=>$normalized]);
+}
 if($route==='documents'&&$method==='POST'){
  $deck=owned_deck(id_field($_POST,'deckId'),$user);$file=$_FILES['file']??null;
  if(!$file||!is_array($file)||is_array($file['error']??null))fail(422,'Choose a PDF.');
