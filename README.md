@@ -1,8 +1,49 @@
-# Co-StudyMaxx local setup (PHP + MySQL)
+# Co-StudyMaxx (PHP + MySQL + React)
 
-The frontend remains the existing React/Babel app. Its authentication and persistent workspace data are served by the OOP PHP/PDO API in `api/`, `server/`, and `classes/`; MySQL is the source of truth. This project does not use Gemini or generated AI content.
+Co-StudyMaxx is a modern active recall platform featuring flashcard reviewers ("Bombcards"), interactive PDF annotation tools, pressure-based countdown quiz games ("Bombstyle Arena"), and AI flashcard generation powered by Gemini.
 
-## XAMPP setup
+For a detailed breakdown of codebase design, directory structures, and data flows, see [ARCHITECTURE.md](file:///c:/Users/dough/CSM/ARCHITECTURE.md).
+
+---
+
+## Quick Start (Developer Launch)
+
+### Option 1: 1-Click Launch on Windows (Recommended)
+Double-click or run:
+```bat
+start.bat
+```
+This automatically detects `php` on your PATH or at `C:\xampp\php\php.exe` and launches the development server on `http://127.0.0.1:8080`.
+
+### Option 2: Using npm
+```powershell
+npm run dev
+# or
+npm start
+```
+
+### Option 3: Direct Command Line
+```powershell
+php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php
+```
+
+Then open `http://127.0.0.1:8080/` in your browser.
+
+---
+
+## Environment Configuration
+
+Copy `.env.example` to `.env` and fill in any required keys:
+```env
+APP_ENV=local
+APP_BASE_URL=http://127.0.0.1:8080
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+The application automatically loads `.env` securely in [`server/bootstrap.php`](file:///c:/Users/dough/CSM/server/bootstrap.php). `.env` is ignored by Git to protect secrets.
+
+---
+
+## XAMPP Setup
 
 1. Install/start Apache and MySQL in XAMPP. The app uses PHP 8+, PDO MySQL, `mbstring`, and `fileinfo` (included in the XAMPP PHP build).
 2. Create a local database named `co_studymaxx` with `utf8mb4` collation. For a new empty database, import `database/schema.sql` using phpMyAdmin’s **Import** tab or `mysql -u root -p co_studymaxx < database/schema.sql`.

@@ -1,216 +1,1426 @@
 <?php
-require dirname(__DIR__).'/server/bootstrap.php';require dirname(__DIR__).'/server/arena.php';
-$route=$_GET['r']??'';$method=$_SERVER['REQUEST_METHOD'];header('Referrer-Policy: same-origin');header('X-Frame-Options: SAMEORIGIN');
-if(!is_string($route))fail(400,'Invalid endpoint.');if(!in_array($method,['GET','POST','PATCH','DELETE'],true))fail(405,'Method not allowed.');
-$publicSessionRoutes=['auth/session','auth/login','auth/register','auth/password/request','auth/password/reset','shared/deck','shared/document'];
-if(isset($_SESSION['user_id'])&&!in_array($route,$publicSessionRoutes,true)&&!tab_session_matches((string)$_SESSION['user_id']))fail(401,'This tab was signed out because the account was opened in another tab. Please sign in again.');
-if($method!=='GET')csrf();
-if($route==='auth/session'&&$method==='GET'){$ok=false;if(isset($_SESSION['user_id'])){$u=query('SELECT auth_version FROM users WHERE id=?',[$_SESSION['user_id']])->fetch();$ok=$u&&(int)$u['auth_version']==($_SESSION['auth_version']??0)&&tab_session_matches((string)$_SESSION['user_id'],$u);}respond(['authenticated'=>(bool)$ok,'csrf'=>$_SESSION['csrf'],'profile'=>$ok?profile($_SESSION['user_id']):null]);}
-if($route==='auth/password/request'&&$method==='POST'){
- $started=microtime(true);$data=input();$email=$data['email']??'';$email=is_string($email)?trim($email):'';$validEmail=strlen($email)<=254&&filter_var($email,FILTER_VALIDATE_EMAIL)!==false;$normalized=$validEmail?(function_exists('mb_strtolower')?mb_strtolower($email,'UTF-8'):strtolower($email)):'';$key=(string)($config['mailer_secret']?:'local-reset-throttle-key-change-this');$address=(string)($_SERVER['REMOTE_ADDR']??'unknown');
- $allowed=throttle_allows(hash_hmac('sha256','reset-ip:'.$address,$key),30,900);
- if($validEmail)$allowed=throttle_allows(hash_hmac('sha256','reset-email:'.$normalized,$key),3,900)&&$allowed;
- if($allowed&&$validEmail&&recovery_delivery_configured()){
-  $issued=$passwordRecovery->issue($normalized);
-  if($issued){$base=rtrim($config['app_base_url'],'/');$resetUrl=$base.'/login.html?mode=reset#token='.rawurlencode($issued['token']);$target=query('SELECT id FROM users WHERE email=?',[$normalized])->fetchColumn();$sent=false;try{$sent=send_password_recovery_email($issued['email'],$resetUrl);}catch(Throwable $ignored){}if(!$sent){$passwordRecovery->revoke($issued['token']);audit_event(null,'password_reset_delivery_failed',is_string($target)?$target:null,['channel'=>'email']);error_log('Password recovery mail delivery failed.');}else audit_event(null,'password_reset_requested',is_string($target)?$target:null,['channel'=>'email']);}
- }
- $delay=500000-(int)((microtime(true)-$started)*1000000);if($delay>0)usleep($delay);
- respond(['message'=>'If an account exists for that email and email delivery is configured, password reset instructions will be sent.']);
+
+declare(strict_types=1);
+
+require dirname(__DIR__) . '/server/bootstrap.php';
+require dirname(__DIR__) . '/server/arena.php';
+
+// ============================================================================
+// 1. Request Context & Security Headers
+// ============================================================================
+$route = $_GET['r'] ?? '';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+header('Referrer-Policy: same-origin');
+header('X-Frame-Options: SAMEORIGIN');
+
+if (!is_string($route)) {
+    fail(400, 'Invalid endpoint.');
 }
-if($route==='auth/password/reset'&&$method==='POST'){
- $data=input();$token=field($data,'token',64);$next=password_value($data,'newPassword');$confirm=password_value($data,'confirmPassword');if(!hash_equals($next,$confirm))fail(422,'The new password and confirmation do not match.');$target=query('SELECT user_id FROM password_reset_tokens WHERE token_hash=?',[hash('sha256',$token)])->fetchColumn();$passwordRecovery->consume($token,password_hash($next,PASSWORD_DEFAULT));audit_event(null,'password_reset_completed',is_string($target)?$target:null,['channel'=>'email']);respond(['ok'=>true,'message'=>'Password reset. You can now sign in with your new password.']);
+
+if (!in_array($method, ['GET', 'POST', 'PATCH', 'DELETE'], true)) {
+    fail(405, 'Method not allowed.');
 }
-if(in_array($route,['auth/register','auth/login'],true)&&$method==='POST'){
- global $users;$data=input();$login=field($data,'username',254);$pass=password_value($data,'password');$bucket=hash('sha256',($_SERVER['REMOTE_ADDR']??'local').':'.$route);$now=time();
- query('INSERT INTO auth_attempts (bucket,attempts,window_start) VALUES (?,1,?) ON DUPLICATE KEY UPDATE attempts=IF(window_start<?,1,attempts+1),window_start=IF(window_start<?,VALUES(window_start),window_start)',[$bucket,$now,$now-900,$now-900]);if((int)query('SELECT attempts FROM auth_attempts WHERE bucket=?',[$bucket])->fetchColumn()>30)fail(429,'Too many attempts. Try again in 15 minutes.');
- if($route==='auth/register'){$username=$login;if(!preg_match('/^[A-Za-z0-9_]{3,24}$/D',$username))fail(422,'Username must contain 3–24 letters, numbers, or underscores.');$email=field($data,'email',254);if(!filter_var($email,FILTER_VALIDATE_EMAIL))fail(422,'Enter a valid email address.');$normalizedEmail=function_exists('mb_strtolower')?mb_strtolower($email,'UTF-8'):strtolower($email);try{$users->register(uid(),$username,$normalizedEmail,password_hash($pass,PASSWORD_DEFAULT));}catch(PDOException $e){if($e->getCode()==='23000')fail(409,'That username or email is already registered.');throw $e;}respond(['message'=>'Account created. Please sign in.'],201);}
- $row=$users->byLogin($login);$normalizedLogin=function_exists('mb_strtolower')?mb_strtolower(trim($login),'UTF-8'):strtolower(trim($login));$accountBucket=$row?hash('sha256','account-login:user:'.$row['id']):hash('sha256','account-login:identifier:'.$normalizedLogin);
- if($row&&$row['locked_until']&&strtotime($row['locked_until'].' UTC')>time()){audit_event(null,'login_blocked',$row['id'],['reason'=>'account_locked']);fail(401,'Incorrect username/email or password, or account temporarily unavailable.');}
- $hash=$row['password_hash']??'$2y$10$92IXUNpkjJ0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
- if(!$row||!password_verify($pass,$hash)){$withinLimit=throttle_allows($accountBucket,8,900);$attempts=(int)query('SELECT attempts FROM auth_attempts WHERE bucket=?',[$accountBucket])->fetchColumn();if($row&&!$withinLimit){query('UPDATE users SET locked_until=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE) WHERE id=? AND (locked_until IS NULL OR locked_until<=UTC_TIMESTAMP(3))',[$row['id']]);audit_event(null,'account_locked',$row['id'],['reason'=>'failed_login_threshold']);}audit_event(null,'login_failure',$row['id']??null,['reason'=>'invalid_credentials']);fail(401,'Incorrect username/email or password, or account temporarily unavailable.');}
- if(password_needs_rehash($hash,PASSWORD_DEFAULT))query('UPDATE users SET password_hash=? WHERE id=?',[password_hash($pass,PASSWORD_DEFAULT),$row['id']]);
- $tabHash=request_tab_hash();$browserHash=request_browser_hash();if(!$tabHash||!$browserHash)fail(400,'Refresh the page and try signing in again.');query('INSERT INTO user_active_tabs(user_id,browser_hash,active_tab_hash) VALUES(?,?,?) ON DUPLICATE KEY UPDATE active_tab_hash=VALUES(active_tab_hash),updated_at=UTC_TIMESTAMP(3)',[$row['id'],$browserHash,$tabHash]);query('DELETE FROM auth_attempts WHERE bucket IN (?,?)',[$bucket,$accountBucket]);audit_event($row['id'],'login_success',$row['id'],['remembered'=>($data['remember']??false)===true]);
- $_SESSION=[];session_regenerate_id(true);$remember=($data['remember']??false)===true;$until=time()+($remember?2592000:43200);$_SESSION=['user_id'=>$row['id'],'auth_version'=>(int)$row['auth_version'],'expires_at'=>$until,'csrf'=>bin2hex(random_bytes(32))];setcookie(session_name(),session_id(),['expires'=>$remember?$until:0,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);respond(['profile'=>profile($row['id']),'csrf'=>$_SESSION['csrf']]);
+
+$publicSessionRoutes = [
+    'auth/session',
+    'auth/login',
+    'auth/register',
+    'auth/password/request',
+    'auth/password/reset',
+    'shared/deck',
+    'shared/document',
+];
+
+if (isset($_SESSION['user_id']) && !in_array($route, $publicSessionRoutes, true) && !tab_session_matches((string)$_SESSION['user_id'])) {
+    fail(401, 'This tab was signed out because the account was opened in another tab. Please sign in again.');
 }
-if($route==='shared/deck'&&$method==='GET'){
- $token=$_GET['token']??'';if(!is_string($token)||!preg_match('/^[a-zA-Z0-9_-]{3,64}$/D',$token))fail(404,'Shared deck link is invalid or not found.');
- $share=$deckSharesService->getByToken($token);if(!$share)fail(404,'Shared deck link not found.');
- if($share['moderation_status']!=='visible')fail(404,'This deck is currently unavailable.');
- if(!(bool)$share['is_active'])fail(403,'This shared deck link has been deactivated by the owner.');
- $cards=array_map('card_data',$bombcardsService->forDeck($share['deck_id']));
- $docs=$materialsService->byDeck($share['deck_id']);
- foreach($docs as &$doc){$doc['deckId']=$share['deck_id'];$doc['url']=app_base_url().'/api/index.php?r=shared/document&token='.rawurlencode($token).'&id='.rawurlencode((string)$doc['id']);}unset($doc);
- respond(['deck'=>['id'=>$share['deck_id'],'code'=>$share['title'],'title'=>$share['title'],'subject'=>$share['subject'],'category'=>$share['category'],'owner'=>$share['owner_name'],'lastModified'=>$share['updated_at'],'section'=>'recent','cards'=>$cards,'documents'=>$docs,'share'=>['token'=>$share['share_token'],'isActive'=>true,'url'=>app_base_url().'/shared/deck/'.$share['share_token']]],'share'=>['token'=>$share['share_token'],'isActive'=>true,'url'=>app_base_url().'/shared/deck/'.$share['share_token']]]);
+
+if ($method !== 'GET') {
+    csrf();
 }
-if($route==='shared/document'&&$method==='GET'){
- $token=$_GET['token']??'';$docId=$_GET['id']??'';
- if(!is_string($token)||!preg_match('/^[a-zA-Z0-9_-]{3,64}$/D',$token))fail(404,'Invalid share token.');
- if(!is_string($docId)||!preg_match('/^[a-f0-9]{32}$/D',$docId))fail(404,'Invalid document ID.');
- $share=$deckSharesService->getByToken($token);
- if(!$share||$share['moderation_status']!=='visible'||!(bool)$share['is_active'])fail(403,'This shared document is not available.');
- $document=query("SELECT m.id,m.title,m.stored_name FROM documents m WHERE m.id=? AND m.deck_id=?",[$docId,$share['deck_id']])->fetch();
- if(!$document)fail(404,'PDF not found.');
- $path=$config['upload_dir'].'/'.$document['stored_name'];
- if(!is_file($path))fail(404,'PDF missing from file storage.');
- if(session_status()===PHP_SESSION_ACTIVE)session_write_close();
- header('Content-Type: application/pdf');header('Content-Length: '.filesize($path));
- $disp=($_GET['download']??'')==='1'?'attachment':'inline';
- header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''".rawurlencode((string)$document['title']));
- header('Cache-Control: public, max-age=3600');header('X-Content-Type-Options: nosniff');
- header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
- readfile($path);exit;
+
+// ============================================================================
+// 2. Authentication & Session Endpoints
+// ============================================================================
+
+// Check active session & return profile
+if ($route === 'auth/session' && $method === 'GET') {
+    $ok = false;
+    if (isset($_SESSION['user_id'])) {
+        $u = query('SELECT auth_version FROM users WHERE id=?', [$_SESSION['user_id']])->fetch();
+        $ok = $u && (int)$u['auth_version'] == ($_SESSION['auth_version'] ?? 0) && tab_session_matches((string)$_SESSION['user_id'], $u);
+    }
+    respond([
+        'authenticated' => (bool)$ok,
+        'csrf' => $_SESSION['csrf'],
+        'profile' => $ok ? profile($_SESSION['user_id']) : null,
+    ]);
 }
-$user=user_id();$currentRole=current_role($user);global $users,$decksService,$bombcardsService,$materialsService,$progressService,$bombstyleService,$deckSharesService;
-if($route==='notifications'&&$method==='GET'){$items=query('SELECT id,notification_type type,title,message,read_at readAt,created_at createdAt,deck_id deckId FROM user_notifications WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 50',[$user])->fetchAll();$unread=(int)query('SELECT COUNT(*) FROM user_notifications WHERE user_id=? AND read_at IS NULL',[$user])->fetchColumn();foreach($items as &$item){$item['id']=(int)$item['id'];$item['isRead']=$item['readAt']!==null;}unset($item);respond(['notifications'=>$items,'unreadCount'=>$unread]);}
-if($route==='notifications/read'&&$method==='PATCH'){$data=input();if(array_key_exists('id',$data)){if(!is_int($data['id'])||$data['id']<1)fail(422,'Invalid notification id.');query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE id=? AND user_id=? AND read_at IS NULL',[$data['id'],$user]);}else query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE user_id=? AND read_at IS NULL',[$user]);respond(['ok'=>true]);}
-if($route==='notifications'&&$method==='DELETE'){query('DELETE FROM user_notifications WHERE user_id=?',[$user]);respond(['ok'=>true]);}
-if(str_starts_with($route,'admin/')){
- $role=$currentRole;if(!in_array($role,['admin','superadmin'],true))fail(403,'Administrator access is required.');$isSuper=$role==='superadmin';$admin=new Admin($database);
- if($route==='admin/dashboard'&&$method==='GET'){$from=$_GET['from']??gmdate('Y-m-01');$to=$_GET['to']??gmdate('Y-m-d');if(!is_string($from)||!is_string($to))fail(422,'Invalid date range.');respond($admin->dashboard($from,$to));}
- if($route==='admin/users'&&$method==='GET'){$search=$_GET['q']??'';if(!is_string($search)||text_length($search)>80)fail(422,'Search text is too long.');$like='%'.trim($search).'%';$limit=max(1,min(100,(int)($_GET['limit']??50)));$offset=max(0,min(100000,(int)($_GET['offset']??0)));$total=(int)query('SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?',[$like,$like])->fetchColumn();$rows=query('SELECT u.id,u.username,u.email,u.role,u.locked_until,u.created_at,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id) deck_count,(SELECT COUNT(*) FROM documents m WHERE m.user_id=u.id) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT '.$limit.' OFFSET '.$offset,[$like,$like])->fetchAll();respond(['users'=>$rows,'total'=>$total,'limit'=>$limit,'offset'=>$offset]);}
- if($route==='admin/decks'&&$method==='GET'){$search=$_GET['q']??'';if(!is_string($search)||text_length($search)>100)fail(422,'Search text is too long.');$like='%'.trim($search).'%';$limit=max(1,min(100,(int)($_GET['limit']??50)));$rows=query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ? ORDER BY d.updated_at DESC LIMIT '.$limit,[$like,$like,$like])->fetchAll();respond(['decks'=>$rows]);}
- if($route==='admin/decks/view'&&$method==='GET'){$deckId=id_field($_GET);$deck=query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.updated_at,u.username owner FROM decks d JOIN users u ON u.id=d.user_id WHERE d.id=?',[$deckId])->fetch();if(!$deck)fail(404,'Reviewer not found.');$cards=array_map('card_data',query('SELECT * FROM cards WHERE deck_id=? ORDER BY position,created_at,id',[$deckId])->fetchAll());$documents=query('SELECT id,title,mime_type mimeType,size_bytes size,created_at uploadedAt FROM documents WHERE deck_id=? ORDER BY created_at DESC,id',[$deckId])->fetchAll();foreach($documents as &$document){$document['size']=(int)$document['size'];$document['url']='api/index.php?r=admin/documents/file&id='.rawurlencode((string)$document['id']).'&tabId='.rawurlencode((string)request_tab_id()).'&browserId='.rawurlencode((string)request_browser_id());}unset($document);$deck['document_count']=count($documents);audit_event($user,'admin_deck_viewed',$deckId,['cardCount'=>count($cards),'documentCount'=>count($documents)],'deck');respond(['deck'=>$deck,'cards'=>$cards,'documents'=>$documents]);}
- if($route==='admin/documents/file'&&$method==='GET'){$documentId=id_field($_GET);$document=query('SELECT m.id,m.deck_id,m.title,m.stored_name FROM documents m WHERE m.id=?',[$documentId])->fetch();if(!$document)fail(404,'PDF not found.');$path=$config['upload_dir'].'/'.$document['stored_name'];if(!is_file($path))fail(404,'PDF missing from file storage.');audit_event($user,'admin_document_viewed',(string)$document['deck_id'],['documentId'=>(string)$document['id']],'deck');session_write_close();header('Content-Type: application/pdf');header('Content-Length: '.filesize($path));header('Content-Disposition: inline; filename="document.pdf"; filename*=UTF-8\'\''.rawurlencode((string)$document['title']));header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");readfile($path);exit;}
- if($route==='admin/decks/flag'&&$method==='POST'){$data=input();$deckId=id_field($data,'deckId');$reason=field($data,'reason',1000);$deck=query('SELECT id,user_id,title FROM decks WHERE id=?',[$deckId])->fetch();if(!$deck)fail(404,'Reviewer not found.');$db->beginTransaction();query('INSERT INTO deck_reports(deck_id,flagged_by_user_id,reason) VALUES(?,?,?)',[$deckId,$user,$reason]);$reportId=(int)$db->lastInsertId();$noticeMessage='Your deck “'.$deck['title'].'” was flagged for staff review. Staff note: '.$reason;notify_user((string)$deck['user_id'],'deck_flagged','Your deck was flagged for review',$noticeMessage,$deckId);audit_event($user,'deck_flagged',$deckId,['reportId'=>$reportId],'deck');$db->commit();respond(['ok'=>true,'reportId'=>$reportId],201);}
- if($route==='admin/decks/visibility'&&$method==='PATCH'){$data=input();$deckId=id_field($data,'deckId');$action=field($data,'action',16);$reason=field($data,'reason',1000);if(!in_array($action,['hide','restore'],true))fail(422,'Invalid moderation action.');$status=$action==='hide'?'hidden':'visible';$db->beginTransaction();$deck=query('SELECT id,user_id,title,moderation_status FROM decks WHERE id=? FOR UPDATE',[$deckId])->fetch();if(!$deck)fail(404,'Reviewer not found.');query('UPDATE decks SET moderation_status=? WHERE id=?',[$status,$deckId]);if($action==='hide')arena_stop_hidden_deck($deckId);query('INSERT INTO deck_reports(deck_id,flagged_by_user_id,reason,status,moderation_action,moderation_reason,reviewed_by_user_id,reviewed_at) VALUES(?,?,?,\'actioned\',?,?,?,UTC_TIMESTAMP(3))',[$deckId,$user,'Administrative visibility change',$action,$reason,$user]);$noticeTitle=$action==='hide'?'Deck hidden after staff review':'Deck restored after staff review';$noticeMessage='Your deck “'.$deck['title'].'” was '.($action==='hide'?'hidden':'restored').'. Staff note: '.$reason;notify_user((string)$deck['user_id'],'deck_'.$action,$noticeTitle,$noticeMessage,$deckId);audit_event($user,'deck_'.$action,$deckId,['reason'=>$reason],'deck');$db->commit();respond(['ok'=>true,'moderationStatus'=>$status]);}
- if($route==='admin/reports'&&$method==='GET'){$status=$_GET['status']??'open';if(!in_array($status,['open','dismissed','actioned','all'],true))fail(422,'Invalid report status.');$where=$status==='all'?'':'WHERE r.status=?';$params=$status==='all'?[]:[$status];$rows=query('SELECT r.id,r.deck_id deckId,r.reason,r.status,r.moderation_action moderationAction,r.moderation_reason moderationReason,r.created_at,r.reviewed_at,d.title deckTitle,d.subject,d.moderation_status moderationStatus,u.username owner,flagger.username flaggedBy FROM deck_reports r JOIN decks d ON d.id=r.deck_id JOIN users u ON u.id=d.user_id LEFT JOIN users flagger ON flagger.id=r.flagged_by_user_id '.$where.' ORDER BY (r.status=\'open\') DESC,r.created_at DESC LIMIT 100',$params)->fetchAll();respond(['reports'=>$rows]);}
- if($route==='admin/reports'&&$method==='PATCH'){$data=input();$reportId=$data['id']??null;if(!is_int($reportId)||$reportId<1)fail(422,'Invalid report id.');$action=field($data,'action',16);$reason=field($data,'reason',1000);if(!in_array($action,['dismiss','hide'],true))fail(422,'Invalid report action.');$db->beginTransaction();$report=query('SELECT id,deck_id,status FROM deck_reports WHERE id=? FOR UPDATE',[$reportId])->fetch();if(!$report)fail(404,'Report not found.');if($report['status']!=='open')fail(409,'This report has already been reviewed.');$deck=query('SELECT id,user_id,title FROM decks WHERE id=? FOR UPDATE',[$report['deck_id']])->fetch();if(!$deck)fail(404,'Reviewer not found.');if($action==='hide'){query("UPDATE decks SET moderation_status='hidden' WHERE id=?",[$report['deck_id']]);arena_stop_hidden_deck($report['deck_id']);}$nextStatus=$action==='hide'?'actioned':'dismissed';query('UPDATE deck_reports SET status=?,moderation_action=?,moderation_reason=?,reviewed_by_user_id=?,reviewed_at=UTC_TIMESTAMP(3) WHERE id=?',[$nextStatus,$action==='hide'?'hide':null,$reason,$user,$reportId]);$noticeTitle=$action==='hide'?'Deck hidden after staff review':'Deck review completed';$noticeMessage=$action==='hide'?'Your deck “'.$deck['title'].'” was hidden after a report review. Staff note: '.$reason:'A report about your deck “'.$deck['title'].'” was reviewed and dismissed. Staff note: '.$reason;notify_user((string)$deck['user_id'],'deck_report_'.$action,$noticeTitle,$noticeMessage,(string)$deck['id']);audit_event($user,'deck_report_'.$action,$report['deck_id'],['reportId'=>$reportId,'reason'=>$reason],'deck');$db->commit();respond(['ok'=>true]);}
- if($route==='admin/users/unlock'&&$method==='POST'){$data=input();$target=id_field($data,'userId');$reason=field($data,'reason',500);$account=query('SELECT id,locked_until FROM users WHERE id=?',[$target])->fetch();if(!$account)fail(404,'Account not found.');$db->beginTransaction();query('SELECT id FROM users WHERE id=? FOR UPDATE',[$target]);query('UPDATE users SET locked_until=NULL WHERE id=?',[$target]);query('DELETE FROM auth_attempts WHERE bucket=?',[hash('sha256','account-login:user:'.$target)]);audit_event($user,'account_unlocked',$target,['reason'=>$reason]);$db->commit();respond(['ok'=>true]);}
- if($route==='admin/users/reset'&&$method==='POST'){$data=input();$target=id_field($data,'userId');$account=query('SELECT id,email FROM users WHERE id=?',[$target])->fetch();if(!$account)fail(404,'Account not found.');if(!$account['email'])fail(409,'This account has no email address for secure password recovery.');$resetBucket=hash('sha256','admin-reset:'.$user.':'.$target);if(!throttle_allows($resetBucket,3,3600))fail(429,'Password reset email requests for this account are temporarily limited.');$issued=$passwordRecovery->issue((string)$account['email']);if(!$issued)fail(409,'Password recovery is unavailable for this account.');$resetUrl=rtrim((string)$config['app_base_url'],'/').'/login.html?mode=reset#token='.rawurlencode($issued['token']);$sent=false;try{$sent=send_password_recovery_email($issued['email'],$resetUrl);}catch(Throwable $ignored){}if(!$sent){$passwordRecovery->revoke($issued['token']);audit_event($user,'admin_password_reset_delivery_failed',$target,['reason'=>'mailer_unavailable']);fail(502,'The secure reset email could not be delivered. Check the configured mail service and try again.');}audit_event($user,'admin_password_reset_requested',$target,['channel'=>'registered_email']);respond(['ok'=>true,'message'=>'A secure password-reset link was sent to the account email address.']);}
- if($route==='admin/users/role'&&$method==='POST'){if(!$isSuper)fail(403,'Only a superadmin can change account roles.');$data=input();$target=id_field($data,'userId');$nextRole=field($data,'role',16);if(!in_array($nextRole,['user','admin','superadmin'],true))fail(422,'Invalid role.');if($target===$user&&$nextRole!=='superadmin')fail(409,'Use another superadmin to change your own role.');$db->beginTransaction();$accounts=query('SELECT id,role FROM users WHERE id IN (?,?) ORDER BY id FOR UPDATE',[$user,$target])->fetchAll();$targetRow=null;$actorRow=null;foreach($accounts as $account){if($account['id']===$target)$targetRow=$account;if($account['id']===$user)$actorRow=$account;}if(!$actorRow||$actorRow['role']!=='superadmin')fail(403,'Only a current superadmin can change account roles.');if(!$targetRow)fail(404,'Account not found.');$superCount=(int)query("SELECT COUNT(*) FROM users WHERE role='superadmin'")->fetchColumn();if($targetRow['role']==='superadmin'&&$nextRole!=='superadmin'&&$superCount<=1)fail(409,'The system must retain at least one superadmin.');query('UPDATE users SET role=? WHERE id=?',[$nextRole,$target]);audit_event($user,'user_role_changed',$target,['from'=>$targetRow['role'],'to'=>$nextRole]);$db->commit();respond(['ok'=>true,'role'=>$nextRole]);}
- if($route==='admin/settings'&&$method==='GET'){if(!$isSuper)fail(403,'Only a superadmin can view system settings.');$storage=(int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();respond(['maintenanceMode'=>maintenance_enabled(),'storageLimitBytes'=>(int)system_setting('storage_limit_bytes','10737418240'),'storageUsedBytes'=>$storage]);}
- if($route==='admin/settings'&&$method==='PATCH'){
-  if(!$isSuper)fail(403,'Only a superadmin can change system settings.');$data=input();$updates=[];$db->beginTransaction();
-  if(array_key_exists('maintenanceMode',$data)){if(!is_bool($data['maintenanceMode']))fail(422,'Maintenance mode must be true or false.');$updates['maintenance_mode']=$data['maintenanceMode']?'1':'0';}
-  if(array_key_exists('storageLimitBytes',$data)){$limit=$data['storageLimitBytes'];if(!is_int($limit)||$limit<1048576||$limit>1099511627776)fail(422,'Storage limit must be between 1 MiB and 1 TiB.');query('SELECT setting_key FROM system_settings WHERE setting_key=? FOR UPDATE',['storage_limit_bytes'])->fetchColumn();$used=(int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();if($limit<$used)fail(409,'Storage limit cannot be lower than current stored PDF usage.');$updates['storage_limit_bytes']=(string)$limit;}
-  if(!$updates)fail(422,'No valid system settings were supplied.');
-  foreach($updates as $key=>$value)query('INSERT INTO system_settings(setting_key,value_text,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE value_text=VALUES(value_text),updated_by_user_id=VALUES(updated_by_user_id)',[$key,$value,$user]);
-  audit_event($user,'system_settings_updated',null,['settings'=>array_keys($updates)]);$db->commit();respond(['ok'=>true,'maintenanceMode'=>maintenance_enabled(),'storageLimitBytes'=>(int)system_setting('storage_limit_bytes','10737418240')]);
- }
-if($route==='admin/sessions/clear'&&$method==='POST'){if(!$isSuper)fail(403,'Only a superadmin can clear all sessions.');$data=input();if(($data['confirm']??false)!==true)fail(422,'Confirm that all users should be signed out.');$actor=$user;$_SESSION=[];session_write_close();$db->beginTransaction();$accounts=query('UPDATE users SET auth_version=auth_version+1');$sessions=query('DELETE FROM web_sessions');query('DELETE FROM user_active_tabs');audit_event($actor,'all_sessions_cleared',null,['accountsInvalidated'=>$accounts->rowCount(),'sessionsRemoved'=>$sessions->rowCount()]);$db->commit();setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);respond(['ok'=>true,'sessionsRemoved'=>$sessions->rowCount(),'accountsInvalidated'=>$accounts->rowCount()]);}
- if($route==='admin/audit'&&$method==='GET'){if(!$isSuper)fail(403,'Only a superadmin can view raw security events.');$from=$_GET['from']??gmdate('Y-m-01');$to=$_GET['to']??gmdate('Y-m-d');if(!is_string($from)||!is_string($to))fail(422,'Invalid date range.');[$start,$end]=$admin->dateRange($from,$to);$limit=max(1,min(100,(int)($_GET['limit']??50)));$offset=max(0,min(100000,(int)($_GET['offset']??0)));$rows=query('SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<? ORDER BY e.id DESC LIMIT '.$limit.' OFFSET '.$offset,[$start,$end])->fetchAll();foreach($rows as &$row){$row['details']=$row['details_json']?json_decode($row['details_json'],true):new stdClass();unset($row['details_json']);}respond(['events'=>$rows,'from'=>substr($start,0,10),'to'=>gmdate('Y-m-d',strtotime($end.' UTC')-86400),'limit'=>$limit,'offset'=>$offset]);}
- fail(404,'Endpoint not found.');
+
+// Password reset request (send recovery email)
+if ($route === 'auth/password/request' && $method === 'POST') {
+    $started = microtime(true);
+    $data = input();
+    $email = $data['email'] ?? '';
+    $email = is_string($email) ? trim($email) : '';
+    $validEmail = strlen($email) <= 254 && filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+    $normalized = $validEmail ? (function_exists('mb_strtolower') ? mb_strtolower($email, 'UTF-8') : strtolower($email)) : '';
+    $key = (string)($config['mailer_secret'] ?: 'local-reset-throttle-key-change-this');
+    $address = (string)($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+
+    $allowed = throttle_allows(hash_hmac('sha256', 'reset-ip:' . $address, $key), 30, 900);
+    if ($validEmail) {
+        $allowed = throttle_allows(hash_hmac('sha256', 'reset-email:' . $normalized, $key), 3, 900) && $allowed;
+    }
+
+    if ($allowed && $validEmail && recovery_delivery_configured()) {
+        $issued = $passwordRecovery->issue($normalized);
+        if ($issued) {
+            $base = rtrim($config['app_base_url'], '/');
+            $resetUrl = $base . '/login.html?mode=reset#token=' . rawurlencode($issued['token']);
+            $target = query('SELECT id FROM users WHERE email=?', [$normalized])->fetchColumn();
+            $sent = false;
+            try {
+                $sent = send_password_recovery_email($issued['email'], $resetUrl);
+            } catch (Throwable $ignored) {
+            }
+
+            if (!$sent) {
+                $passwordRecovery->revoke($issued['token']);
+                audit_event(null, 'password_reset_delivery_failed', is_string($target) ? $target : null, ['channel' => 'email']);
+                error_log('Password recovery mail delivery failed.');
+            } else {
+                audit_event(null, 'password_reset_requested', is_string($target) ? $target : null, ['channel' => 'email']);
+            }
+        }
+    }
+
+    $delay = 500000 - (int)((microtime(true) - $started) * 1000000);
+    if ($delay > 0) {
+        usleep($delay);
+    }
+
+    respond(['message' => 'If an account exists for that email and email delivery is configured, password reset instructions will be sent.']);
 }
+
+// Password reset consume token
+if ($route === 'auth/password/reset' && $method === 'POST') {
+    $data = input();
+    $token = field($data, 'token', 64);
+    $next = password_value($data, 'newPassword');
+    $confirm = password_value($data, 'confirmPassword');
+
+    if (!hash_equals($next, $confirm)) {
+        fail(422, 'The new password and confirmation do not match.');
+    }
+
+    $target = query('SELECT user_id FROM password_reset_tokens WHERE token_hash=?', [hash('sha256', $token)])->fetchColumn();
+    $passwordRecovery->consume($token, password_hash($next, PASSWORD_DEFAULT));
+    audit_event(null, 'password_reset_completed', is_string($target) ? $target : null, ['channel' => 'email']);
+    respond(['ok' => true, 'message' => 'Password reset. You can now sign in with your new password.']);
+}
+
+// User registration & login
+if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST') {
+    global $users;
+    $data = input();
+    $login = field($data, 'username', 254);
+    $pass = password_value($data, 'password');
+    $bucket = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? 'local') . ':' . $route);
+    $now = time();
+
+    query(
+        'INSERT INTO auth_attempts (bucket,attempts,window_start) VALUES (?,1,?) ON DUPLICATE KEY UPDATE attempts=IF(window_start<?,1,attempts+1),window_start=IF(window_start<?,VALUES(window_start),window_start)',
+        [$bucket, $now, $now - 900, $now - 900]
+    );
+
+    if ((int)query('SELECT attempts FROM auth_attempts WHERE bucket=?', [$bucket])->fetchColumn() > 30) {
+        fail(429, 'Too many attempts. Try again in 15 minutes.');
+    }
+
+    if ($route === 'auth/register') {
+        $username = $login;
+        if (!preg_match('/^[A-Za-z0-9_]{3,24}$/D', $username)) {
+            fail(422, 'Username must contain 3–24 letters, numbers, or underscores.');
+        }
+        $email = field($data, 'email', 254);
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            fail(422, 'Enter a valid email address.');
+        }
+        $normalizedEmail = function_exists('mb_strtolower') ? mb_strtolower($email, 'UTF-8') : strtolower($email);
+        try {
+            $users->register(uid(), $username, $normalizedEmail, password_hash($pass, PASSWORD_DEFAULT));
+        } catch (PDOException $e) {
+            if ($e->getCode() === '23000') {
+                fail(409, 'That username or email is already registered.');
+            }
+            throw $e;
+        }
+        respond(['message' => 'Account created. Please sign in.'], 201);
+    }
+
+    $row = $users->byLogin($login);
+    $normalizedLogin = function_exists('mb_strtolower') ? mb_strtolower(trim($login), 'UTF-8') : strtolower(trim($login));
+    $accountBucket = $row ? hash('sha256', 'account-login:user:' . $row['id']) : hash('sha256', 'account-login:identifier:' . $normalizedLogin);
+
+    if ($row && $row['locked_until'] && strtotime($row['locked_until'] . ' UTC') > time()) {
+        audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_locked']);
+        fail(401, 'Incorrect username/email or password, or account temporarily unavailable.');
+    }
+
+    $hash = $row['password_hash'] ?? '$2y$10$92IXUNpkjJ0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
+    if (!$row || !password_verify($pass, $hash)) {
+        $withinLimit = throttle_allows($accountBucket, 8, 900);
+        $attempts = (int)query('SELECT attempts FROM auth_attempts WHERE bucket=?', [$accountBucket])->fetchColumn();
+        if ($row && !$withinLimit) {
+            query(
+                'UPDATE users SET locked_until=DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 30 MINUTE) WHERE id=? AND (locked_until IS NULL OR locked_until<=UTC_TIMESTAMP(3))',
+                [$row['id']]
+            );
+            audit_event(null, 'account_locked', $row['id'], ['reason' => 'failed_login_threshold']);
+        }
+        audit_event(null, 'login_failure', $row['id'] ?? null, ['reason' => 'invalid_credentials']);
+        fail(401, 'Incorrect username/email or password, or account temporarily unavailable.');
+    }
+
+    if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
+        query('UPDATE users SET password_hash=? WHERE id=?', [password_hash($pass, PASSWORD_DEFAULT), $row['id']]);
+    }
+
+    $tabHash = request_tab_hash();
+    $browserHash = request_browser_hash();
+    if (!$tabHash || !$browserHash) {
+        fail(400, 'Refresh the page and try signing in again.');
+    }
+
+    query(
+        'INSERT INTO user_active_tabs(user_id,browser_hash,active_tab_hash) VALUES(?,?,?) ON DUPLICATE KEY UPDATE active_tab_hash=VALUES(active_tab_hash),updated_at=UTC_TIMESTAMP(3)',
+        [$row['id'], $browserHash, $tabHash]
+    );
+    query('DELETE FROM auth_attempts WHERE bucket IN (?,?)', [$bucket, $accountBucket]);
+    audit_event($row['id'], 'login_success', $row['id'], ['remembered' => ($data['remember'] ?? false) === true]);
+
+    $_SESSION = [];
+    session_regenerate_id(true);
+    $remember = ($data['remember'] ?? false) === true;
+    $until = time() + ($remember ? 2592000 : 43200);
+    $_SESSION = [
+        'user_id' => $row['id'],
+        'auth_version' => (int)$row['auth_version'],
+        'expires_at' => $until,
+        'csrf' => bin2hex(random_bytes(32)),
+    ];
+    setcookie(session_name(), session_id(), [
+        'expires' => $remember ? $until : 0,
+        'path' => '/',
+        'secure' => (bool)$config['secure_cookie'],
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    respond(['profile' => profile($row['id']), 'csrf' => $_SESSION['csrf']]);
+}
+
+// ============================================================================
+// 3. Public Sharing Endpoints (Guest Access)
+// ============================================================================
+
+// View shared deck
+if ($route === 'shared/deck' && $method === 'GET') {
+    $token = $_GET['token'] ?? '';
+    if (!is_string($token) || !preg_match('/^[a-zA-Z0-9_-]{3,64}$/D', $token)) {
+        fail(404, 'Shared deck link is invalid or not found.');
+    }
+    $share = $deckSharesService->getByToken($token);
+    if (!$share) {
+        fail(404, 'Shared deck link not found.');
+    }
+    if ($share['moderation_status'] !== 'visible') {
+        fail(404, 'This deck is currently unavailable.');
+    }
+    if (!(bool)$share['is_active']) {
+        fail(403, 'This shared deck link has been deactivated by the owner.');
+    }
+
+    $cards = array_map('card_data', $bombcardsService->forDeck($share['deck_id']));
+    $docs = $materialsService->byDeck($share['deck_id']);
+    foreach ($docs as &$doc) {
+        $doc['deckId'] = $share['deck_id'];
+        $doc['url'] = app_base_url() . '/api/index.php?r=shared/document&token=' . rawurlencode($token) . '&id=' . rawurlencode((string)$doc['id']);
+    }
+    unset($doc);
+
+    respond([
+        'deck' => [
+            'id' => $share['deck_id'],
+            'code' => $share['title'],
+            'title' => $share['title'],
+            'subject' => $share['subject'],
+            'category' => $share['category'],
+            'owner' => $share['owner_name'],
+            'lastModified' => $share['updated_at'],
+            'section' => 'recent',
+            'cards' => $cards,
+            'documents' => $docs,
+            'share' => [
+                'token' => $share['share_token'],
+                'isActive' => true,
+                'url' => app_base_url() . '/shared/deck/' . $share['share_token'],
+            ],
+        ],
+        'share' => [
+            'token' => $share['share_token'],
+            'isActive' => true,
+            'url' => app_base_url() . '/shared/deck/' . $share['share_token'],
+        ],
+    ]);
+}
+
+// Download/view shared document
+if ($route === 'shared/document' && $method === 'GET') {
+    $token = $_GET['token'] ?? '';
+    $docId = $_GET['id'] ?? '';
+    if (!is_string($token) || !preg_match('/^[a-zA-Z0-9_-]{3,64}$/D', $token)) {
+        fail(404, 'Invalid share token.');
+    }
+    if (!is_string($docId) || !preg_match('/^[a-f0-9]{32}$/D', $docId)) {
+        fail(404, 'Invalid document ID.');
+    }
+    $share = $deckSharesService->getByToken($token);
+    if (!$share || $share['moderation_status'] !== 'visible' || !(bool)$share['is_active']) {
+        fail(403, 'This shared document is not available.');
+    }
+
+    $document = query("SELECT m.id,m.title,m.stored_name FROM documents m WHERE m.id=? AND m.deck_id=?", [$docId, $share['deck_id']])->fetch();
+    if (!$document) {
+        fail(404, 'PDF not found.');
+    }
+    $path = $config['upload_dir'] . '/' . $document['stored_name'];
+    if (!is_file($path)) {
+        fail(404, 'PDF missing from file storage.');
+    }
+
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . filesize($path));
+    $disp = ($_GET['download'] ?? '') === '1' ? 'attachment' : 'inline';
+    header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode((string)$document['title']));
+    header('Cache-Control: public, max-age=3600');
+    header('X-Content-Type-Options: nosniff');
+    header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+    readfile($path);
+    exit;
+}
+
+// ============================================================================
+// 4. Authenticated Context Setup
+// ============================================================================
+$user = user_id();
+$currentRole = current_role($user);
+
+global $users, $decksService, $bombcardsService, $materialsService, $progressService, $bombstyleService, $deckSharesService;
+
+// Notifications
+if ($route === 'notifications' && $method === 'GET') {
+    $items = query(
+        'SELECT id,notification_type type,title,message,read_at readAt,created_at createdAt,deck_id deckId FROM user_notifications WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 50',
+        [$user]
+    )->fetchAll();
+    $unread = (int)query('SELECT COUNT(*) FROM user_notifications WHERE user_id=? AND read_at IS NULL', [$user])->fetchColumn();
+    foreach ($items as &$item) {
+        $item['id'] = (int)$item['id'];
+        $item['isRead'] = $item['readAt'] !== null;
+    }
+    unset($item);
+    respond(['notifications' => $items, 'unreadCount' => $unread]);
+}
+
+if ($route === 'notifications/read' && $method === 'PATCH') {
+    $data = input();
+    if (array_key_exists('id', $data)) {
+        if (!is_int($data['id']) || $data['id'] < 1) {
+            fail(422, 'Invalid notification id.');
+        }
+        query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE id=? AND user_id=? AND read_at IS NULL', [$data['id'], $user]);
+    } else {
+        query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE user_id=? AND read_at IS NULL', [$user]);
+    }
+    respond(['ok' => true]);
+}
+
+if ($route === 'notifications' && $method === 'DELETE') {
+    query('DELETE FROM user_notifications WHERE user_id=?', [$user]);
+    respond(['ok' => true]);
+}
+
+// ============================================================================
+// 5. Staff & Administration Routes (`admin/*`)
+// ============================================================================
+if (str_starts_with($route, 'admin/')) {
+    $role = $currentRole;
+    if (!in_array($role, ['admin', 'superadmin'], true)) {
+        fail(403, 'Administrator access is required.');
+    }
+    $isSuper = $role === 'superadmin';
+    $admin = new Admin($database);
+
+    if ($route === 'admin/dashboard' && $method === 'GET') {
+        $from = $_GET['from'] ?? gmdate('Y-m-01');
+        $to = $_GET['to'] ?? gmdate('Y-m-d');
+        if (!is_string($from) || !is_string($to)) {
+            fail(422, 'Invalid date range.');
+        }
+        respond($admin->dashboard($from, $to));
+    }
+
+    if ($route === 'admin/users' && $method === 'GET') {
+        $search = $_GET['q'] ?? '';
+        if (!is_string($search) || text_length($search) > 80) {
+            fail(422, 'Search text is too long.');
+        }
+        $like = '%' . trim($search) . '%';
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+        $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
+        $total = (int)query('SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?', [$like, $like])->fetchColumn();
+        $rows = query(
+            'SELECT u.id,u.username,u.email,u.role,u.locked_until,u.created_at,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id) deck_count,(SELECT COUNT(*) FROM documents m WHERE m.user_id=u.id) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            [$like, $like]
+        )->fetchAll();
+        respond(['users' => $rows, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
+    }
+
+    if ($route === 'admin/decks' && $method === 'GET') {
+        $search = $_GET['q'] ?? '';
+        if (!is_string($search) || text_length($search) > 100) {
+            fail(422, 'Search text is too long.');
+        }
+        $like = '%' . trim($search) . '%';
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+        $rows = query(
+            'SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ? ORDER BY d.updated_at DESC LIMIT ' . $limit,
+            [$like, $like, $like]
+        )->fetchAll();
+        respond(['decks' => $rows]);
+    }
+
+    if ($route === 'admin/decks/view' && $method === 'GET') {
+        $deckId = id_field($_GET);
+        $deck = query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.updated_at,u.username owner FROM decks d JOIN users u ON u.id=d.user_id WHERE d.id=?', [$deckId])->fetch();
+        if (!$deck) {
+            fail(404, 'Reviewer not found.');
+        }
+        $cards = array_map('card_data', query('SELECT * FROM cards WHERE deck_id=? ORDER BY position,created_at,id', [$deckId])->fetchAll());
+        $documents = query('SELECT id,title,mime_type mimeType,size_bytes size,created_at uploadedAt FROM documents WHERE deck_id=? ORDER BY created_at DESC,id', [$deckId])->fetchAll();
+        foreach ($documents as &$document) {
+            $document['size'] = (int)$document['size'];
+            $document['url'] = 'api/index.php?r=admin/documents/file&id=' . rawurlencode((string)$document['id']) . '&tabId=' . rawurlencode((string)request_tab_id()) . '&browserId=' . rawurlencode((string)request_browser_id());
+        }
+        unset($document);
+        $deck['document_count'] = count($documents);
+        audit_event($user, 'admin_deck_viewed', $deckId, ['cardCount' => count($cards), 'documentCount' => count($documents)], 'deck');
+        respond(['deck' => $deck, 'cards' => $cards, 'documents' => $documents]);
+    }
+
+    if ($route === 'admin/documents/file' && $method === 'GET') {
+        $documentId = id_field($_GET);
+        $document = query('SELECT m.id,m.deck_id,m.title,m.stored_name FROM documents m WHERE m.id=?', [$documentId])->fetch();
+        if (!$document) {
+            fail(404, 'PDF not found.');
+        }
+        $path = $config['upload_dir'] . '/' . $document['stored_name'];
+        if (!is_file($path)) {
+            fail(404, 'PDF missing from file storage.');
+        }
+        audit_event($user, 'admin_document_viewed', (string)$document['deck_id'], ['documentId' => (string)$document['id']], 'deck');
+        session_write_close();
+        header('Content-Type: application/pdf');
+        header('Content-Length: ' . filesize($path));
+        header('Content-Disposition: inline; filename="document.pdf"; filename*=UTF-8\'\'' . rawurlencode((string)$document['title']));
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
+        header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+        readfile($path);
+        exit;
+    }
+
+    if ($route === 'admin/decks/flag' && $method === 'POST') {
+        $data = input();
+        $deckId = id_field($data, 'deckId');
+        $reason = field($data, 'reason', 1000);
+        $deck = query('SELECT id,user_id,title FROM decks WHERE id=?', [$deckId])->fetch();
+        if (!$deck) {
+            fail(404, 'Reviewer not found.');
+        }
+        $db->beginTransaction();
+        query('INSERT INTO deck_reports(deck_id,flagged_by_user_id,reason) VALUES(?,?,?)', [$deckId, $user, $reason]);
+        $reportId = (int)$db->lastInsertId();
+        $noticeMessage = 'Your deck “' . $deck['title'] . '” was flagged for staff review. Staff note: ' . $reason;
+        notify_user((string)$deck['user_id'], 'deck_flagged', 'Your deck was flagged for review', $noticeMessage, $deckId);
+        audit_event($user, 'deck_flagged', $deckId, ['reportId' => $reportId], 'deck');
+        $db->commit();
+        respond(['ok' => true, 'reportId' => $reportId], 201);
+    }
+
+    if ($route === 'admin/decks/visibility' && $method === 'PATCH') {
+        $data = input();
+        $deckId = id_field($data, 'deckId');
+        $action = field($data, 'action', 16);
+        $reason = field($data, 'reason', 1000);
+        if (!in_array($action, ['hide', 'restore'], true)) {
+            fail(422, 'Invalid moderation action.');
+        }
+        $status = $action === 'hide' ? 'hidden' : 'visible';
+        $db->beginTransaction();
+        $deck = query('SELECT id,user_id,title,moderation_status FROM decks WHERE id=? FOR UPDATE', [$deckId])->fetch();
+        if (!$deck) {
+            fail(404, 'Reviewer not found.');
+        }
+        query('UPDATE decks SET moderation_status=? WHERE id=?', [$status, $deckId]);
+        if ($action === 'hide') {
+            arena_stop_hidden_deck($deckId);
+        }
+        query(
+            'INSERT INTO deck_reports(deck_id,flagged_by_user_id,reason,status,moderation_action,moderation_reason,reviewed_by_user_id,reviewed_at) VALUES(?,?,?,\'actioned\',?,?,?,UTC_TIMESTAMP(3))',
+            [$deckId, $user, 'Administrative visibility change', $action, $reason, $user]
+        );
+        $noticeTitle = $action === 'hide' ? 'Deck hidden after staff review' : 'Deck restored after staff review';
+        $noticeMessage = 'Your deck “' . $deck['title'] . '” was ' . ($action === 'hide' ? 'hidden' : 'restored') . '. Staff note: ' . $reason;
+        notify_user((string)$deck['user_id'], 'deck_' . $action, $noticeTitle, $noticeMessage, $deckId);
+        audit_event($user, 'deck_' . $action, $deckId, ['reason' => $reason], 'deck');
+        $db->commit();
+        respond(['ok' => true, 'moderationStatus' => $status]);
+    }
+
+    if ($route === 'admin/reports' && $method === 'GET') {
+        $status = $_GET['status'] ?? 'open';
+        if (!in_array($status, ['open', 'dismissed', 'actioned', 'all'], true)) {
+            fail(422, 'Invalid report status.');
+        }
+        $where = $status === 'all' ? '' : 'WHERE r.status=?';
+        $params = $status === 'all' ? [] : [$status];
+        $rows = query(
+            'SELECT r.id,r.deck_id deckId,r.reason,r.status,r.moderation_action moderationAction,r.moderation_reason moderationReason,r.created_at,r.reviewed_at,d.title deckTitle,d.subject,d.moderation_status moderationStatus,u.username owner,flagger.username flaggedBy FROM deck_reports r JOIN decks d ON d.id=r.deck_id JOIN users u ON u.id=d.user_id LEFT JOIN users flagger ON flagger.id=r.flagged_by_user_id ' . $where . ' ORDER BY (r.status=\'open\') DESC,r.created_at DESC LIMIT 100',
+            $params
+        )->fetchAll();
+        respond(['reports' => $rows]);
+    }
+
+    if ($route === 'admin/reports' && $method === 'PATCH') {
+        $data = input();
+        $reportId = $data['id'] ?? null;
+        if (!is_int($reportId) || $reportId < 1) {
+            fail(422, 'Invalid report id.');
+        }
+        $action = field($data, 'action', 16);
+        $reason = field($data, 'reason', 1000);
+        if (!in_array($action, ['dismiss', 'hide'], true)) {
+            fail(422, 'Invalid report action.');
+        }
+        $db->beginTransaction();
+        $report = query('SELECT id,deck_id,status FROM deck_reports WHERE id=? FOR UPDATE', [$reportId])->fetch();
+        if (!$report) {
+            fail(404, 'Report not found.');
+        }
+        if ($report['status'] !== 'open') {
+            fail(409, 'This report has already been reviewed.');
+        }
+        $deck = query('SELECT id,user_id,title FROM decks WHERE id=? FOR UPDATE', [$report['deck_id']])->fetch();
+        if (!$deck) {
+            fail(404, 'Reviewer not found.');
+        }
+        if ($action === 'hide') {
+            query("UPDATE decks SET moderation_status='hidden' WHERE id=?", [$report['deck_id']]);
+            arena_stop_hidden_deck($report['deck_id']);
+        }
+        $nextStatus = $action === 'hide' ? 'actioned' : 'dismissed';
+        query(
+            'UPDATE deck_reports SET status=?,moderation_action=?,moderation_reason=?,reviewed_by_user_id=?,reviewed_at=UTC_TIMESTAMP(3) WHERE id=?',
+            [$nextStatus, $action === 'hide' ? 'hide' : null, $reason, $user, $reportId]
+        );
+        $noticeTitle = $action === 'hide' ? 'Deck hidden after staff review' : 'Deck review completed';
+        $noticeMessage = $action === 'hide'
+            ? 'Your deck “' . $deck['title'] . '” was hidden after a report review. Staff note: ' . $reason
+            : 'A report about your deck “' . $deck['title'] . '” was reviewed and dismissed. Staff note: ' . $reason;
+        notify_user((string)$deck['user_id'], 'deck_report_' . $action, $noticeTitle, $noticeMessage, (string)$deck['id']);
+        audit_event($user, 'deck_report_' . $action, $report['deck_id'], ['reportId' => $reportId, 'reason' => $reason], 'deck');
+        $db->commit();
+        respond(['ok' => true]);
+    }
+
+    if ($route === 'admin/users/unlock' && $method === 'POST') {
+        $data = input();
+        $target = id_field($data, 'userId');
+        $reason = field($data, 'reason', 500);
+        $account = query('SELECT id,locked_until FROM users WHERE id=?', [$target])->fetch();
+        if (!$account) {
+            fail(404, 'Account not found.');
+        }
+        $db->beginTransaction();
+        query('SELECT id FROM users WHERE id=? FOR UPDATE', [$target]);
+        query('UPDATE users SET locked_until=NULL WHERE id=?', [$target]);
+        query('DELETE FROM auth_attempts WHERE bucket=?', [hash('sha256', 'account-login:user:' . $target)]);
+        audit_event($user, 'account_unlocked', $target, ['reason' => $reason]);
+        $db->commit();
+        respond(['ok' => true]);
+    }
+
+    if ($route === 'admin/users/reset' && $method === 'POST') {
+        $data = input();
+        $target = id_field($data, 'userId');
+        $account = query('SELECT id,email FROM users WHERE id=?', [$target])->fetch();
+        if (!$account) {
+            fail(404, 'Account not found.');
+        }
+        if (!$account['email']) {
+            fail(409, 'This account has no email address for secure password recovery.');
+        }
+        $resetBucket = hash('sha256', 'admin-reset:' . $user . ':' . $target);
+        if (!throttle_allows($resetBucket, 3, 3600)) {
+            fail(429, 'Password reset email requests for this account are temporarily limited.');
+        }
+        $issued = $passwordRecovery->issue((string)$account['email']);
+        if (!$issued) {
+            fail(409, 'Password recovery is unavailable for this account.');
+        }
+        $resetUrl = rtrim((string)$config['app_base_url'], '/') . '/login.html?mode=reset#token=' . rawurlencode($issued['token']);
+        $sent = false;
+        try {
+            $sent = send_password_recovery_email($issued['email'], $resetUrl);
+        } catch (Throwable $ignored) {
+        }
+        if (!$sent) {
+            $passwordRecovery->revoke($issued['token']);
+            audit_event($user, 'admin_password_reset_delivery_failed', $target, ['reason' => 'mailer_unavailable']);
+            fail(502, 'The secure reset email could not be delivered. Check the configured mail service and try again.');
+        }
+        audit_event($user, 'admin_password_reset_requested', $target, ['channel' => 'registered_email']);
+        respond(['ok' => true, 'message' => 'A secure password-reset link was sent to the account email address.']);
+    }
+
+    if ($route === 'admin/users/role' && $method === 'POST') {
+        if (!$isSuper) {
+            fail(403, 'Only a superadmin can change account roles.');
+        }
+        $data = input();
+        $target = id_field($data, 'userId');
+        $nextRole = field($data, 'role', 16);
+        if (!in_array($nextRole, ['user', 'admin', 'superadmin'], true)) {
+            fail(422, 'Invalid role.');
+        }
+        if ($target === $user && $nextRole !== 'superadmin') {
+            fail(409, 'Use another superadmin to change your own role.');
+        }
+        $db->beginTransaction();
+        $accounts = query('SELECT id,role FROM users WHERE id IN (?,?) ORDER BY id FOR UPDATE', [$user, $target])->fetchAll();
+        $targetRow = null;
+        $actorRow = null;
+        foreach ($accounts as $account) {
+            if ($account['id'] === $target) {
+                $targetRow = $account;
+            }
+            if ($account['id'] === $user) {
+                $actorRow = $account;
+            }
+        }
+        if (!$actorRow || $actorRow['role'] !== 'superadmin') {
+            fail(403, 'Only a current superadmin can change account roles.');
+        }
+        if (!$targetRow) {
+            fail(404, 'Account not found.');
+        }
+        $superCount = (int)query("SELECT COUNT(*) FROM users WHERE role='superadmin'")->fetchColumn();
+        if ($targetRow['role'] === 'superadmin' && $nextRole !== 'superadmin' && $superCount <= 1) {
+            fail(409, 'The system must retain at least one superadmin.');
+        }
+        query('UPDATE users SET role=? WHERE id=?', [$nextRole, $target]);
+        audit_event($user, 'user_role_changed', $target, ['from' => $targetRow['role'], 'to' => $nextRole]);
+        $db->commit();
+        respond(['ok' => true, 'role' => $nextRole]);
+    }
+
+    if ($route === 'admin/settings' && $method === 'GET') {
+        if (!$isSuper) {
+            fail(403, 'Only a superadmin can view system settings.');
+        }
+        $storage = (int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();
+        respond([
+            'maintenanceMode' => maintenance_enabled(),
+            'storageLimitBytes' => (int)system_setting('storage_limit_bytes', '10737418240'),
+            'storageUsedBytes' => $storage,
+        ]);
+    }
+
+    if ($route === 'admin/settings' && $method === 'PATCH') {
+        if (!$isSuper) {
+            fail(403, 'Only a superadmin can change system settings.');
+        }
+        $data = input();
+        $updates = [];
+        $db->beginTransaction();
+
+        if (array_key_exists('maintenanceMode', $data)) {
+            if (!is_bool($data['maintenanceMode'])) {
+                fail(422, 'Maintenance mode must be true or false.');
+            }
+            $updates['maintenance_mode'] = $data['maintenanceMode'] ? '1' : '0';
+        }
+
+        if (array_key_exists('storageLimitBytes', $data)) {
+            $limit = $data['storageLimitBytes'];
+            if (!is_int($limit) || $limit < 1048576 || $limit > 1099511627776) {
+                fail(422, 'Storage limit must be between 1 MiB and 1 TiB.');
+            }
+            query('SELECT setting_key FROM system_settings WHERE setting_key=? FOR UPDATE', ['storage_limit_bytes'])->fetchColumn();
+            $used = (int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();
+            if ($limit < $used) {
+                fail(409, 'Storage limit cannot be lower than current stored PDF usage.');
+            }
+            $updates['storage_limit_bytes'] = (string)$limit;
+        }
+
+        if (!$updates) {
+            fail(422, 'No valid system settings were supplied.');
+        }
+
+        foreach ($updates as $key => $value) {
+            query(
+                'INSERT INTO system_settings(setting_key,value_text,updated_by_user_id) VALUES(?,?,?) ON DUPLICATE KEY UPDATE value_text=VALUES(value_text),updated_by_user_id=VALUES(updated_by_user_id)',
+                [$key, $value, $user]
+            );
+        }
+
+        audit_event($user, 'system_settings_updated', null, ['settings' => array_keys($updates)]);
+        $db->commit();
+        respond([
+            'ok' => true,
+            'maintenanceMode' => maintenance_enabled(),
+            'storageLimitBytes' => (int)system_setting('storage_limit_bytes', '10737418240'),
+        ]);
+    }
+
+    if ($route === 'admin/sessions/clear' && $method === 'POST') {
+        if (!$isSuper) {
+            fail(403, 'Only a superadmin can clear all sessions.');
+        }
+        $data = input();
+        if (($data['confirm'] ?? false) !== true) {
+            fail(422, 'Confirm that all users should be signed out.');
+        }
+        $actor = $user;
+        $_SESSION = [];
+        session_write_close();
+        $db->beginTransaction();
+        $accounts = query('UPDATE users SET auth_version=auth_version+1');
+        $sessions = query('DELETE FROM web_sessions');
+        query('DELETE FROM user_active_tabs');
+        audit_event($actor, 'all_sessions_cleared', null, [
+            'accountsInvalidated' => $accounts->rowCount(),
+            'sessionsRemoved' => $sessions->rowCount(),
+        ]);
+        $db->commit();
+        setcookie(session_name(), '', [
+            'expires' => time() - 3600,
+            'path' => '/',
+            'secure' => (bool)$config['secure_cookie'],
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        respond([
+            'ok' => true,
+            'sessionsRemoved' => $sessions->rowCount(),
+            'accountsInvalidated' => $accounts->rowCount(),
+        ]);
+    }
+
+    if ($route === 'admin/audit' && $method === 'GET') {
+        if (!$isSuper) {
+            fail(403, 'Only a superadmin can view raw security events.');
+        }
+        $from = $_GET['from'] ?? gmdate('Y-m-01');
+        $to = $_GET['to'] ?? gmdate('Y-m-d');
+        if (!is_string($from) || !is_string($to)) {
+            fail(422, 'Invalid date range.');
+        }
+        [$start, $end] = $admin->dateRange($from, $to);
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+        $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
+        $rows = query(
+            'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<? ORDER BY e.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            [$start, $end]
+        )->fetchAll();
+        foreach ($rows as &$row) {
+            $row['details'] = $row['details_json'] ? json_decode($row['details_json'], true) : new stdClass();
+            unset($row['details_json']);
+        }
+        respond([
+            'events' => $rows,
+            'from' => substr($start, 0, 10),
+            'to' => gmdate('Y-m-d', strtotime($end . ' UTC') - 86400),
+            'limit' => $limit,
+            'offset' => $offset,
+        ]);
+    }
+
+    fail(404, 'Endpoint not found.');
+}
+
+// ============================================================================
+// 6. Maintenance & Workspace Routing
+// ============================================================================
 // Maintenance blocks regular accounts only. Keep the allow-list explicit so
 // administrators can reach the workspace and turn maintenance back off.
-if($route!=='auth/logout'&&maintenance_enabled()&&!in_array($currentRole,['admin','superadmin'],true))fail(503,'The workspace is temporarily in maintenance mode. Please try again later.');
-if($route==='auth/logout'&&$method==='POST'){audit_event($user,'logout',$user);$tabHash=request_tab_hash();$browserHash=request_browser_hash();if($tabHash&&$browserHash)query('DELETE FROM user_active_tabs WHERE user_id=? AND browser_hash=? AND active_tab_hash=?',[$user,$browserHash,$tabHash]);$_SESSION=[];session_destroy();setcookie(session_name(),'', ['expires'=>time()-3600,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);respond(['ok'=>true]);}
-if(in_array($currentRole,['admin','superadmin'],true)&&(in_array($route,['decks','decks/share','cards','documents','highlights','study/progress','activity','account/export'],true)||str_starts_with($route,'arena/')))fail(403,'Personal library and Arena features are not available to staff accounts.');
-if($route==='workspace'&&$method==='GET')respond(workspace($user));
-if($route==='profile'&&$method==='PATCH'){$data=input();$p=query('SELECT * FROM profiles WHERE user_id=? FOR UPDATE',[$user])->fetch();if(isset($data['displayName'])){$name=field($data,'displayName',40);if($name!==$p['display_name']){if($p['name_changed_at']&&strtotime($p['name_changed_at'])>time()-604800)fail(409,'Display names can only change once every 7 days.');query('UPDATE profiles SET display_name=?,name_changed_at=CURRENT_TIMESTAMP(3) WHERE user_id=?',[$name,$user]);}}if(isset($data['avatar'])){$avatar=field($data,'avatar',16);if(!in_array($avatar,['ember','ocean','mint','violet','sunset','slate'],true))fail(422,'Invalid avatar.');query('UPDATE profiles SET avatar=? WHERE user_id=?',[$avatar,$user]);}respond(profile($user));}
-if($route==='auth/password'&&$method==='POST'){$data=input();$old=password_value($data,'currentPassword');$next=password_value($data,'newPassword');$row=query('SELECT password_hash,auth_version FROM users WHERE id=? FOR UPDATE',[$user])->fetch();if(!password_verify($old,$row['password_hash']))fail(422,'Current password is incorrect.');$users->setPassword($user,password_hash($next,PASSWORD_DEFAULT));audit_event($user,'password_changed',$user);$_SESSION['auth_version']=(int)$row['auth_version']+1;session_regenerate_id(true);respond(['ok'=>true]);}
-if($route==='decks'){
- if($method==='GET')respond(deck_data(owned_deck(id_field($_GET),$user)));
- if(in_array($method,['POST','PATCH'],true)){$data=input();$title=field($data,'title',160);$subject=field($data,'subject',160,false);$category=field($data,'category',80,false)?:'Recent';$id=$method==='PATCH'?id_field($data):uid();$db->beginTransaction();if($method==='PATCH'){$old=owned_deck($id,$user);$decksService->update($id,$title,$subject,$category);}else$decksService->create($id,$user,$title,$subject,$category);
-  if(array_key_exists('cards',$data)){if(!is_array($data['cards'])||count($data['cards'])>1000)fail(422,'Invalid card list.');$keep=[];foreach($data['cards'] as $i=>$card){if(!is_array($card))fail(422,'Invalid Bombcard.');$cardId=isset($card['id'])&&preg_match('/^[a-f0-9]{32}$/D',(string)$card['id'])?$card['id']:null;$keep[]=save_card($card,$id,$cardId,$i);}foreach($bombcardsService->forDeck($id) as $card)if(!in_array($card['id'],$keep,true))$bombcardsService->delete($card['id'],$id);}
-  activity($user,$id,$title,'Reviewer','library',$method==='POST'?'Created':'Edited');$db->commit();respond(deck_data(owned_deck($id,$user)),$method==='POST'?201:200);}
- if($method==='DELETE'){$id=id_field(input());owned_deck($id,$user);$names=query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?',[$id,$user])->fetchAll(PDO::FETCH_COLUMN);$decksService->delete($id,$user);foreach($names as $name){$path=$config['upload_dir'].'/'.$name;if(is_file($path))unlink($path);}respond(['ok'=>true]);}
+if ($route !== 'auth/logout' && maintenance_enabled() && !in_array($currentRole, ['admin', 'superadmin'], true)) {
+    fail(503, 'The workspace is temporarily in maintenance mode. Please try again later.');
 }
-if($route==='decks/share'){
- $deckId=id_field($method==='GET'?$_GET:input(),'deckId');owned_deck($deckId,$user);
- if($method==='GET'){
-  $share=$deckSharesService->getForDeck($deckId,$user);
-  if(!$share)respond(['isShared'=>false,'isActive'=>false,'token'=>null,'url'=>null]);
-  respond(['isShared'=>true,'isActive'=>(bool)$share['is_active'],'token'=>$share['share_token'],'url'=>app_base_url().'/shared/deck/'.$share['share_token'],'createdAt'=>$share['created_at'],'updatedAt'=>$share['updated_at']]);
- }
- if($method==='POST'){
-  $data=input();$action=$data['action']??'create';
-  if($action==='create')$share=$deckSharesService->createOrGet($deckId,$user);
-  elseif($action==='regenerate')$share=$deckSharesService->regenerate($deckId,$user);
-  elseif($action==='toggle'){$active=(bool)($data['active']??true);$share=$deckSharesService->setActive($deckId,$user,$active);}
-  else fail(422,'Invalid share action.');
-  respond(['ok'=>true,'isShared'=>true,'isActive'=>(bool)$share['is_active'],'token'=>$share['share_token'],'url'=>app_base_url().'/shared/deck/'.$share['share_token'],'action'=>$action]);
- }
- if($method==='DELETE'){
-  $share=$deckSharesService->setActive($deckId,$user,false);
-  respond(['ok'=>true,'isShared'=>true,'isActive'=>false]);
- }
+
+// Logout
+if ($route === 'auth/logout' && $method === 'POST') {
+    audit_event($user, 'logout', $user);
+    $tabHash = request_tab_hash();
+    $browserHash = request_browser_hash();
+    if ($tabHash && $browserHash) {
+        query('DELETE FROM user_active_tabs WHERE user_id=? AND browser_hash=? AND active_tab_hash=?', [$user, $browserHash, $tabHash]);
+    }
+    $_SESSION = [];
+    session_destroy();
+    setcookie(session_name(), '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'secure' => (bool)$config['secure_cookie'],
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    respond(['ok' => true]);
 }
-if($route==='cards'&&in_array($method,['POST','PATCH','DELETE'],true)){$data=input();$deck=owned_deck(id_field($data,'deckId'),$user);$db->beginTransaction();if($method==='DELETE'){$id=id_field($data);if(!$bombcardsService->delete($id,$deck['id']))fail(404,'Bombcard not found.');}else{$position=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$deck['id']])->fetchColumn();$id=save_card($data,$deck['id'],$method==='PATCH'?id_field($data):null,$position);}activity($user,$deck['id'],$deck['title'],'Bombcards','library',$method==='DELETE'?'Removed':($method==='POST'?'Created':'Edited'));$db->commit();respond(['id'=>$id],$method==='POST'?201:200);}
-if($route==='ai/generate'&&$method==='POST'){
- $apiKey=(string)($config['gemini_api_key']??'');if($apiKey==='')fail(503,'Gemini AI is not configured on this server.');
- $data=input();$notes=field($data,'notes',60000);$deckId=isset($data['deckId'])&&is_string($data['deckId'])&&$data['deckId']!==''?id_field($data,'deckId'):null;
- $count=isset($data['count'])?max(1,min(25,(int)$data['count'])):5;$format=field($data,'format',32,false)?:'MIXED';$focus=field($data,'focus',64,false)?:'comprehensive';
- $deck=$deckId?owned_deck($deckId,$user):null;
- $instruction="You are an expert academic study assistant for Co-StudyMaxx.\nGenerate exactly {$count} high-yield study flashcards based SOLELY on the study notes below.\n";
- if($format==='MULTIPLE_CHOICE'){$instruction.="All {$count} flashcards must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";}
- elseif($format==='IDENTIFICATION'){$instruction.="All {$count} flashcards must be IDENTIFICATION with prompt and clear concise correctAnswer term/concept.\n";}
- else{$instruction.="Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer) and IDENTIFICATION (prompt, correctAnswer).\n";}
- if($focus==='key_terms')$instruction.="Focus: Emphasize key vocabulary, acronyms, and foundational definitions.\n";
- elseif($focus==='conceptual')$instruction.="Focus: Emphasize conceptual understanding, cause-and-effect relationships, and practical scenarios.\n";
- $instruction.="Output schema: Return ONLY a raw JSON array matching this structure:\n[{\"type\":\"MULTIPLE_CHOICE\"|\"IDENTIFICATION\",\"prompt\":\"...\",\"options\":[\"...\"],\"correctIndex\":0,\"correctAnswer\":\"...\",\"hint\":\"...\"}]\nDo NOT wrap in markdown fences like ```json. Return ONLY valid JSON array.\n\nSTUDY MATERIAL:\n".$notes;
- $modelsToTry=['gemini-3.5-flash-lite','gemini-3.5-flash','gemini-3.8-flash'];$geminiResponse=null;$lastErr='';
- foreach($modelsToTry as $mName){
-  $url='https://generativelanguage.googleapis.com/v1beta/models/'.$mName.':generateContent?key='.rawurlencode($apiKey);
-  $payload=json_encode(['contents'=>[['parts'=>[['text'=>$instruction]]]],'generationConfig'=>['responseMimeType'=>'application/json','temperature'=>0.3,'maxOutputTokens'=>4096]]);
-  $ch=curl_init($url);curl_setopt($ch,CURLOPT_RETURNTRANSFER,true);curl_setopt($ch,CURLOPT_POST,true);curl_setopt($ch,CURLOPT_POSTFIELDS,$payload);curl_setopt($ch,CURLOPT_HTTPHEADER,['Content-Type: application/json']);curl_setopt($ch,CURLOPT_TIMEOUT,45);curl_setopt($ch,CURLOPT_SSL_VERIFYPEER,false);
-  $raw=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_HTTP_CODE);$cErr=curl_error($ch);curl_close($ch);
-  if($code===200&&is_string($raw)&&$raw!==''){$p=json_decode($raw,true);$txt=$p['candidates'][0]['content']['parts'][0]['text']??'';if($txt!==''){$geminiResponse=$txt;break;}}
-  else{$lastErr="Model $mName HTTP $code: ".($raw?:$cErr);}
- }
- if(!$geminiResponse)fail(502,'Could not generate flashcards with Gemini. Please try again in a moment.');
- $clean=trim($geminiResponse);
- if(str_starts_with($clean,'```')){$clean=preg_replace('/^```(?:json)?\s*/i','',$clean);$clean=preg_replace('/\s*```$/','',$clean);$clean=trim($clean);}
- $cardsData=json_decode($clean,true);if(!is_array($cardsData)&&isset($cardsData['cards'])&&is_array($cardsData['cards']))$cardsData=$cardsData['cards'];
- if(!is_array($cardsData))fail(502,'Gemini returned an unparseable response. Please try again.');
- $normalized=[];
- foreach($cardsData as $idx=>$c){
-  if(!is_array($c)||empty($c['prompt']))continue;
-  $type=($c['type']??'MULTIPLE_CHOICE')==='IDENTIFICATION'?'IDENTIFICATION':'MULTIPLE_CHOICE';
-  $prompt=trim((string)$c['prompt']);$hint=!empty($c['hint'])?trim((string)$c['hint']):null;
-  if($type==='MULTIPLE_CHOICE'){
-   $rawOpts=is_array($c['options']??null)?$c['options']:[];$options=[];
-   foreach($rawOpts as $opt){if(is_string($opt)||is_numeric($opt))$options[]=trim((string)$opt);}
-   while(count($options)<4)$options[]='Option '.(count($options)+1);
-   $options=array_slice($options,0,4);$cIdx=isset($c['correctIndex'])&&is_numeric($c['correctIndex'])?(int)$c['correctIndex']:0;
-   if($cIdx<0||$cIdx>3)$cIdx=0;$ans=$options[$cIdx];
-   $normalized[]=['id'=>'ai-'.($idx+1).'-'.uid(),'type'=>'MULTIPLE_CHOICE','prompt'=>$prompt,'options'=>$options,'correctIndex'=>$cIdx,'correctAnswer'=>$ans,'hint'=>$hint];
-  }else{
-   $ans=trim((string)($c['correctAnswer']??''));if($ans==='')continue;
-   $normalized[]=['id'=>'ai-'.($idx+1).'-'.uid(),'type'=>'IDENTIFICATION','prompt'=>$prompt,'correctAnswer'=>$ans,'hint'=>$hint];
-  }
- }
- if(empty($normalized))fail(422,'Could not extract valid questions from the provided notes. Please supply more detailed study text.');
- $saveDirectly=($data['saveDirectly']??false)===true;
- if($saveDirectly&&$deck){
-  $db->beginTransaction();$startPos=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$deck['id']])->fetchColumn();
-  foreach($normalized as $i=>$card){save_card($card,$deck['id'],null,$startPos+$i);}
-  activity($user,$deck['id'],$deck['title'],'AI Bombcards','creator','Created');$db->commit();
- }
- respond(['ok'=>true,'count'=>count($normalized),'deckId'=>$deckId,'saved'=>$saveDirectly&&$deck!==null,'cards'=>$normalized]);
+
+// Staff accounts cannot access personal library or game arena
+if (in_array($currentRole, ['admin', 'superadmin'], true) && (in_array($route, ['decks', 'decks/share', 'cards', 'documents', 'highlights', 'study/progress', 'activity', 'account/export'], true) || str_starts_with($route, 'arena/'))) {
+    fail(403, 'Personal library and Arena features are not available to staff accounts.');
 }
-if($route==='documents'&&$method==='POST'){
- $deck=owned_deck(id_field($_POST,'deckId'),$user);$file=$_FILES['file']??null;
- if(!$file||!is_array($file)||is_array($file['error']??null))fail(422,'Choose a PDF.');
- if($file['error']!==UPLOAD_ERR_OK)fail(413,'Upload failed; check the PDF size and PHP limits.');
- if($file['size']<5||$file['size']>$config['max_upload_bytes'])fail(413,'PDFs must be no larger than 10 MB.');
- $name=basename(str_replace('\\','/',$file['name']));
- if(strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='pdf'||text_length($name)>255)fail(422,'Only PDF files are allowed.');
- $mime=(new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);$h=fopen($file['tmp_name'],'rb');$magic=fread($h,5);fclose($h);
- if($mime!=='application/pdf'||$magic!=='%PDF-')fail(422,'Invalid PDF content.');
- $dir=$config['upload_dir'];if(!is_dir($dir)&&!mkdir($dir,0700,true))fail(500,'Private file storage is unavailable.');
- $real=realpath($dir);$root=realpath(dirname(__DIR__));if(str_starts_with(strtolower(str_replace('\\','/',$real).'/'),strtolower(str_replace('\\','/',$root).'/')))fail(503,'PDF storage must be outside the public project directory.');
- $id=uid();$stored=uid().'.pdf';$path=$real.DIRECTORY_SEPARATOR.$stored;
- $db->beginTransaction();query('SELECT setting_key FROM system_settings WHERE setting_key=? FOR UPDATE',['storage_limit_bytes'])->fetchColumn();
- $storageLimit=(int)system_setting('storage_limit_bytes','10737418240');$storageUsed=(int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();
- if($storageUsed+(int)$file['size']>$storageLimit)fail(413,'The system PDF storage limit has been reached.');
- if(!move_uploaded_file($file['tmp_name'],$path))fail(500,'Could not store the PDF.');
- try{$materialsService->add($id,$deck['id'],$user,$name,$stored,$mime,(int)$file['size']);activity($user,$deck['id'],$name,'PDF','library','Uploaded');$db->commit();}
- catch(Throwable $e){if(is_file($path))unlink($path);throw $e;}
- respond(['id'=>$id,'title'=>$name,'size'=>(int)$file['size'],'url'=>'api/index.php?r=documents/file&id='.$id],201);
+
+// Full user workspace
+if ($route === 'workspace' && $method === 'GET') {
+    respond(workspace($user));
 }
-if($route==='documents'&&$method==='DELETE'){$doc=$materialsService->remove(id_field(input()),$user);if(!$doc)fail(404,'Material not found.');$path=$config['upload_dir'].'/'.$doc['stored_name'];if(is_file($path))unlink($path);respond(['ok'=>true]);}
-if($route==='documents/file'&&$method==='GET'){$doc=owned_document(id_field($_GET),$user);$path=$config['upload_dir'].'/'.$doc['stored_name'];if(!is_file($path))fail(404,'PDF missing from file storage.');session_write_close();header('Content-Type: application/pdf');header('Content-Length: '.filesize($path));$disp=($_GET['download']??'')==='1'?'attachment':'inline';header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''".rawurlencode($doc['title']));header('Cache-Control: private, no-store');header('X-Content-Type-Options: nosniff');header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");readfile($path);exit;}
-if($route==='highlights/card'&&$method==='POST'){
- $data=input();$doc=owned_document(id_field($data,'documentId'),$user);$text=field($data,'text',10000);$counterpart=field($data,'counterpart',10000);$page=$data['page']??1;$color=field($data,'color',7);$purpose=field($data,'purpose',16);$selection=selection_json($data);
- if(!$selection||!in_array($purpose,['question','answer'],true)||!is_int($page)||$page<1||$page>100000||!preg_match('/^#[0-9a-fA-F]{6}$/D',$color))fail(422,'Choose whether the excerpt is the question or answer.');
- $prompt=$purpose==='question'?$text:$counterpart;$answer=$purpose==='answer'?$text:$counterpart;$position=(int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?',[$doc['deck_id']])->fetchColumn();
- $db->beginTransaction();$cardId=save_card(['type'=>'IDENTIFICATION','prompt'=>$prompt,'correctAnswer'=>$answer],$doc['deck_id'],null,$position);$id=uid();query('INSERT INTO highlights(id,document_id,page_number,note_text,color,purpose,selection_json,card_id) VALUES(?,?,?,?,?,?,?,?)',[$id,$doc['id'],$page,$text,$color,$purpose,$selection,$cardId]);activity($user,$doc['deck_id'],$doc['title'],'PDF-to-Bombcard','highlighter','Created');$db->commit();
- respond(['cardId'=>$cardId,'highlight'=>['id'=>$id,'text'=>$text,'page'=>$page,'color'=>$color,'purpose'=>$purpose,'selection'=>json_decode($selection,true),'cardId'=>$cardId]],201);
+
+// Profile management
+if ($route === 'profile' && $method === 'PATCH') {
+    $data = input();
+    $p = query('SELECT * FROM profiles WHERE user_id=? FOR UPDATE', [$user])->fetch();
+
+    if (isset($data['displayName'])) {
+        $name = field($data, 'displayName', 40);
+        if ($name !== $p['display_name']) {
+            if ($p['name_changed_at'] && strtotime($p['name_changed_at']) > time() - 604800) {
+                fail(409, 'Display names can only change once every 7 days.');
+            }
+            query('UPDATE profiles SET display_name=?,name_changed_at=CURRENT_TIMESTAMP(3) WHERE user_id=?', [$name, $user]);
+        }
+    }
+
+    if (isset($data['avatar'])) {
+        $avatar = field($data, 'avatar', 16);
+        if (!in_array($avatar, ['ember', 'ocean', 'mint', 'violet', 'sunset', 'slate'], true)) {
+            fail(422, 'Invalid avatar.');
+        }
+        query('UPDATE profiles SET avatar=? WHERE user_id=?', [$avatar, $user]);
+    }
+
+    respond(profile($user));
 }
-if($route==='highlights'){$data=$method==='GET'?$_GET:input();$doc=owned_document(id_field($data,'documentId'),$user);if($method==='GET'){$rows=query('SELECT id,note_text text,page_number page,color,purpose,selection_json,card_id cardId FROM highlights WHERE document_id=? ORDER BY page_number,created_at',[$doc['id']])->fetchAll();foreach($rows as &$row){$row['selection']=$row['selection_json']?json_decode($row['selection_json'],true):[];unset($row['selection_json']);}respond($rows);}if($method==='DELETE'){if(isset($data['id']))query('DELETE FROM highlights WHERE id=? AND document_id=?',[id_field($data),$doc['id']]);else query('DELETE FROM highlights WHERE document_id=?',[$doc['id']]);respond(['ok'=>true]);}if(in_array($method,['POST','PATCH'],true)){$text=field($data,'text',10000);$page=$data['page']??1;$color=field($data,'color',7);$purpose=$data['purpose']??'note';$selection=selection_json($data);if(!is_int($page)||$page<1||$page>100000||!preg_match('/^#[0-9a-fA-F]{6}$/D',$color)||!is_string($purpose)||!in_array($purpose,['note','question','answer'],true))fail(422,'Invalid note page, role, or color.');$id=$method==='PATCH'?id_field($data):uid();if($method==='PATCH'){if(!query('SELECT id FROM highlights WHERE id=? AND document_id=?',[$id,$doc['id']])->fetch())fail(404,'Note not found.');query('UPDATE highlights SET note_text=?,page_number=?,color=?,purpose=?,selection_json=? WHERE id=?',[$text,$page,$color,$purpose,$selection,$id]);}else query('INSERT INTO highlights(id,document_id,page_number,note_text,color,purpose,selection_json) VALUES(?,?,?,?,?,?,?)',[$id,$doc['id'],$page,$text,$color,$purpose,$selection]);respond(['id'=>$id,'text'=>$text,'page'=>$page,'color'=>$color,'purpose'=>$purpose,'selection'=>$selection?json_decode($selection,true):[]],$method==='POST'?201:200);}}
-if($route==='study/progress'&&$method==='GET')respond($progressService->forUser($user));
-if($route==='study/progress'&&$method==='POST'){$data=input();$card=id_field($data,'bombcardId');if(!query("SELECT c.id FROM cards c JOIN decks d ON d.id=c.deck_id WHERE c.id=? AND d.user_id=? AND d.moderation_status='visible'",[$card,$user])->fetch())fail(404,'Bombcard not found.');$result=field($data,'result',16);$progressService->record($user,$card,$result);respond(['ok'=>true],201);}
-if($route==='activity'&&$method==='POST'){$data=input();$deck=isset($data['deckId'])?owned_deck(id_field($data,'deckId'),$user):null;$screen=field($data,'screen',32);if(!in_array($screen,['library','flashcards','highlighter','game','creator'],true))fail(422,'Invalid study screen.');activity($user,$deck['id']??null,field($data,'material',255),field($data,'mode',80),$screen,'Opened');respond(['ok'=>true],201);}
-if($route==='account/export'&&$method==='GET'){$data=workspace($user);$data['exportedAt']=gmdate(DATE_ATOM);$data['highlights']=[];$data['arenaHistory']=[];$data['activities']=query('SELECT id,deck_id deckId,material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC',[$user])->fetchAll();foreach($data['decks'] as $deck)foreach($deck['documents'] as $doc)$data['highlights'][$doc['id']]=query('SELECT id,page_number,note_text,color,purpose,selection_json,card_id cardId,created_at FROM highlights WHERE document_id=?',[$doc['id']])->fetchAll();foreach($bombstyleService->history($user,500) as $s)$data['arenaHistory'][]=arena_view($s);header('Content-Disposition: attachment; filename="co-studymaxx-export.json"');respond($data);}
-arena_routes($route,$method,$user);fail(404,'Endpoint not found.');
+
+// Password change
+if ($route === 'auth/password' && $method === 'POST') {
+    $data = input();
+    $old = password_value($data, 'currentPassword');
+    $next = password_value($data, 'newPassword');
+    $row = query('SELECT password_hash,auth_version FROM users WHERE id=? FOR UPDATE', [$user])->fetch();
+
+    if (!password_verify($old, $row['password_hash'])) {
+        fail(422, 'Current password is incorrect.');
+    }
+
+    $users->setPassword($user, password_hash($next, PASSWORD_DEFAULT));
+    audit_event($user, 'password_changed', $user);
+    $_SESSION['auth_version'] = (int)$row['auth_version'] + 1;
+    session_regenerate_id(true);
+    respond(['ok' => true]);
+}
+
+// ============================================================================
+// 7. Decks & Sharing Management
+// ============================================================================
+if ($route === 'decks') {
+    if ($method === 'GET') {
+        respond(deck_data(owned_deck(id_field($_GET), $user)));
+    }
+
+    if (in_array($method, ['POST', 'PATCH'], true)) {
+        $data = input();
+        $title = field($data, 'title', 160);
+        $subject = field($data, 'subject', 160, false);
+        $category = field($data, 'category', 80, false) ?: 'Recent';
+        $id = $method === 'PATCH' ? id_field($data) : uid();
+
+        $db->beginTransaction();
+        if ($method === 'PATCH') {
+            $old = owned_deck($id, $user);
+            $decksService->update($id, $title, $subject, $category);
+        } else {
+            $decksService->create($id, $user, $title, $subject, $category);
+        }
+
+        if (array_key_exists('cards', $data)) {
+            if (!is_array($data['cards']) || count($data['cards']) > 1000) {
+                fail(422, 'Invalid card list.');
+            }
+            $keep = [];
+            foreach ($data['cards'] as $i => $card) {
+                if (!is_array($card)) {
+                    fail(422, 'Invalid Bombcard.');
+                }
+                $cardId = isset($card['id']) && preg_match('/^[a-f0-9]{32}$/D', (string)$card['id']) ? $card['id'] : null;
+                $keep[] = save_card($card, $id, $cardId, $i);
+            }
+            foreach ($bombcardsService->forDeck($id) as $card) {
+                if (!in_array($card['id'], $keep, true)) {
+                    $bombcardsService->delete($card['id'], $id);
+                }
+            }
+        }
+
+        activity($user, $id, $title, 'Reviewer', 'library', $method === 'POST' ? 'Created' : 'Edited');
+        $db->commit();
+        respond(deck_data(owned_deck($id, $user)), $method === 'POST' ? 201 : 200);
+    }
+
+    if ($method === 'DELETE') {
+        $id = id_field(input());
+        owned_deck($id, $user);
+        $names = query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?', [$id, $user])->fetchAll(PDO::FETCH_COLUMN);
+        $decksService->delete($id, $user);
+        foreach ($names as $name) {
+            $path = $config['upload_dir'] . '/' . $name;
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+        respond(['ok' => true]);
+    }
+}
+
+// Deck Share links
+if ($route === 'decks/share') {
+    $deckId = id_field($method === 'GET' ? $_GET : input(), 'deckId');
+    owned_deck($deckId, $user);
+
+    if ($method === 'GET') {
+        $share = $deckSharesService->getForDeck($deckId, $user);
+        if (!$share) {
+            respond(['isShared' => false, 'isActive' => false, 'token' => null, 'url' => null]);
+        }
+        respond([
+            'isShared' => true,
+            'isActive' => (bool)$share['is_active'],
+            'token' => $share['share_token'],
+            'url' => app_base_url() . '/shared/deck/' . $share['share_token'],
+            'createdAt' => $share['created_at'],
+            'updatedAt' => $share['updated_at'],
+        ]);
+    }
+
+    if ($method === 'POST') {
+        $data = input();
+        $action = $data['action'] ?? 'create';
+
+        if ($action === 'create') {
+            $share = $deckSharesService->createOrGet($deckId, $user);
+        } elseif ($action === 'regenerate') {
+            $share = $deckSharesService->regenerate($deckId, $user);
+        } elseif ($action === 'toggle') {
+            $active = (bool)($data['active'] ?? true);
+            $share = $deckSharesService->setActive($deckId, $user, $active);
+        } else {
+            fail(422, 'Invalid share action.');
+        }
+
+        respond([
+            'ok' => true,
+            'isShared' => true,
+            'isActive' => (bool)$share['is_active'],
+            'token' => $share['share_token'],
+            'url' => app_base_url() . '/shared/deck/' . $share['share_token'],
+            'action' => $action,
+        ]);
+    }
+
+    if ($method === 'DELETE') {
+        $share = $deckSharesService->setActive($deckId, $user, false);
+        respond(['ok' => true, 'isShared' => true, 'isActive' => false]);
+    }
+}
+
+// Bombcard CRUD
+if ($route === 'cards' && in_array($method, ['POST', 'PATCH', 'DELETE'], true)) {
+    $data = input();
+    $deck = owned_deck(id_field($data, 'deckId'), $user);
+    $db->beginTransaction();
+
+    if ($method === 'DELETE') {
+        $id = id_field($data);
+        if (!$bombcardsService->delete($id, $deck['id'])) {
+            fail(404, 'Bombcard not found.');
+        }
+    } else {
+        $position = (int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?', [$deck['id']])->fetchColumn();
+        $id = save_card($data, $deck['id'], $method === 'PATCH' ? id_field($data) : null, $position);
+    }
+
+    activity($user, $deck['id'], $deck['title'], 'Bombcards', 'library', $method === 'DELETE' ? 'Removed' : ($method === 'POST' ? 'Created' : 'Edited'));
+    $db->commit();
+    respond(['id' => $id], $method === 'POST' ? 201 : 200);
+}
+
+// ============================================================================
+// 8. AI Flashcard Generator (Gemini Integration)
+// ============================================================================
+if ($route === 'ai/generate' && $method === 'POST') {
+    $apiKey = (string)($config['gemini_api_key'] ?? '');
+    if ($apiKey === '') {
+        fail(503, 'Gemini AI is not configured on this server.');
+    }
+
+    $data = input();
+    $notes = field($data, 'notes', 60000);
+    $deckId = isset($data['deckId']) && is_string($data['deckId']) && $data['deckId'] !== '' ? id_field($data, 'deckId') : null;
+    $count = isset($data['count']) ? max(1, min(25, (int)$data['count'])) : 5;
+    $format = field($data, 'format', 32, false) ?: 'MIXED';
+    $focus = field($data, 'focus', 64, false) ?: 'comprehensive';
+    $deck = $deckId ? owned_deck($deckId, $user) : null;
+
+    $instruction = "You are an expert academic study assistant for Co-StudyMaxx.\nGenerate exactly {$count} high-yield study flashcards based SOLELY on the study notes below.\n";
+    if ($format === 'MULTIPLE_CHOICE') {
+        $instruction .= "All {$count} flashcards must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";
+    } elseif ($format === 'IDENTIFICATION') {
+        $instruction .= "All {$count} flashcards must be IDENTIFICATION with prompt and clear concise correctAnswer term/concept.\n";
+    } else {
+        $instruction .= "Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer) and IDENTIFICATION (prompt, correctAnswer).\n";
+    }
+
+    if ($focus === 'key_terms') {
+        $instruction .= "Focus: Emphasize key vocabulary, acronyms, and foundational definitions.\n";
+    } elseif ($focus === 'conceptual') {
+        $instruction .= "Focus: Emphasize conceptual understanding, cause-and-effect relationships, and practical scenarios.\n";
+    }
+
+    $instruction .= "Output schema: Return ONLY a raw JSON array matching this structure:\n[{\"type\":\"MULTIPLE_CHOICE\"|\"IDENTIFICATION\",\"prompt\":\"...\",\"options\":[\"...\"],\"correctIndex\":0,\"correctAnswer\":\"...\",\"hint\":\"...\"}]\nDo NOT wrap in markdown fences like ```json. Return ONLY valid JSON array.\n\nSTUDY MATERIAL:\n" . $notes;
+
+    $modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    $geminiResponse = null;
+    $lastErr = '';
+
+    foreach ($modelsToTry as $mName) {
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent?key=' . rawurlencode($apiKey);
+        $payload = json_encode([
+            'contents' => [['parts' => [['text' => $instruction]]]],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'temperature' => 0.3,
+                'maxOutputTokens' => 4096,
+            ],
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+        $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $cErr = curl_error($ch);
+        curl_close($ch);
+
+        if ($code === 200 && is_string($raw) && $raw !== '') {
+            $p = json_decode($raw, true);
+            $txt = $p['candidates'][0]['content']['parts'][0]['text'] ?? '';
+            if ($txt !== '') {
+                $geminiResponse = $txt;
+                break;
+            }
+        } else {
+            $lastErr = "Model $mName HTTP $code: " . ($raw ?: $cErr);
+        }
+    }
+
+    if (!$geminiResponse) {
+        fail(502, 'Could not generate flashcards with Gemini. Please try again in a moment.');
+    }
+
+    $clean = trim($geminiResponse);
+    if (str_starts_with($clean, '```')) {
+        $clean = preg_replace('/^```(?:json)?\s*/i', '', $clean);
+        $clean = preg_replace('/\s*```$/', '', $clean);
+        $clean = trim($clean);
+    }
+
+    $cardsData = json_decode($clean, true);
+    if (!is_array($cardsData) && isset($cardsData['cards']) && is_array($cardsData['cards'])) {
+        $cardsData = $cardsData['cards'];
+    }
+
+    if (!is_array($cardsData)) {
+        fail(502, 'Gemini returned an unparseable response. Please try again.');
+    }
+
+    $normalized = [];
+    foreach ($cardsData as $idx => $c) {
+        if (!is_array($c) || empty($c['prompt'])) {
+            continue;
+        }
+        $type = ($c['type'] ?? 'MULTIPLE_CHOICE') === 'IDENTIFICATION' ? 'IDENTIFICATION' : 'MULTIPLE_CHOICE';
+        $prompt = trim((string)$c['prompt']);
+        $hint = !empty($c['hint']) ? trim((string)$c['hint']) : null;
+
+        if ($type === 'MULTIPLE_CHOICE') {
+            $rawOpts = is_array($c['options'] ?? null) ? $c['options'] : [];
+            $options = [];
+            foreach ($rawOpts as $opt) {
+                if (is_string($opt) || is_numeric($opt)) {
+                    $options[] = trim((string)$opt);
+                }
+            }
+            while (count($options) < 4) {
+                $options[] = 'Option ' . (count($options) + 1);
+            }
+            $options = array_slice($options, 0, 4);
+            $cIdx = isset($c['correctIndex']) && is_numeric($c['correctIndex']) ? (int)$c['correctIndex'] : 0;
+            if ($cIdx < 0 || $cIdx > 3) {
+                $cIdx = 0;
+            }
+            $ans = $options[$cIdx];
+            $normalized[] = [
+                'id' => 'ai-' . ($idx + 1) . '-' . uid(),
+                'type' => 'MULTIPLE_CHOICE',
+                'prompt' => $prompt,
+                'options' => $options,
+                'correctIndex' => $cIdx,
+                'correctAnswer' => $ans,
+                'hint' => $hint,
+            ];
+        } else {
+            $ans = trim((string)($c['correctAnswer'] ?? ''));
+            if ($ans === '') {
+                continue;
+            }
+            $normalized[] = [
+                'id' => 'ai-' . ($idx + 1) . '-' . uid(),
+                'type' => 'IDENTIFICATION',
+                'prompt' => $prompt,
+                'correctAnswer' => $ans,
+                'hint' => $hint,
+            ];
+        }
+    }
+
+    if (empty($normalized)) {
+        fail(422, 'Could not extract valid questions from the provided notes. Please supply more detailed study text.');
+    }
+
+    $saveDirectly = ($data['saveDirectly'] ?? false) === true;
+    if ($saveDirectly && $deck) {
+        $db->beginTransaction();
+        $startPos = (int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?', [$deck['id']])->fetchColumn();
+        foreach ($normalized as $i => $card) {
+            save_card($card, $deck['id'], null, $startPos + $i);
+        }
+        activity($user, $deck['id'], $deck['title'], 'AI Bombcards', 'creator', 'Created');
+        $db->commit();
+    }
+
+    respond([
+        'ok' => true,
+        'count' => count($normalized),
+        'deckId' => $deckId,
+        'saved' => $saveDirectly && $deck !== null,
+        'cards' => $normalized,
+    ]);
+}
+
+// ============================================================================
+// 9. Document & PDF Storage
+// ============================================================================
+if ($route === 'documents' && $method === 'POST') {
+    $deck = owned_deck(id_field($_POST, 'deckId'), $user);
+    $file = $_FILES['file'] ?? null;
+
+    if (!$file || !is_array($file) || is_array($file['error'] ?? null)) {
+        fail(422, 'Choose a PDF.');
+    }
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        fail(413, 'Upload failed; check the PDF size and PHP limits.');
+    }
+    if ($file['size'] < 5 || $file['size'] > $config['max_upload_bytes']) {
+        fail(413, 'PDFs must be no larger than 10 MB.');
+    }
+
+    $name = basename(str_replace('\\', '/', $file['name']));
+    if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== 'pdf' || text_length($name) > 255) {
+        fail(422, 'Only PDF files are allowed.');
+    }
+
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+    $h = fopen($file['tmp_name'], 'rb');
+    $magic = fread($h, 5);
+    fclose($h);
+
+    if ($mime !== 'application/pdf' || $magic !== '%PDF-') {
+        fail(422, 'Invalid PDF content.');
+    }
+
+    $dir = $config['upload_dir'];
+    if (!is_dir($dir) && !mkdir($dir, 0700, true)) {
+        fail(500, 'Private file storage is unavailable.');
+    }
+
+    $real = realpath($dir);
+    $root = realpath(dirname(__DIR__));
+    if (str_starts_with(strtolower(str_replace('\\', '/', $real) . '/'), strtolower(str_replace('\\', '/', $root) . '/'))) {
+        fail(503, 'PDF storage must be outside the public project directory.');
+    }
+
+    $id = uid();
+    $stored = uid() . '.pdf';
+    $path = $real . DIRECTORY_SEPARATOR . $stored;
+
+    $db->beginTransaction();
+    query('SELECT setting_key FROM system_settings WHERE setting_key=? FOR UPDATE', ['storage_limit_bytes'])->fetchColumn();
+    $storageLimit = (int)system_setting('storage_limit_bytes', '10737418240');
+    $storageUsed = (int)query('SELECT COALESCE(SUM(size_bytes),0) FROM documents')->fetchColumn();
+
+    if ($storageUsed + (int)$file['size'] > $storageLimit) {
+        fail(413, 'The system PDF storage limit has been reached.');
+    }
+
+    if (!move_uploaded_file($file['tmp_name'], $path)) {
+        fail(500, 'Could not store the PDF.');
+    }
+
+    try {
+        $materialsService->add($id, $deck['id'], $user, $name, $stored, $mime, (int)$file['size']);
+        activity($user, $deck['id'], $name, 'PDF', 'library', 'Uploaded');
+        $db->commit();
+    } catch (Throwable $e) {
+        if (is_file($path)) {
+            unlink($path);
+        }
+        throw $e;
+    }
+
+    respond(['id' => $id, 'title' => $name, 'size' => (int)$file['size'], 'url' => 'api/index.php?r=documents/file&id=' . $id], 201);
+}
+
+if ($route === 'documents' && $method === 'DELETE') {
+    $doc = $materialsService->remove(id_field(input()), $user);
+    if (!$doc) {
+        fail(404, 'Material not found.');
+    }
+    $path = $config['upload_dir'] . '/' . $doc['stored_name'];
+    if (is_file($path)) {
+        unlink($path);
+    }
+    respond(['ok' => true]);
+}
+
+if ($route === 'documents/file' && $method === 'GET') {
+    $doc = owned_document(id_field($_GET), $user);
+    $path = $config['upload_dir'] . '/' . $doc['stored_name'];
+    if (!is_file($path)) {
+        fail(404, 'PDF missing from file storage.');
+    }
+    session_write_close();
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . filesize($path));
+    $disp = ($_GET['download'] ?? '') === '1' ? 'attachment' : 'inline';
+    header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode($doc['title']));
+    header('Cache-Control: private, no-store');
+    header('X-Content-Type-Options: nosniff');
+    header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+    readfile($path);
+    exit;
+}
+
+// ============================================================================
+// 10. PDF Highlights & Excerpt-to-Card
+// ============================================================================
+if ($route === 'highlights/card' && $method === 'POST') {
+    $data = input();
+    $doc = owned_document(id_field($data, 'documentId'), $user);
+    $text = field($data, 'text', 10000);
+    $counterpart = field($data, 'counterpart', 10000);
+    $page = $data['page'] ?? 1;
+    $color = field($data, 'color', 7);
+    $purpose = field($data, 'purpose', 16);
+    $selection = selection_json($data);
+
+    if (!$selection || !in_array($purpose, ['question', 'answer'], true) || !is_int($page) || $page < 1 || $page > 100000 || !preg_match('/^#[0-9a-fA-F]{6}$/D', $color)) {
+        fail(422, 'Choose whether the excerpt is the question or answer.');
+    }
+
+    $prompt = $purpose === 'question' ? $text : $counterpart;
+    $answer = $purpose === 'answer' ? $text : $counterpart;
+    $position = (int)query('SELECT COALESCE(MAX(position),-1)+1 FROM cards WHERE deck_id=?', [$doc['deck_id']])->fetchColumn();
+
+    $db->beginTransaction();
+    $cardId = save_card(['type' => 'IDENTIFICATION', 'prompt' => $prompt, 'correctAnswer' => $answer], $doc['deck_id'], null, $position);
+    $id = uid();
+    query(
+        'INSERT INTO highlights(id,document_id,page_number,note_text,color,purpose,selection_json,card_id) VALUES(?,?,?,?,?,?,?,?)',
+        [$id, $doc['id'], $page, $text, $color, $purpose, $selection, $cardId]
+    );
+    activity($user, $doc['deck_id'], $doc['title'], 'PDF-to-Bombcard', 'highlighter', 'Created');
+    $db->commit();
+
+    respond([
+        'cardId' => $cardId,
+        'highlight' => [
+            'id' => $id,
+            'text' => $text,
+            'page' => $page,
+            'color' => $color,
+            'purpose' => $purpose,
+            'selection' => json_decode($selection, true),
+            'cardId' => $cardId,
+        ],
+    ], 201);
+}
+
+if ($route === 'highlights') {
+    $data = $method === 'GET' ? $_GET : input();
+    $doc = owned_document(id_field($data, 'documentId'), $user);
+
+    if ($method === 'GET') {
+        $rows = query(
+            'SELECT id,note_text text,page_number page,color,purpose,selection_json,card_id cardId FROM highlights WHERE document_id=? ORDER BY page_number,created_at',
+            [$doc['id']]
+        )->fetchAll();
+        foreach ($rows as &$row) {
+            $row['selection'] = $row['selection_json'] ? json_decode($row['selection_json'], true) : [];
+            unset($row['selection_json']);
+        }
+        respond($rows);
+    }
+
+    if ($method === 'DELETE') {
+        if (isset($data['id'])) {
+            query('DELETE FROM highlights WHERE id=? AND document_id=?', [id_field($data), $doc['id']]);
+        } else {
+            query('DELETE FROM highlights WHERE document_id=?', [$doc['id']]);
+        }
+        respond(['ok' => true]);
+    }
+
+    if (in_array($method, ['POST', 'PATCH'], true)) {
+        $text = field($data, 'text', 10000);
+        $page = $data['page'] ?? 1;
+        $color = field($data, 'color', 7);
+        $purpose = $data['purpose'] ?? 'note';
+        $selection = selection_json($data);
+
+        if (!is_int($page) || $page < 1 || $page > 100000 || !preg_match('/^#[0-9a-fA-F]{6}$/D', $color) || !is_string($purpose) || !in_array($purpose, ['note', 'question', 'answer'], true)) {
+            fail(422, 'Invalid note page, role, or color.');
+        }
+
+        $id = $method === 'PATCH' ? id_field($data) : uid();
+        if ($method === 'PATCH') {
+            if (!query('SELECT id FROM highlights WHERE id=? AND document_id=?', [$id, $doc['id']])->fetch()) {
+                fail(404, 'Note not found.');
+            }
+            query(
+                'UPDATE highlights SET note_text=?,page_number=?,color=?,purpose=?,selection_json=? WHERE id=?',
+                [$text, $page, $color, $purpose, $selection, $id]
+            );
+        } else {
+            query(
+                'INSERT INTO highlights(id,document_id,page_number,note_text,color,purpose,selection_json) VALUES(?,?,?,?,?,?,?)',
+                [$id, $doc['id'], $page, $text, $color, $purpose, $selection]
+            );
+        }
+
+        respond([
+            'id' => $id,
+            'text' => $text,
+            'page' => $page,
+            'color' => $color,
+            'purpose' => $purpose,
+            'selection' => $selection ? json_decode($selection, true) : [],
+        ], $method === 'POST' ? 201 : 200);
+    }
+}
+
+// ============================================================================
+// 11. Study Progress, Activity & Account Export
+// ============================================================================
+if ($route === 'study/progress' && $method === 'GET') {
+    respond($progressService->forUser($user));
+}
+
+if ($route === 'study/progress' && $method === 'POST') {
+    $data = input();
+    $card = id_field($data, 'bombcardId');
+    if (!query("SELECT c.id FROM cards c JOIN decks d ON d.id=c.deck_id WHERE c.id=? AND d.user_id=? AND d.moderation_status='visible'", [$card, $user])->fetch()) {
+        fail(404, 'Bombcard not found.');
+    }
+    $result = field($data, 'result', 16);
+    $progressService->record($user, $card, $result);
+    respond(['ok' => true], 201);
+}
+
+if ($route === 'activity' && $method === 'POST') {
+    $data = input();
+    $deck = isset($data['deckId']) ? owned_deck(id_field($data, 'deckId'), $user) : null;
+    $screen = field($data, 'screen', 32);
+    if (!in_array($screen, ['library', 'flashcards', 'highlighter', 'game', 'creator'], true)) {
+        fail(422, 'Invalid study screen.');
+    }
+    activity($user, $deck['id'] ?? null, field($data, 'material', 255), field($data, 'mode', 80), $screen, 'Opened');
+    respond(['ok' => true], 201);
+}
+
+if ($route === 'account/export' && $method === 'GET') {
+    $data = workspace($user);
+    $data['exportedAt'] = gmdate(DATE_ATOM);
+    $data['highlights'] = [];
+    $data['arenaHistory'] = [];
+    $data['activities'] = query(
+        'SELECT id,deck_id deckId,material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC',
+        [$user]
+    )->fetchAll();
+
+    foreach ($data['decks'] as $deck) {
+        foreach ($deck['documents'] as $doc) {
+            $data['highlights'][$doc['id']] = query(
+                'SELECT id,page_number,note_text,color,purpose,selection_json,card_id cardId,created_at FROM highlights WHERE document_id=?',
+                [$doc['id']]
+            )->fetchAll();
+        }
+    }
+
+    foreach ($bombstyleService->history($user, 500) as $s) {
+        $data['arenaHistory'][] = arena_view($s);
+    }
+
+    header('Content-Disposition: attachment; filename="co-studymaxx-export.json"');
+    respond($data);
+}
+
+// ============================================================================
+// 12. Bombstyle Arena & Fallback
+// ============================================================================
+arena_routes($route, $method, $user);
+
+fail(404, 'Endpoint not found.');

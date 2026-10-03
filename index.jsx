@@ -2554,17 +2554,17 @@ function App({ isGuest = false, sharedDeck = null }) {
                 <span className="csm-sidebar-label">Library</span>
               </button>
 
-              {/* Nested Navigation: Study & Create Bombcards (Smooth Animated Accordion) */}
+              {/* Nested Navigation: Study, Create, PDF Tools & AI Generator (Smooth Animated Accordion) */}
               <div
-                className={`csm-sidebar-subnav-wrapper ${['library', 'flashcards', 'creator'].includes(activeTab) ? 'expanded' : 'collapsed'}`}
-                aria-hidden={!['library', 'flashcards', 'creator'].includes(activeTab)}
+                className={`csm-sidebar-subnav-wrapper ${['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 'expanded' : 'collapsed'}`}
+                aria-hidden={!['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab)}
               >
                 <div className="csm-sidebar-subnav-inner">
                   <div className="csm-sidebar-subnav">
                     {/* 2a. Study Mini Sidebar */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator'].includes(activeTab) ? 0 : -1}
+                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
                       onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
                       data-tooltip="Study"
                       className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
@@ -2581,7 +2581,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     {/* 2b. Create Bombcards Mini Sidebar (Locked for Guest) */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator'].includes(activeTab) ? 0 : -1}
+                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
                       onClick={() => {
                         if (isGuest) { setGuestLockedSection('creator'); return; }
                         setSelectedDeckForFolderView(null);
@@ -2601,6 +2601,50 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </span>
                       )}
                       <span className="csm-sidebar-label">Create Bombcards</span>
+                    </button>
+
+                    {/* 2c. PDF Tools Mini Sidebar */}
+                    <button
+                      type="button"
+                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
+                      onClick={() => {
+                        setSelectedDeckForFolderView(null);
+                        if (!activeDocument) {
+                          const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
+                          if (firstDocDeck && firstDocDeck.documents[0]) {
+                            handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
+                            return;
+                          }
+                        }
+                        setActiveTab('highlighter');
+                      }}
+                      data-tooltip="PDF Tools"
+                      className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'highlighter' ? 'active' : ''}`}
+                      title="PDF Tools (Highlight & Generate Cards)"
+                    >
+                      <IconPdf className="w-3.5 h-3.5 flex-shrink-0 text-red-400" />
+                      <span className="csm-sidebar-label">PDF Tools</span>
+                    </button>
+
+                    {/* 2d. AI Flashcard Generator Modal Trigger */}
+                    <button
+                      type="button"
+                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
+                      onClick={() => {
+                        if (isGuest) { setGuestLockedSection('creator'); return; }
+                        handleOpenAiGenerator();
+                      }}
+                      data-tooltip={isGuest ? 'AI Flashcards (Sign in to unlock)' : 'AI Generator'}
+                      className="csm-sidebar-subitem flex items-center transition-all relative text-purple-300 hover:text-purple-200"
+                      title={isGuest ? 'AI Flashcards (Sign in to unlock)' : 'AI Flashcards Generator (Gemini)'}
+                    >
+                      <IconSparkles className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                      {isGuest && (
+                        <span className="csm-sidebar-lock-badge" title="Sign in to unlock">
+                          <IconLock className="w-2.5 h-2.5" />
+                        </span>
+                      )}
+                      <span className="csm-sidebar-label">AI Generator ✨</span>
                     </button>
                   </div>
                 </div>
@@ -3022,6 +3066,62 @@ function App({ isGuest = false, sharedDeck = null }) {
                     <p className="home-tool-description">Pressure-based recall.<br />One countdown for the entire round.</p>
                     <button className="home-tool-button" type="button" onClick={handleOpenGameMode}>
                       <span>Enter Arena</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 12h15" />
+                        <path d="m13 6 6 6-6 6" />
+                      </svg>
+                    </button>
+                  </article>
+
+                  <article className="home-tool-card pdf-tool" onClick={() => {
+                    if (!activeDocument) {
+                      const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
+                      if (firstDocDeck && firstDocDeck.documents[0]) {
+                        handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
+                        return;
+                      }
+                    }
+                    setActiveTab('highlighter');
+                  }}>
+                    <span className="home-tool-icon pdf-icon" aria-hidden="true">
+                      <IconPdf className="w-5 h-5 text-red-600" />
+                    </span>
+                    <h3 className="home-tool-title">PDF Study Tool</h3>
+                    <p className="home-tool-description">Highlight notes, select passages,<br />and turn documents into flashcards.</p>
+                    <button className="home-tool-button" type="button" onClick={(e) => {
+                      e.stopPropagation();
+                      if (!activeDocument) {
+                        const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
+                        if (firstDocDeck && firstDocDeck.documents[0]) {
+                          handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
+                          return;
+                        }
+                      }
+                      setActiveTab('highlighter');
+                    }}>
+                      <span>Open PDF Tools</span>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 12h15" />
+                        <path d="m13 6 6 6-6 6" />
+                      </svg>
+                    </button>
+                  </article>
+
+                  <article className="home-tool-card ai-tool" onClick={() => {
+                    if (isGuest) { setGuestLockedSection('creator'); return; }
+                    handleOpenAiGenerator();
+                  }}>
+                    <span className="home-tool-icon ai-icon" aria-hidden="true">
+                      <IconSparkles className="w-5 h-5 text-purple-600" />
+                    </span>
+                    <h3 className="home-tool-title">AI Flashcard Maker</h3>
+                    <p className="home-tool-description">Drop PDFs or paste notes<br />to forge high-retention Bombcards.</p>
+                    <button className="home-tool-button" type="button" onClick={(e) => {
+                      e.stopPropagation();
+                      if (isGuest) { setGuestLockedSection('creator'); return; }
+                      handleOpenAiGenerator();
+                    }}>
+                      <span>Generate Cards ✨</span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M4 12h15" />
                         <path d="m13 6 6 6-6 6" />

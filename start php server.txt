@@ -1,2 +1,25 @@
-cd "C:\Users\dough\CSM"
-& C:\xampp\php\php.exe -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php
+Co-StudyMaxx Server Startup Guide
+==================================
+
+Option 1: Quick Launch (Recommended on Windows)
+-----------------------------------------------
+Double-click or run:
+  start.bat
+
+This automatically finds PHP on your PATH or at C:\xampp\php\php.exe and starts the server at http://127.0.0.1:8080.
+
+
+Option 2: Using npm (if Node.js is installed)
+----------------------------------------------
+  npm run dev
+    or
+  npm start
+
+
+Option 3: Direct Command Line
+-----------------------------
+From the CSM root folder:
+  php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php
+
+Or if using XAMPP PHP directly:
+  C:\xampp\php\php.exe -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php

@@ -1,11 +1,12 @@
 {
   "name": "co-studymaxx",
-  "version": "1.0.0",
   "description": "Co-Studymaxx — Study Reviewer & Countdown Quiz System",
   "scripts": {
+    "dev": "php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php",
     "start": "php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php",
     "serve": "php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php",
-    "mailer": "node mailer/server.js"
+    "mailer": "node mailer/server.js",
+    "test": "php tests/api-smoke.php"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
