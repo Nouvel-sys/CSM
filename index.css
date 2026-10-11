@@ -7281,20 +7281,20 @@
 .csm-pdf-page-head .csm-page-actions { flex-shrink: 0; }
 .csm-highlighter-layout { grid-template-columns: minmax(0, 1fr) minmax(300px, 350px); gap: 18px; align-items: stretch; }
 .csm-pdf-card { min-width: 0; border-radius: 16px; background: #fff; box-shadow: 0 12px 34px rgba(21, 34, 52, .06); }
-.csm-pdf-toolbar { min-height: 70px; padding: 14px 18px; }
-.csm-pdf-document-title { min-width: 0; }
-.csm-pdf-document-title strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.csm-pdf-document-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csm-pdf-toolbar { min-height: 66px; padding: 12px 18px; border-bottom: 1px solid #edf2f7; }
+.csm-pdf-document-title { min-width: 0; max-width: min(100%, 460px); flex: 1 1 240px; }
+.csm-pdf-document-title strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 800; color: #0f172a; line-height: 1.4; }
+.csm-pdf-document-title span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: #64748b; margin-top: 2px; }
 .csm-pdf-tools { flex-shrink: 0; gap: 8px; }
 .csm-pdf-color { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid #e3e9ee; border-radius: 9px; background: #fff; cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
 .csm-pdf-color::after { width: 11px; height: 11px; border-radius: 50%; background: var(--swatch); content: ''; }
 .csm-pdf-color:hover { transform: translateY(-1px); }
 .csm-pdf-color.active { border-color: var(--swatch); background: color-mix(in srgb, var(--swatch) 12%, white); box-shadow: 0 0 0 2px color-mix(in srgb, var(--swatch) 16%, transparent); }
-.csm-pdf-open-link { padding: 8px 10px; border: 1px solid #e2e8ef; border-radius: 8px; color: #45556b; background: #fff; font-size: 10px; font-weight: 700; text-decoration: none; }
-.csm-pdf-open-link:hover { border-color: #f4b3a4; color: #e64526; background: #fff8f6; }
+.csm-pdf-open-link { padding: 8px 10px; border: 1px solid #e2e8ef; border-radius: 8px; color: #45556b; background: #fff; font-size: 10px; font-weight: 700; text-decoration: none; transition: all .15s ease; }
+.csm-pdf-open-link:hover { border-color: #c4b5fd; color: #6d28d9; background: #f5f3ff; }
 .csm-pdf-document-select { max-width: 260px; min-height: 34px; padding: 0 30px 0 10px; border: 1px solid #dce4ed; border-radius: 8px; color: #334155; background: #fff; font-size: 10px; }
-.csm-pdf-instructions { display: flex; align-items: center; gap: 9px; margin: 14px 18px 0; padding: 10px 12px; border: 1px solid #f8dfd7; border-radius: 10px; color: #79574f; background: #fff8f5; font-size: 10px; line-height: 1.5; }
-.csm-pdf-instructions-icon { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border-radius: 7px; color: #e84a2b; background: #ffe9e2; }
+.csm-pdf-instructions { display: flex; align-items: center; gap: 9px; margin: 12px 18px 0; padding: 10px 14px; border: 1px solid #e9d5ff; border-radius: 10px; color: #6b21a8; background: #faf5ff; font-size: 11px; font-weight: 500; line-height: 1.5; }
+.csm-pdf-instructions-icon { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border-radius: 7px; color: #7c3aed; background: #f3e8ff; }
 .csm-pdf-stage { position: relative; display: grid; min-height: 560px; margin: 14px 18px; overflow: auto; place-items: start center; border: 1px solid #30343c; border-radius: 12px; background: #25282d; }
 .csm-pdf-paper-wrap { display: grid; width: 100%; padding: 22px; place-items: start center; }
 .csm-pdf-paper { position: relative; flex: none; overflow: hidden; border: 1px solid #d9dee5; background: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.22); }

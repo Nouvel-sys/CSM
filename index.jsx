@@ -260,6 +260,85 @@ const IconCards = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+const IconBot = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="10" rx="2" />
+    <circle cx="12" cy="5" r="2" />
+    <path d="M12 7v4" />
+    <line x1="8" y1="16" x2="8" y2="16" />
+    <line x1="16" y1="16" x2="16" y2="16" />
+  </svg>
+);
+
+const IconFileText = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
+    <polyline points="10 9 9 9 8 9" />
+  </svg>
+);
+
+const IconHelpCircle = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const IconPin = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="17" x2="12" y2="22" />
+    <path d="M5 17h14v-2l-2-2V5h1V3H6v2h1v8l-2 2v2z" />
+  </svg>
+);
+
+const IconBulb = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 18h6" />
+    <path d="M10 22h4" />
+    <path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14" />
+  </svg>
+);
+
+const IconHighlighter = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m9 11-6 6v3h3l6-6" />
+    <path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4" />
+  </svg>
+);
+
+const IconPlay = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+
+const IconTrophy = ({ className = "w-6 h-6" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+    <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+    <path d="M4 22h16" />
+    <path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34" />
+    <path d="M6 4h12v7a6 6 0 0 1-12 0V4z" />
+  </svg>
+);
+
+const IconCopy = ({ className = "w-3.5 h-3.5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const IconCheck = ({ className = "w-3.5 h-3.5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
 const MiniBombIcon = ({ active }) => (
   <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${active
     ? 'bg-[#2a1309] border border-[#f04824] shadow-[0_0_12px_rgba(240,72,36,0.4)] text-[#f04824]'
@@ -389,21 +468,123 @@ const INITIAL_DECKS = [
 // ========================================================
 // 4. MAIN APP CONTAINER & STATE CONTROLLER
 // ========================================================
-function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelection }) {
+// ========================================================
+// 4. PDF LEARNING WORKSPACE COMPONENTS
+// ========================================================
+
+function formatInlineMarkdown(text) {
+  if (!text) return '';
+  const parts = [];
+  let remaining = String(text);
+  let key = 0;
+  while (remaining) {
+    const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
+    const codeMatch = remaining.match(/`(.*?)`/);
+    let nextMatch = null;
+    let type = null;
+    if (boldMatch && (!codeMatch || boldMatch.index < codeMatch.index)) {
+      nextMatch = boldMatch;
+      type = 'bold';
+    } else if (codeMatch) {
+      nextMatch = codeMatch;
+      type = 'code';
+    }
+    if (!nextMatch) {
+      parts.push(remaining);
+      break;
+    }
+    if (nextMatch.index > 0) {
+      parts.push(remaining.substring(0, nextMatch.index));
+    }
+    if (type === 'bold') {
+      parts.push(<strong key={key++} className="font-extrabold text-slate-900">{nextMatch[1]}</strong>);
+    } else if (type === 'code') {
+      parts.push(<code key={key++} className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-xs font-mono font-semibold">{nextMatch[1]}</code>);
+    }
+    remaining = remaining.substring(nextMatch.index + nextMatch[0].length);
+  }
+  return parts;
+}
+
+function MarkdownView({ content }) {
+  if (!content) return null;
+  const lines = String(content).split('\n');
+  return (
+    <div className="space-y-2.5 text-xs text-slate-700 leading-relaxed font-sans">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+        if (trimmed.startsWith('### ')) {
+          return (
+            <h4 key={idx} className="font-extrabold text-slate-900 text-xs mt-3 mb-1 text-purple-900 flex items-center gap-1.5 uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-600 inline-block"></span>
+              {trimmed.replace(/^###\s*/, '')}
+            </h4>
+          );
+        }
+        if (trimmed.startsWith('## ')) {
+          return (
+            <h3 key={idx} className="font-extrabold text-slate-900 text-sm mt-3.5 mb-1.5 text-purple-950 flex items-center gap-1.5">
+              {trimmed.replace(/^##\s*/, '')}
+            </h3>
+          );
+        }
+        if (trimmed.startsWith('# ')) {
+          return (
+            <h2 key={idx} className="font-black text-slate-900 text-base mt-4 mb-2">
+              {trimmed.replace(/^#\s*/, '')}
+            </h2>
+          );
+        }
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const itemText = trimmed.replace(/^[-*]\s*/, '');
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1.5 my-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
+              <div className="flex-1">{formatInlineMarkdown(itemText)}</div>
+            </div>
+          );
+        }
+        if (/^\d+\.\s/.test(trimmed)) {
+          const num = trimmed.match(/^(\d+)\.\s/)[1];
+          const itemText = trimmed.replace(/^\d+\.\s*/, '');
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-1.5 my-1">
+              <span className="font-bold text-[11px] text-purple-700 shrink-0 w-4 text-right">{num}.</span>
+              <div className="flex-1">{formatInlineMarkdown(itemText)}</div>
+            </div>
+          );
+        }
+        if (trimmed.startsWith('> ')) {
+          return (
+            <blockquote key={idx} className="border-l-3 border-purple-400 pl-3 italic text-slate-600 my-1.5 bg-purple-50/50 py-1.5 rounded-r-lg">
+              {formatInlineMarkdown(trimmed.replace(/^>\s*/, ''))}
+            </blockquote>
+          );
+        }
+        return <p key={idx} className="my-1">{formatInlineMarkdown(line)}</p>;
+      })}
+    </div>
+  );
+}
+
+function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelection, zoom = 1.0, onQuickAction }) {
   const [pdf, setPdf] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(false);
   const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   const [stageWidth, setStageWidth] = useState(760);
+  const [selectedText, setSelectedText] = useState('');
   const stageRef = useRef(null);
   const paperRef = useRef(null);
   const canvasRef = useRef(null);
   const textLayerRef = useRef(null);
 
+  // Load PDF document
   useEffect(() => {
     let current = true;
     let task = null;
-    setPdf(null); setLoadError(''); setPageSize({ width: 0, height: 0 });
+    setPdf(null); setLoadError(''); setPageSize({ width: 0, height: 0 }); setSelectedText('');
     if (!document?.url) return () => { current = false; };
     setLoading(true);
     (async () => {
@@ -420,6 +601,7 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
     return () => { current = false; task?.destroy(); };
   }, [document?.url]);
 
+  // Stage resize observer
   useEffect(() => {
     const node = stageRef.current;
     if (!node || !window.ResizeObserver) return;
@@ -428,6 +610,39 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
     return () => observer.disconnect();
   }, [document?.url]);
 
+  // Background full document text extraction for search & AI context
+  useEffect(() => {
+    if (!pdf || !document?.id) return;
+    let current = true;
+    (async () => {
+      try {
+        const check = await CSM.api('documents/extract&documentId=' + encodeURIComponent(document.id));
+        if (check?.extracted && check.pages?.length > 0) return;
+        const extractedPages = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          if (!current) break;
+          const p = await pdf.getPage(i);
+          const tc = await p.getTextContent();
+          const txt = tc.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim();
+          if (txt) {
+            extractedPages.push({ page: i, text: txt });
+          }
+        }
+        if (current && extractedPages.length > 0) {
+          await CSM.api('documents/extract', 'POST', {
+            documentId: document.id,
+            pageCount: pdf.numPages,
+            pages: extractedPages,
+          });
+        }
+      } catch (err) {
+        console.warn('PDF background text extraction:', err);
+      }
+    })();
+    return () => { current = false; };
+  }, [pdf, document?.id]);
+
+  // Render current page with zoom scale & high-DPI support
   useEffect(() => {
     let current = true;
     let renderTask = null;
@@ -438,7 +653,7 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
       try {
         const page = await pdf.getPage(pageNumber);
         const baseViewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(1.65, stageWidth / baseViewport.width);
+        const scale = Math.min(3.0, Math.max(0.4, (stageWidth / baseViewport.width) * (zoom || 1.0)));
         const viewport = page.getViewport({ scale });
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d', { alpha: false });
@@ -461,13 +676,16 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
     };
     render();
     return () => { current = false; renderTask?.cancel(); textTask?.cancel?.(); };
-  }, [pdf, pageNumber, stageWidth, highlights]);
+  }, [pdf, pageNumber, stageWidth, highlights, zoom]);
 
   const captureSelection = () => {
     const selection = window.getSelection();
     const text = selection?.toString().replace(/\s+/g, ' ').trim();
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-    if (!text || !range || !textLayerRef.current?.contains(range.commonAncestorContainer)) return;
+    if (!text || !range || !textLayerRef.current?.contains(range.commonAncestorContainer)) {
+      setSelectedText('');
+      return;
+    }
     const paper = paperRef.current?.getBoundingClientRect();
     if (!paper?.width || !paper?.height) return;
     const rectangles = Array.from(range.getClientRects()).map(rect => ({
@@ -476,24 +694,987 @@ function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelec
       width: Math.min(rect.width / paper.width, 1),
       height: Math.min(rect.height / paper.height, 1)
     })).filter(rect => rect.width > 0 && rect.height > 0);
-    if (rectangles.length) onSelection({ text, page: pageNumber, selection: rectangles });
+    if (rectangles.length) {
+      setSelectedText(text);
+      onSelection({ text, page: pageNumber, selection: rectangles });
+    }
   };
 
   return (
-    <div className="csm-pdf-stage" ref={stageRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
-      {!document && <div className="csm-pdf-empty"><span className="csm-pdf-empty-icon">PDF</span><strong>Choose a reviewer PDF to begin</strong><p>Open a saved document from your Library. Select text to save it as a note or build a Bombcard.</p></div>}
-      {document && loading && <div className="csm-pdf-loading"><span className="csm-spinner" />Loading page…</div>}
-      {document && loadError && <div className="csm-pdf-load-error"><strong>We couldn’t display this PDF</strong><p>{loadError}</p><a href={document.url} target="_blank" rel="noreferrer">Open the PDF in a new tab</a></div>}
-      {document && !loadError && <div className="csm-pdf-paper-wrap" style={{ minHeight: Math.max(420, pageSize.height + 36) }}>
-        <div className="csm-pdf-paper" ref={paperRef} style={{ width: pageSize.width || 'auto', height: pageSize.height || 'auto' }}>
-          <canvas ref={canvasRef} aria-hidden="true" />
-          <div className="csm-pdf-saved-marks" aria-hidden="true">{highlights.filter(item => Number(item.page) === Number(pageNumber)).flatMap(item => (item.selection || []).map((rect, index) => <i key={`${item.id}-${index}`} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%`, backgroundColor: item.color }} />))}</div>
-          <div className="textLayer csm-pdf-text-layer" ref={textLayerRef} aria-label={`Selectable PDF page ${pageNumber}`} />
+    <div className="relative w-full">
+      <div className="csm-pdf-stage" ref={stageRef} onMouseUp={captureSelection} onKeyUp={captureSelection}>
+        {!document && <div className="csm-pdf-empty"><span className="csm-pdf-empty-icon">PDF</span><strong>Choose a reviewer PDF to begin</strong><p>Open a saved document from your Library. Highlight text with the Magic Marker to create flashcards, save notes, or mark key concepts.</p></div>}
+        {document && loading && <div className="csm-pdf-loading"><span className="csm-spinner" />Loading page…</div>}
+        {document && loadError && <div className="csm-pdf-load-error"><strong>We couldn’t display this PDF</strong><p>{loadError}</p><a href={document.url} target="_blank" rel="noreferrer">Open the PDF in a new tab</a></div>}
+        {document && !loadError && <div className="csm-pdf-paper-wrap" style={{ minHeight: Math.max(420, pageSize.height + 36) }}>
+          <div className="csm-pdf-paper relative" ref={paperRef} style={{ width: pageSize.width || 'auto', height: pageSize.height || 'auto' }}>
+            <canvas ref={canvasRef} aria-hidden="true" />
+            <div className="csm-pdf-saved-marks" aria-hidden="true">
+              {highlights.filter(item => Number(item.page) === Number(pageNumber)).flatMap(item => (item.selection || []).map((rect, index) => (
+                <i key={`${item.id}-${index}`} style={{ left: `${rect.x * 100}%`, top: `${rect.y * 100}%`, width: `${rect.width * 100}%`, height: `${rect.height * 100}%`, backgroundColor: item.color }} />
+              )))}
+            </div>
+            <div className="textLayer csm-pdf-text-layer" ref={textLayerRef} aria-label={`Selectable PDF page ${pageNumber}`} />
+          </div>
+        </div>}
+      </div>
+
+      {/* Vaia Magic Marker Floating Bar */}
+      {selectedText && onQuickAction && (
+        <div
+          style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', zIndex: 40 }}
+          className="flex items-center gap-2 px-3.5 py-2 bg-slate-900/95 backdrop-blur-md text-white rounded-full shadow-2xl border border-slate-700/80 text-xs font-semibold whitespace-nowrap"
+        >
+          <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-amber-300 uppercase tracking-wider pl-1 pr-2.5 border-r border-slate-700/90 shrink-0">
+            <IconHighlighter className="w-3.5 h-3.5 text-amber-400" />
+            <span>Magic Marker</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onQuickAction('card', selectedText)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-600 hover:bg-purple-500 text-white transition-all text-xs font-bold cursor-pointer shadow-sm active:scale-95 shrink-0"
+            title="Create study flashcard from this selection"
+          >
+            <IconCards className="w-3.5 h-3.5 text-white" />
+            <span>Create Flashcard</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onQuickAction('note', selectedText)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-100 transition-all text-xs font-semibold cursor-pointer border border-slate-700 active:scale-95 shrink-0"
+            title="Save selected text to document notes"
+          >
+            <IconFileText className="w-3.5 h-3.5 text-slate-300" />
+            <span>Add to Notes</span>
+          </button>
+
+          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-700/90 shrink-0">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-0.5">Highlight:</span>
+            {[
+              { color: '#f5a23a', label: 'Orange' },
+              { color: '#8dc7ef', label: 'Blue' },
+              { color: '#a8d8a8', label: 'Green' },
+              { color: '#f472b6', label: 'Pink' }
+            ].map(({ color, label }) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => onQuickAction('highlight', selectedText, color)}
+                className="w-4 h-4 rounded-full border border-white/50 cursor-pointer hover:scale-125 transition-transform shadow-xs"
+                style={{ backgroundColor: color }}
+                title={`Highlight in ${label}`}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedText('');
+              if (window.getSelection) window.getSelection().removeAllRanges();
+            }}
+            className="ml-1 p-1 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 cursor-pointer transition-colors shrink-0"
+            title="Dismiss selection"
+          >
+            <IconClose className="w-3.5 h-3.5" />
+          </button>
         </div>
-      </div>}
+      )}
     </div>
   );
 }
+
+function LearningWorkspaceSidebar({
+  activeTab,
+  setActiveTab,
+  activeDocument,
+  pdfPage,
+  setPdfPage,
+  pdfSelection,
+  setPdfSelection,
+  // AI assist
+  aiThinking,
+  aiAssistantResponse,
+  setAiAssistantResponse,
+  aiExplainLevel,
+  setAiExplainLevel,
+  onAiExplain,
+  onAiSummarize,
+  onAiQuestions,
+  onAiNotes,
+  onAiFlashcards,
+  onAiAsk,
+  // Notes
+  documentNotes,
+  documentNotesLoading,
+  noteComposerOpen,
+  setNoteComposerOpen,
+  noteFormTitle,
+  setNoteFormTitle,
+  noteFormContent,
+  setNoteFormContent,
+  noteFormPage,
+  setNoteFormPage,
+  noteEditingId,
+  setNoteEditingId,
+  onSaveNote,
+  onDeleteNote,
+  // Flashcards
+  studyDecks,
+  activeStudyDeckId,
+  setActiveStudyDeckId,
+  onCreateStudyDeck,
+  studyCards,
+  studyCardsLoading,
+  cardComposerOpen,
+  setCardComposerOpen,
+  cardFormQuestion,
+  setCardFormQuestion,
+  cardFormAnswer,
+  setCardFormAnswer,
+  cardFormExplanation,
+  setCardFormExplanation,
+  cardFormTags,
+  setCardFormTags,
+  cardFormSourcePage,
+  setCardFormSourcePage,
+  onSaveStudyCard,
+  onDeleteStudyCard,
+  onStartFlashcardReview,
+  // Highlights
+  highlights,
+  highlightColor,
+  setHighlightColor,
+  savePdfSelection,
+  createPdfBombcard,
+  handleRemoveHighlight,
+  handleClearHighlights,
+  pdfSaving,
+  pdfCardComposerOpen,
+  setPdfCardComposerOpen,
+  pdfSelectionRole,
+  setPdfSelectionRole,
+  pdfCounterpart,
+  setPdfCounterpart,
+  onOpenAiGenerator,
+  triggerToast,
+}) {
+  const [notesFilter, setNotesFilter] = useState('');
+  const [notesPageOnly, setNotesPageOnly] = useState(false);
+  const [newDeckTitle, setNewDeckTitle] = useState('');
+  const [newDeckOpen, setNewDeckOpen] = useState(false);
+
+  const activeDeck = (studyDecks || []).find(d => d.id === activeStudyDeckId) || studyDecks?.[0];
+
+  // Filtered notes
+  const filteredNotes = (documentNotes || []).filter(n => {
+    if (notesPageOnly && Number(n.page_number) !== Number(pdfPage)) return false;
+    if (notesFilter.trim()) {
+      const q = notesFilter.toLowerCase();
+      return (n.title || '').toLowerCase().includes(q) || (n.content || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Flashcards mastery breakdown
+  const masteryStats = useMemo(() => {
+    const total = (studyCards || []).length;
+    let mastered = 0, known = 0, learning = 0, newCards = 0;
+    (studyCards || []).forEach(c => {
+      const st = c.review?.review_status || 'new';
+      if (st === 'mastered') mastered++;
+      else if (st === 'known') known++;
+      else if (st === 'learning') learning++;
+      else newCards++;
+    });
+    return { total, mastered, known, learning, newCards };
+  }, [studyCards]);
+
+  return (
+    <aside className="csm-highlights-card csm-pdf-notes-panel flex flex-col h-full bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      {/* 3 Vaia-Style Study Rail Tabs Header */}
+      <div className="flex items-center border-b border-slate-200 bg-slate-50/80 p-1.5 gap-1.5 shrink-0">
+        <button
+          type="button"
+          onClick={() => setActiveTab('flashcards')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'flashcards'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <IconCards className="w-4 h-4" />
+          <span>Cards</span>
+          {studyCards?.length > 0 && (
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${activeTab === 'flashcards' ? 'bg-purple-800 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {studyCards.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('notes')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'notes'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <IconFileText className="w-4 h-4" />
+          <span>Notes</span>
+          {documentNotes?.length > 0 && (
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${activeTab === 'notes' ? 'bg-purple-800 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {documentNotes.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('highlights')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'highlights'
+              ? 'bg-purple-600 text-white shadow-xs'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <IconHighlighter className="w-4 h-4" />
+          <span>Marks</span>
+          {highlights?.length > 0 && (
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${activeTab === 'highlights' ? 'bg-purple-800 text-white' : 'bg-slate-200 text-slate-700'}`}>
+              {highlights.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Tab 2: Document Notes */}
+      {activeTab === 'notes' && (
+        <div className="p-4 flex-1 overflow-y-auto custom-scroll space-y-3.5">
+          {/* Header & Note Creator Button */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-extrabold text-slate-900 text-sm">Document Notes</h3>
+              <p className="text-[10px] text-slate-500">Persisted study notes linked to this PDF</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setNoteFormTitle(`Note on Page ${pdfPage}`);
+                setNoteFormContent(pdfSelection ? `“${pdfSelection.text}”\n\n` : '');
+                setNoteFormPage(pdfPage);
+                setNoteEditingId(null);
+                setNoteComposerOpen(true);
+              }}
+              className="py-1 px-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1"
+            >
+              <span>+ Add Note</span>
+            </button>
+          </div>
+
+          {/* Filters & Search */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={notesFilter}
+              onChange={e => setNotesFilter(e.target.value)}
+              placeholder="Search notes..."
+              className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-purple-500"
+            />
+            <button
+              type="button"
+              onClick={() => setNotesPageOnly(!notesPageOnly)}
+              className={`px-2 py-1 text-[10px] font-bold rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
+                notesPageOnly ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-100 text-slate-600 border-slate-200'
+              }`}
+            >
+              Page {pdfPage} only
+            </button>
+          </div>
+
+          {/* Note Composer Modal / Inline Box */}
+          {noteComposerOpen && (
+            <div className="bg-purple-50/60 border border-purple-200 rounded-2xl p-3 space-y-2.5 animate-fadeIn">
+              <span className="text-[11px] font-extrabold text-purple-900 block">
+                {noteEditingId ? 'Edit Document Note' : 'Create New Document Note'}
+              </span>
+              <input
+                type="text"
+                value={noteFormTitle}
+                onChange={e => setNoteFormTitle(e.target.value)}
+                placeholder="Note title..."
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-purple-500 font-bold"
+              />
+              <textarea
+                rows="4"
+                value={noteFormContent}
+                onChange={e => setNoteFormContent(e.target.value)}
+                placeholder="Write your notes, insights, or takeaways here..."
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-purple-500"
+              />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1 text-[11px] text-slate-600">
+                  <span>Linked to Page:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={noteFormPage || 1}
+                    onChange={e => setNoteFormPage(Number(e.target.value))}
+                    className="w-12 px-1.5 py-0.5 border border-slate-200 rounded text-center text-xs font-bold"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setNoteComposerOpen(false)}
+                    className="px-2.5 py-1 text-slate-600 hover:text-slate-800 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!noteFormContent.trim()) return triggerToast('Note content cannot be empty.');
+                      onSaveNote({
+                        id: noteEditingId,
+                        title: noteFormTitle.trim() || 'Untitled Note',
+                        content: noteFormContent.trim(),
+                        page: noteFormPage || pdfPage,
+                      });
+                      setNoteComposerOpen(false);
+                    }}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all"
+                  >
+                    Save Note
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Notes List */}
+          {documentNotesLoading ? (
+            <div className="py-8 text-center text-xs text-slate-400">Loading notes…</div>
+          ) : filteredNotes.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-2xl">
+              No notes found. Highlight text in the PDF with the Magic Marker to add notes, or click <strong>+ Add Note</strong> above.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {filteredNotes.map(note => (
+                <article key={note.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-1.5 group hover:border-purple-200 transition-colors">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-extrabold text-slate-900 text-xs truncate flex-1">{note.title}</span>
+                    <div className="flex items-center gap-1">
+                      {note.page_number && (
+                        <button
+                          type="button"
+                          onClick={() => setPdfPage(Number(note.page_number))}
+                          className="px-2 py-0.5 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-md text-[10px] font-extrabold transition-colors cursor-pointer"
+                          title="Jump to this page in the PDF"
+                        >
+                          Page {note.page_number} ↗
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNoteEditingId(note.id);
+                          setNoteFormTitle(note.title);
+                          setNoteFormContent(note.content);
+                          setNoteFormPage(note.page_number);
+                          setNoteComposerOpen(true);
+                        }}
+                        className="text-slate-400 hover:text-purple-600 text-xs p-1 cursor-pointer"
+                        title="Edit note"
+                      >
+                        <IconEdit />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteNote(note.id)}
+                        className="text-slate-400 hover:text-red-600 text-xs p-1 cursor-pointer"
+                        title="Delete note"
+                      >
+                        <IconTrash />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                    {note.content}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 3: Study Flashcards & Decks */}
+      {activeTab === 'flashcards' && (
+        <div className="p-4 flex-1 overflow-y-auto custom-scroll space-y-3.5">
+          {/* Deck selector & Practice CTA */}
+          <div className="space-y-2 bg-slate-50/80 border border-slate-200 rounded-2xl p-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Study Deck</span>
+              <button
+                type="button"
+                onClick={() => setNewDeckOpen(!newDeckOpen)}
+                className="text-[11px] text-purple-600 font-bold hover:underline cursor-pointer"
+              >
+                + New Deck
+              </button>
+            </div>
+
+            {/* Deck dropdown */}
+            {(studyDecks || []).length > 0 && (
+              <select
+                value={activeStudyDeckId || ''}
+                onChange={e => setActiveStudyDeckId(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-purple-500"
+              >
+                {(studyDecks || []).map(d => (
+                  <option key={d.id} value={d.id}>
+                    {d.title} ({d.card_count || 0} cards)
+                  </option>
+                ))}
+              </select>
+            )}
+
+            {/* New Deck Inline Form */}
+            {newDeckOpen && (
+              <div className="flex gap-1.5 pt-1">
+                <input
+                  type="text"
+                  value={newDeckTitle}
+                  onChange={e => setNewDeckTitle(e.target.value)}
+                  placeholder="New deck name..."
+                  className="flex-1 px-2.5 py-1 text-xs border border-slate-200 rounded-xl bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!newDeckTitle.trim()) return;
+                    onCreateStudyDeck(newDeckTitle.trim());
+                    setNewDeckTitle('');
+                    setNewDeckOpen(false);
+                  }}
+                  className="px-2.5 py-1 bg-purple-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+                >
+                  Create
+                </button>
+              </div>
+            )}
+
+            {/* Mastery breakdown bar */}
+            <div className="pt-1 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                <span>{masteryStats.total} Total Cards</span>
+                <span className="text-emerald-700 font-extrabold">{masteryStats.mastered} Mastered</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-200 rounded-full overflow-hidden flex">
+                <div style={{ width: `${masteryStats.total ? (masteryStats.mastered / masteryStats.total) * 100 : 0}%` }} className="bg-emerald-500 h-full" title="Mastered" />
+                <div style={{ width: `${masteryStats.total ? (masteryStats.known / masteryStats.total) * 100 : 0}%` }} className="bg-blue-500 h-full" title="Known" />
+                <div style={{ width: `${masteryStats.total ? (masteryStats.learning / masteryStats.total) * 100 : 0}%` }} className="bg-amber-500 h-full" title="Learning" />
+              </div>
+            </div>
+
+            {/* Big Launch Review Button */}
+            <button
+              type="button"
+              onClick={() => onStartFlashcardReview(activeDeck)}
+              disabled={!studyCards?.length}
+              className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              <IconPlay className="w-3.5 h-3.5 fill-current" />
+              <span>Practice Flashcards ({studyCards?.length || 0})</span>
+            </button>
+          </div>
+
+          {/* Add Manual Card Toggle & AI Generator */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold text-slate-900">Deck Flashcards</span>
+            <div className="flex items-center gap-1.5">
+              {onOpenAiGenerator && (
+                <button
+                  type="button"
+                  onClick={onOpenAiGenerator}
+                  className="py-1 px-2.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1 border border-purple-200"
+                  title="Generate flashcards from document with AI"
+                >
+                  <IconSparkles className="w-3 h-3 text-purple-600" />
+                  <span>Generate AI Cards</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setCardFormQuestion(pdfSelection ? pdfSelection.text : '');
+                  setCardFormAnswer('');
+                  setCardFormExplanation('');
+                  setCardFormTags('');
+                  setCardFormSourcePage(pdfPage);
+                  setCardComposerOpen(true);
+                }}
+                className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+              >
+                + Add Card
+              </button>
+            </div>
+          </div>
+
+          {/* Card Composer Box */}
+          {cardComposerOpen && (
+            <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-3 space-y-2 animate-fadeIn">
+              <span className="text-[11px] font-extrabold text-purple-900 block">Create Flashcard</span>
+              <input
+                type="text"
+                value={cardFormQuestion}
+                onChange={e => setCardFormQuestion(e.target.value)}
+                placeholder="Question / Front of card..."
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl font-bold"
+              />
+              <textarea
+                rows="2"
+                value={cardFormAnswer}
+                onChange={e => setCardFormAnswer(e.target.value)}
+                placeholder="Answer / Back of card..."
+                className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-xl"
+              />
+              <input
+                type="text"
+                value={cardFormExplanation}
+                onChange={e => setCardFormExplanation(e.target.value)}
+                placeholder="Memory cue or explanation (optional)..."
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-xl text-slate-600"
+              />
+              <input
+                type="text"
+                value={cardFormTags}
+                onChange={e => setCardFormTags(e.target.value)}
+                placeholder="Tags (comma separated, e.g. Concept, Exam)..."
+                className="w-full px-2.5 py-1 text-xs bg-white border border-slate-200 rounded-xl text-slate-600"
+              />
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-slate-500 font-bold">Source: Page {cardFormSourcePage || pdfPage}</span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCardComposerOpen(false)}
+                    className="px-2 py-1 text-slate-600 text-xs font-bold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!cardFormQuestion.trim() || !cardFormAnswer.trim()) return triggerToast('Please enter both question and answer.');
+                      onSaveStudyCard({
+                        deckId: activeStudyDeckId,
+                        question: cardFormQuestion.trim(),
+                        answer: cardFormAnswer.trim(),
+                        explanation: cardFormExplanation.trim(),
+                        tags: cardFormTags.split(',').map(t => t.trim()).filter(Boolean),
+                        sourceDocumentId: activeDocument?.id,
+                        sourcePage: cardFormSourcePage || pdfPage,
+                      });
+                      setCardComposerOpen(false);
+                    }}
+                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    Save Card
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Cards List */}
+          {studyCardsLoading ? (
+            <div className="py-8 text-center text-xs text-slate-400">Loading cards…</div>
+          ) : (studyCards || []).length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400 bg-slate-50 border border-slate-100 rounded-2xl">
+              No flashcards in this deck yet. Highlight text in the PDF with the Magic Marker to create flashcards, or click <strong>+ Add Card</strong> above.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {studyCards.map(c => {
+                const status = c.review?.review_status || 'new';
+                const statusColor = status === 'mastered' ? 'bg-emerald-100 text-emerald-800' :
+                  status === 'known' ? 'bg-blue-100 text-blue-800' :
+                  status === 'learning' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
+
+                return (
+                  <article key={c.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-1.5 group">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="font-extrabold text-slate-900 text-xs flex-1">{c.question}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${statusColor}`}>
+                          {status}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onDeleteStudyCard(c.id)}
+                          className="text-slate-400 hover:text-red-600 text-xs p-0.5 cursor-pointer"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold text-purple-700 bg-purple-50/50 p-2 rounded-lg border border-purple-100/60">
+                      {c.answer}
+                    </div>
+                    {c.explanation && <p className="text-[11px] text-slate-500 italic">{c.explanation}</p>}
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                      <div className="flex gap-1 flex-wrap">
+                        {(c.tags || []).map((tag, tIdx) => (
+                          <span key={tIdx} className="bg-slate-100 px-1.5 py-0.2 rounded text-slate-600 font-semibold">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                      {c.source_page && (
+                        <button
+                          type="button"
+                          onClick={() => setPdfPage(Number(c.source_page))}
+                          className="text-purple-600 hover:underline font-bold cursor-pointer"
+                        >
+                          Page {c.source_page} ↗
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab 4: Color Highlights & Bombcard Maker (Preserved & Integrated) */}
+      {activeTab === 'highlights' && (
+        <div className="p-4 flex-1 overflow-y-auto custom-scroll space-y-3.5">
+          <div className="csm-pdf-notes-heading flex items-center justify-between">
+            <div>
+              <span className="csm-kicker">MAGIC MARKERS</span>
+              <h2 className="text-sm font-bold">{highlights.length} saved {highlights.length === 1 ? 'highlight' : 'highlights'}</h2>
+            </div>
+            <button
+              type="button"
+              className="csm-row-menu"
+              onClick={handleClearHighlights}
+              disabled={!activeDocument || !highlights.length}
+            >
+              Clear
+            </button>
+          </div>
+
+          {pdfSelection ? (
+            <section className="csm-pdf-selection-card">
+              <div className="csm-pdf-selection-label">
+                <span className="csm-selection-dot" style={{ background: highlightColor }} />
+                SELECTED TEXT · PAGE {pdfSelection.page}
+              </div>
+              <blockquote>“{pdfSelection.text}”</blockquote>
+              <div className="csm-pdf-selection-actions">
+                <button type="button" className="csm-secondary-button" onClick={savePdfSelection} disabled={pdfSaving}>
+                  Save highlight
+                </button>
+                <button
+                  type="button"
+                  className="csm-primary-button"
+                  onClick={() => { setPdfCardComposerOpen(value => !value); setPdfCounterpart(''); }}
+                  disabled={pdfSaving}
+                >
+                  {pdfCardComposerOpen ? 'Close card form' : 'Make a Bombcard'}
+                </button>
+              </div>
+              {pdfCardComposerOpen && (
+                <div className="csm-pdf-card-composer">
+                  <strong>Use this excerpt as the…</strong>
+                  <div className="csm-pdf-role-switch" role="group">
+                    <button type="button" className={pdfSelectionRole === 'question' ? 'active' : ''} onClick={() => { setPdfSelectionRole('question'); setPdfCounterpart(''); }}>
+                      Question
+                    </button>
+                    <button type="button" className={pdfSelectionRole === 'answer' ? 'active' : ''} onClick={() => { setPdfSelectionRole('answer'); setPdfCounterpart(''); }}>
+                      Answer
+                    </button>
+                  </div>
+                  <label htmlFor="pdf-card-counterpart">
+                    {pdfSelectionRole === 'question' ? 'Write the answer' : 'Write the question'}
+                  </label>
+                  <textarea
+                    id="pdf-card-counterpart"
+                    rows="3"
+                    maxLength="10000"
+                    value={pdfCounterpart}
+                    onChange={event => setPdfCounterpart(event.target.value)}
+                    placeholder={pdfSelectionRole === 'question' ? 'Enter the correct answer…' : 'Enter a question for this answer…'}
+                  />
+                  <small>Creates an Identification Bombcard in your reviewer deck.</small>
+                  <button
+                    type="button"
+                    className="csm-primary-button csm-pdf-create-card"
+                    onClick={createPdfBombcard}
+                    disabled={pdfSaving || !pdfCounterpart.trim()}
+                  >
+                    {pdfSaving ? 'Saving…' : 'Create Bombcard'}
+                  </button>
+                </div>
+              )}
+            </section>
+          ) : (
+            <div className="csm-pdf-selection-empty">
+              <span><IconBulb className="w-3.5 h-3.5" /></span>
+              <strong>Select text in the PDF</strong>
+              <p>Your selection will appear here. Save it as a color highlight or use it to create a question-and-answer Bombcard.</p>
+            </div>
+          )}
+
+          <div className="csm-pdf-saved-list space-y-2">
+            {highlights.map(item => (
+              <article key={item.id} className="csm-pdf-saved-item">
+                <div className="csm-pdf-saved-item-top flex items-center justify-between">
+                  <span className="csm-pdf-note-tag" style={{ '--swatch': item.color }}>
+                    {item.purpose === 'question' ? 'Question card' : item.purpose === 'answer' ? 'Answer card' : 'Study note'}
+                  </span>
+                  <button type="button" className="csm-row-menu" onClick={() => handleRemoveHighlight(item.id)} title="Remove mark">
+                    <IconClose className="w-3 h-3" />
+                  </button>
+                </div>
+                <p>{item.text}</p>
+                <button type="button" className="csm-pdf-page-jump text-purple-600 font-bold" onClick={() => setPdfPage(Number(item.page) || 1)}>
+                  Go to page {item.page}{item.cardId ? ' · linked Bombcard' : ''}
+                </button>
+              </article>
+            ))}
+          </div>
+          {!!highlights.length && (
+            <button type="button" className="csm-add-highlight w-full mt-2" onClick={handleClearHighlights}>
+              Clear all saved highlights
+            </button>
+          )}
+        </div>
+      )}
+    </aside>
+  );
+}
+
+function FlashcardReviewModal({ deck, cards, onClose, onFinish, onJumpToPage, triggerToast }) {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const [reviewedCount, setReviewedCount] = useState(0);
+  const [ratings, setRatings] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
+  const [completed, setCompleted] = useState(false);
+
+  const total = cards?.length || 0;
+  const card = cards?.[index];
+
+  const handleRate = async (rating) => {
+    if (!card) return;
+    try {
+      await CSM.api('study-cards/review', 'POST', { cardId: card.id, rating });
+      setRatings(prev => ({ ...prev, [rating]: prev[rating] + 1 }));
+      setReviewedCount(c => c + 1);
+
+      if (index + 1 < total) {
+        setIndex(index + 1);
+        setFlipped(false);
+      } else {
+        setCompleted(true);
+        if (onFinish) onFinish();
+      }
+    } catch (err) {
+      triggerToast('Review progress not saved: ' + err.message);
+    }
+  };
+
+  if (!card && !completed) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-scaleUp">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-purple-600 block">Flashcard Study Session</span>
+            <h3 className="font-black text-slate-900 text-base">{deck?.title || 'Review Deck'}</h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer transition-colors"
+            title="Close review session"
+          >
+            <IconClose className="w-4 h-4" />
+          </button>
+        </div>
+
+        {completed ? (
+          <div className="text-center py-6 space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center shadow-xs">
+              <IconTrophy className="w-7 h-7" />
+            </div>
+            <h4 className="text-xl font-black text-slate-900">Deck Review Complete!</h4>
+            <p className="text-xs text-slate-600 max-w-xs mx-auto">
+              You reviewed all {total} cards in this deck. Spaced repetition schedules have been updated!
+            </p>
+            <div className="grid grid-cols-4 gap-2 max-w-xs mx-auto py-2">
+              <div className="bg-red-50 p-2 rounded-xl text-center">
+                <span className="text-xs font-bold text-red-600 block">{ratings.again}</span>
+                <span className="text-[9px] text-red-500 uppercase font-black">Again</span>
+              </div>
+              <div className="bg-amber-50 p-2 rounded-xl text-center">
+                <span className="text-xs font-bold text-amber-600 block">{ratings.hard}</span>
+                <span className="text-[9px] text-amber-500 uppercase font-black">Hard</span>
+              </div>
+              <div className="bg-blue-50 p-2 rounded-xl text-center">
+                <span className="text-xs font-bold text-blue-600 block">{ratings.good}</span>
+                <span className="text-[9px] text-blue-500 uppercase font-black">Good</span>
+              </div>
+              <div className="bg-emerald-50 p-2 rounded-xl text-center">
+                <span className="text-xs font-bold text-emerald-600 block">{ratings.easy}</span>
+                <span className="text-[9px] text-emerald-500 uppercase font-black">Easy</span>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIndex(0);
+                  setFlipped(false);
+                  setCompleted(false);
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 font-bold text-xs text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Review Again
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 font-black text-xs text-white shadow-sm cursor-pointer"
+              >
+                Back to Document
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Progress bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-bold text-slate-400">
+                <span>Card {index + 1} of {total}</span>
+                <span>{Math.round(((index) / total) * 100)}%</span>
+              </div>
+              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 transition-all duration-300 rounded-full"
+                  style={{ width: `${((index + 1) / total) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            {/* The Flashcard itself */}
+            <div
+              onClick={() => setFlipped(!flipped)}
+              className="min-h-56 p-6 rounded-2xl border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-all cursor-pointer flex flex-col justify-between shadow-xs select-none relative group"
+            >
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <span>{flipped ? 'Back • Answer' : 'Front • Question'}</span>
+                {card.source_page && (
+                  <span className="text-purple-600 font-bold">Page {card.source_page}</span>
+                )}
+              </div>
+
+              <div className="my-auto py-4 text-center">
+                {!flipped ? (
+                  <h4 className="text-base font-extrabold text-slate-900 leading-snug">{card.question}</h4>
+                ) : (
+                  <div className="space-y-2">
+                    <h4 className="text-base font-black text-purple-950 leading-snug">{card.answer}</h4>
+                    {card.explanation && (
+                      <p className="text-xs text-slate-600 italic mt-2">{card.explanation}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center text-[11px] font-bold text-slate-400">
+                {!flipped ? 'Tap or click to reveal answer' : 'Choose your recall difficulty below'}
+              </div>
+            </div>
+
+            {/* Rating Buttons */}
+            {!flipped ? (
+              <button
+                type="button"
+                onClick={() => setFlipped(true)}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl font-black text-xs transition-all shadow-sm cursor-pointer"
+              >
+                Reveal Answer (Space)
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleRate('again')}
+                    className="py-2.5 px-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
+                  >
+                    <span className="block font-black">Again</span>
+                    <span className="text-[9px] opacity-75">&lt;10m</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRate('hard')}
+                    className="py-2.5 px-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
+                  >
+                    <span className="block font-black">Hard</span>
+                    <span className="text-[9px] opacity-75">1d</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRate('good')}
+                    className="py-2.5 px-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
+                  >
+                    <span className="block font-black">Good</span>
+                    <span className="text-[9px] opacity-75">3d</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRate('easy')}
+                    className="py-2.5 px-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all text-center cursor-pointer"
+                  >
+                    <span className="block font-black">Easy</span>
+                    <span className="text-[9px] opacity-75">6d</span>
+                  </button>
+                </div>
+                {card.source_page && onJumpToPage && (
+                  <div className="text-center pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onJumpToPage(Number(card.source_page));
+                        onClose();
+                      }}
+                      className="text-[11px] text-purple-600 hover:underline font-bold cursor-pointer"
+                    >
+                      Jump to source on page {card.source_page} in PDF ↗
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
 function AdminHome({ profile, onOpenAdmin }) {
   const [dashboard, setDashboard] = useState(null);
@@ -1411,6 +2592,295 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [pdfCounterpart, setPdfCounterpart] = useState('');
   const [pdfSaving, setPdfSaving] = useState(false);
 
+  // PDF Learning Workspace States
+  const [pdfZoom, setPdfZoom] = useState(1.0);
+  const [pdfSearchOpen, setPdfSearchOpen] = useState(false);
+  const [pdfSearchQuery, setPdfSearchQuery] = useState('');
+  const [pdfSearchResults, setPdfSearchResults] = useState([]);
+  const [pdfSearching, setPdfSearching] = useState(false);
+  const [workspaceSidebarTab, setWorkspaceSidebarTab] = useState('flashcards');
+  const [documentNotes, setDocumentNotes] = useState([]);
+  const [documentNotesLoading, setDocumentNotesLoading] = useState(false);
+  const [noteComposerOpen, setNoteComposerOpen] = useState(false);
+  const [noteFormTitle, setNoteFormTitle] = useState('');
+  const [noteFormContent, setNoteFormContent] = useState('');
+  const [noteFormPage, setNoteFormPage] = useState(1);
+  const [noteEditingId, setNoteEditingId] = useState(null);
+  const [studyDecks, setStudyDecks] = useState([]);
+  const [activeStudyDeckId, setActiveStudyDeckId] = useState(null);
+  const [studyCards, setStudyCards] = useState([]);
+  const [studyCardsLoading, setStudyCardsLoading] = useState(false);
+  const [cardComposerOpen, setCardComposerOpen] = useState(false);
+  const [cardFormQuestion, setCardFormQuestion] = useState('');
+  const [cardFormAnswer, setCardFormAnswer] = useState('');
+  const [cardFormExplanation, setCardFormExplanation] = useState('');
+  const [cardFormTags, setCardFormTags] = useState('');
+  const [cardFormSourcePage, setCardFormSourcePage] = useState(1);
+  const [reviewingDeck, setReviewingDeck] = useState(null);
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiAssistantResponse, setAiAssistantResponse] = useState(null);
+  const [aiExplainLevel, setAiExplainLevel] = useState('concise');
+
+  // Auto-save last read page with debounce
+  useEffect(() => {
+    if (!activeDocument?.id || isGuest || pdfPage <= 0) return;
+    const timer = setTimeout(() => {
+      CSM.api('documents/page', 'POST', { documentId: activeDocument.id, page: pdfPage }).catch(() => {});
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [activeDocument?.id, pdfPage, isGuest]);
+
+  // Load study flashcards when active deck changes
+  useEffect(() => {
+    if (!activeStudyDeckId || isGuest) {
+      setStudyCards([]);
+      return;
+    }
+    setStudyCardsLoading(true);
+    CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId))
+      .then(res => setStudyCards(res?.cards || []))
+      .catch(err => console.warn(err))
+      .finally(() => setStudyCardsLoading(false));
+  }, [activeStudyDeckId, isGuest]);
+
+  // In-document text search
+  const handlePdfSearch = async (query = pdfSearchQuery) => {
+    if (!activeDocument?.id || !query.trim()) {
+      setPdfSearchResults([]);
+      return;
+    }
+    setPdfSearching(true);
+    try {
+      const res = await CSM.api('documents/search&documentId=' + encodeURIComponent(activeDocument.id) + '&q=' + encodeURIComponent(query.trim()));
+      setPdfSearchResults(res?.results || []);
+      if (!res?.results?.length) {
+        triggerToast('No matches found for "' + query.trim() + '"');
+      } else {
+        triggerToast(`Found matches on ${res.results.length} page(s)`);
+      }
+    } catch (e) {
+      triggerToast('Search error: ' + e.message);
+    } finally {
+      setPdfSearching(false);
+    }
+  };
+
+  // AI Assistant Handlers
+  const handleAiExplain = async (text, level = aiExplainLevel) => {
+    if (!text?.trim()) return triggerToast('Select text first.');
+    setAiThinking(true);
+    try {
+      const res = await CSM.api('ai/explain', 'POST', {
+        text: text.trim(),
+        level,
+        documentId: activeDocument?.id,
+        page: pdfPage
+      });
+      setAiAssistantResponse({ type: 'explain', text: text.trim(), result: res.explanation });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleAiSummarize = async (text) => {
+    setAiThinking(true);
+    try {
+      const res = await CSM.api('ai/summarize', 'POST', {
+        text: text ? text.trim() : '',
+        documentId: activeDocument?.id,
+        page: pdfPage
+      });
+      setAiAssistantResponse({ type: 'summary', text: text || '', result: res.summary });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleAiQuestions = async (text) => {
+    setAiThinking(true);
+    try {
+      const res = await CSM.api('ai/questions', 'POST', {
+        text: text ? text.trim() : '',
+        documentId: activeDocument?.id,
+        page: pdfPage,
+        count: 4
+      });
+      setAiAssistantResponse({ type: 'questions', text: text || '', questions: res.questions || [] });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleAiNotes = async (text, saveDirectly = false) => {
+    setAiThinking(true);
+    setWorkspaceSidebarTab('notes');
+    try {
+      const res = await CSM.api('ai/notes', 'POST', {
+        text: text ? text.trim() : '',
+        documentId: activeDocument?.id,
+        page: pdfPage,
+        save: saveDirectly
+      });
+      if (res?.saved && activeDocument?.id) {
+        CSM.api('document-notes&documentId=' + encodeURIComponent(activeDocument.id)).then(r => setDocumentNotes(r?.notes || [])).catch(() => {});
+        triggerToast('Saved structured note to document!');
+      }
+      setAiAssistantResponse({ type: 'note', text: text || '', note: res.note });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleAiFlashcards = async (text) => {
+    setAiThinking(true);
+    setWorkspaceSidebarTab('flashcards');
+    try {
+      const res = await CSM.api('ai/flashcards', 'POST', {
+        text: text ? text.trim() : '',
+        documentId: activeDocument?.id,
+        page: pdfPage,
+        deckId: activeStudyDeckId,
+        count: 5
+      });
+      if (res?.saved && activeStudyDeckId) {
+        CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => {});
+        triggerToast(`Added ${res.saved} flashcards to deck!`);
+      }
+      setAiAssistantResponse({ type: 'flashcards', text: text || '', cards: res.cards || [], saved: res.saved });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  const handleAiAsk = async (prompt) => {
+    if (!prompt?.trim()) return;
+    setAiThinking(true);
+    try {
+      const res = await CSM.api('ai/explain', 'POST', {
+        text: prompt.trim(),
+        level: 'detailed',
+        documentId: activeDocument?.id,
+        page: pdfPage
+      });
+      setAiAssistantResponse({ type: 'explain', text: prompt.trim(), result: res.explanation });
+    } catch (e) {
+      triggerToast('AI error: ' + e.message);
+    } finally {
+      setAiThinking(false);
+    }
+  };
+
+  // Document Notes Handlers
+  const handleSaveDocumentNote = async (noteData) => {
+    if (!activeDocument?.id) return;
+    try {
+      if (noteData.id) {
+        await CSM.api('document-notes', 'PATCH', {
+          id: noteData.id,
+          title: noteData.title,
+          content: noteData.content,
+          page: noteData.page
+        });
+        triggerToast('Note updated.');
+      } else {
+        await CSM.api('document-notes', 'POST', {
+          documentId: activeDocument.id,
+          title: noteData.title,
+          content: noteData.content,
+          page: noteData.page
+        });
+        triggerToast('Note created.');
+      }
+      const res = await CSM.api('document-notes&documentId=' + encodeURIComponent(activeDocument.id));
+      setDocumentNotes(res?.notes || []);
+    } catch (e) {
+      triggerToast('Failed to save note: ' + e.message);
+    }
+  };
+
+  const handleDeleteDocumentNote = async (noteId) => {
+    if (!activeDocument?.id || !noteId) return;
+    try {
+      await CSM.api('document-notes', 'DELETE', { id: noteId });
+      setDocumentNotes(prev => prev.filter(n => n.id !== noteId));
+      triggerToast('Note removed.');
+    } catch (e) {
+      triggerToast('Could not delete note: ' + e.message);
+    }
+  };
+
+  // Study Flashcards Handlers
+  const handleCreateStudyDeck = async (title) => {
+    if (!title?.trim()) return;
+    try {
+      const created = await CSM.api('study-decks', 'POST', {
+        title: title.trim(),
+        documentId: activeDocument?.id || null
+      });
+      setStudyDecks(prev => [created, ...prev]);
+      setActiveStudyDeckId(created.id);
+      triggerToast(`Deck "${title}" created.`);
+    } catch (e) {
+      triggerToast('Could not create deck: ' + e.message);
+    }
+  };
+
+  const handleSaveStudyCard = async (cardData) => {
+    try {
+      await CSM.api('study-cards', 'POST', cardData);
+      triggerToast('Flashcard added to deck.');
+      if (activeStudyDeckId) {
+        const res = await CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId));
+        setStudyCards(res?.cards || []);
+      }
+    } catch (e) {
+      triggerToast('Could not save flashcard: ' + e.message);
+    }
+  };
+
+  const handleDeleteStudyCard = async (cardId) => {
+    try {
+      await CSM.api('study-cards', 'DELETE', { id: cardId });
+      setStudyCards(prev => prev.filter(c => c.id !== cardId));
+      triggerToast('Flashcard removed.');
+    } catch (e) {
+      triggerToast('Could not delete flashcard: ' + e.message);
+    }
+  };
+
+  // Quick action from floating selection bar (Vaia Magic Marker)
+  const handleQuickAction = (action, text, color) => {
+    if (action === 'note') {
+      setNoteFormTitle(`Note: Page ${pdfPage}`);
+      setNoteFormContent(`“${text}”\n\n`);
+      setNoteFormPage(pdfPage);
+      setNoteEditingId(null);
+      setNoteComposerOpen(true);
+      setWorkspaceSidebarTab('notes');
+    } else if (action === 'card') {
+      setCardFormQuestion(text);
+      setCardFormAnswer('');
+      setCardFormExplanation('');
+      setCardFormTags('');
+      setCardFormSourcePage(pdfPage);
+      setCardComposerOpen(true);
+      setWorkspaceSidebarTab('flashcards');
+    } else if (action === 'highlight') {
+      if (color) setHighlightColor(color);
+      savePdfSelection(color);
+    }
+  };
+
   useEffect(() => {
     const closeDeckMenuOnOutsideClick = (event) => {
       if (!event.target.closest('.csm-deck-actions')) {
@@ -1662,8 +3132,46 @@ function App({ isGuest = false, sharedDeck = null }) {
     setActiveDocument({ ...document, deckId: deck.id });
     setHighlights([]);
     setPdfPage(1); setPdfPageCount(0); setPdfSelection(null); setPdfCardComposerOpen(false); setPdfCounterpart('');
+    setPdfZoom(1.0);
+    setPdfSearchQuery('');
+    setPdfSearchResults([]);
+    setPdfSearchOpen(false);
+    setWorkspaceSidebarTab('flashcards');
+    setAiAssistantResponse(null);
     if (!isGuest) {
       CSM.api('highlights&documentId=' + encodeURIComponent(document.id)).then(setHighlights).catch(error => triggerToast(error.message));
+      // Restore last viewed reading page
+      CSM.api('documents/page&documentId=' + encodeURIComponent(document.id)).then(res => {
+        if (res?.last_page && Number(res.last_page) > 1) {
+          setPdfPage(Number(res.last_page));
+        }
+      }).catch(() => {});
+      // Load document notes
+      setDocumentNotesLoading(true);
+      CSM.api('document-notes&documentId=' + encodeURIComponent(document.id))
+        .then(res => setDocumentNotes(res?.notes || []))
+        .catch(err => console.warn(err))
+        .finally(() => setDocumentNotesLoading(false));
+      // Load study flashcard decks
+      CSM.api('study-decks&documentId=' + encodeURIComponent(document.id))
+        .then(res => {
+          const list = res?.decks || [];
+          setStudyDecks(list);
+          if (list.length > 0) {
+            setActiveStudyDeckId(list[0].id);
+          } else {
+            const defaultTitle = `${document.title.replace(/\.[^/.]+$/, '')} Flashcards`;
+            CSM.api('study-decks', 'POST', {
+              title: defaultTitle,
+              description: `Study flashcards for ${document.title}`,
+              documentId: document.id
+            }).then(created => {
+              setStudyDecks([created]);
+              setActiveStudyDeckId(created.id);
+            }).catch(() => {});
+          }
+        })
+        .catch(err => console.warn(err));
     }
     recordActivity({ material: document.title, mode: 'PDF Tools', deckId: deck.id, screen: 'highlighter', status: 'In progress' });
     setActiveTab('highlighter');
@@ -1887,17 +3395,18 @@ function App({ isGuest = false, sharedDeck = null }) {
     setPdfCardComposerOpen(false);
   };
 
-  const savePdfSelection = async () => {
+  const savePdfSelection = async (explicitColor = null) => {
     if (!activeDocument || !pdfSelection) return triggerToast('Select some PDF text first.');
+    const colorToUse = explicitColor || highlightColor;
     setPdfSaving(true);
     try {
       const note = await CSM.api('highlights', 'POST', {
         documentId: activeDocument.id, text: pdfSelection.text, page: pdfSelection.page,
-        color: highlightColor, purpose: 'note', selection: pdfSelection.selection
+        color: colorToUse, purpose: 'note', selection: pdfSelection.selection
       });
       setHighlights(items => [...items, note]);
       setPdfSelection(null); setPdfCardComposerOpen(false); window.getSelection()?.removeAllRanges();
-      triggerToast('PDF highlight saved.');
+      triggerToast('Magic Marker highlight saved.');
     } catch (error) { triggerToast(error.message); }
     finally { setPdfSaving(false); }
   };
@@ -2644,7 +4153,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <IconLock className="w-2.5 h-2.5" />
                         </span>
                       )}
-                      <span className="csm-sidebar-label">AI Generator ✨</span>
+                      <span className="csm-sidebar-label">AI Generator</span>
                     </button>
                   </div>
                 </div>
@@ -3121,7 +4630,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       if (isGuest) { setGuestLockedSection('creator'); return; }
                       handleOpenAiGenerator();
                     }}>
-                      <span>Generate Cards ✨</span>
+                      <span>Generate Cards</span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M4 12h15" />
                         <path d="m13 6 6 6-6 6" />
@@ -3428,7 +4937,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                             {documentMenuOpen && (
                               <div className="csm-material-menu">
                                 <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button>
-                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenAiGenerator(currentSelectedDeck.id, doc); }}>✨ Generate AI Flashcards</button>
+                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenAiGenerator(currentSelectedDeck.id, doc); }} className="flex items-center gap-1.5"><IconSparkles className="w-3.5 h-3.5 text-purple-600" /> Generate AI Flashcards</button>
                                 <button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button>
                               </div>
                             )}
@@ -3707,7 +5216,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       title="Generate flashcards with Gemini AI"
                     >
                       <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
-                      <span>AI Generator ✨</span>
+                      <span>AI Generator</span>
                     </button>
                   </div>
                 </div>
@@ -4121,9 +5630,9 @@ function App({ isGuest = false, sharedDeck = null }) {
           <div className="csm-screen csm-highlighter-screen custom-scroll">
             <div className="csm-page-head csm-pdf-page-head">
               <div>
-                <span className="csm-kicker">PDF STUDY TOOL</span>
-                <h1>Highlight your notes</h1>
-                <p>Select a passage, save it as a study note, or turn it into a Bombcard.</p>
+                <span className="csm-kicker">DOCUMENT STUDY WORKSPACE</span>
+                <h1>Study Workspace</h1>
+                <p>Read reviewer PDFs, mark key concepts with the Magic Marker, and build active-recall flashcards & notes.</p>
               </div>
               <div className="csm-page-actions flex items-center gap-2">
                 {activeDocument && (
@@ -4135,49 +5644,310 @@ function App({ isGuest = false, sharedDeck = null }) {
                     title="Extract text from this PDF and generate Bombcards with Gemini AI"
                   >
                     <IconSparkles className="w-3.5 h-3.5 text-white" />
-                    <span>Generate AI Flashcards ✨</span>
+                    <span>Generate AI Flashcards</span>
                   </button>
                 )}
                 <button type="button" className="csm-secondary-button" onClick={() => setActiveTab('library')}>Back to library</button>
               </div>
             </div>
+
             <div className="csm-highlighter-layout">
-              <section className="csm-pdf-card">
-                <div className="csm-pdf-toolbar">
-                  <div className="csm-pdf-document-title"><strong>{activeDocument?.title || 'Choose a PDF to study'}</strong><span>{activeDocument ? `${decks.find(deck => deck.id === activeDocument.deckId)?.title || 'Your reviewer'} · private to your account` : 'Choose from your saved reviewer documents'}</span></div>
-                  <div className="csm-pdf-tools flex items-center gap-2">
+              {/* Left Column: PDF Viewer Stage & Tools */}
+              <section className="csm-pdf-card flex flex-col">
+                {/* PDF Viewer Header Toolbar */}
+                <div className="csm-pdf-toolbar flex flex-wrap items-center justify-between gap-3">
+                  <div className="csm-pdf-document-title">
+                    <strong title={activeDocument?.title || 'Choose a PDF to study'}>{activeDocument?.title || 'Choose a PDF to study'}</strong>
+                    <span title={activeDocument ? `${decks.find(deck => deck.id === activeDocument.deckId)?.title || 'Your reviewer'} · private to your account` : ''}>
+                      {activeDocument ? `${decks.find(deck => deck.id === activeDocument.deckId)?.title || 'Your reviewer'} · private to your account` : 'Choose from your saved reviewer documents'}
+                    </span>
+                  </div>
+
+                  <div className="csm-pdf-tools flex items-center gap-2 flex-wrap">
+                    {/* Search in document toggle */}
                     {activeDocument && (
                       <button
                         type="button"
-                        onClick={() => handleOpenAiGenerator(activeDocument.deckId, activeDocument)}
-                        className="h-8 px-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
-                        title="Generate Bombcards from this PDF with Gemini AI"
+                        onClick={() => setPdfSearchOpen(!pdfSearchOpen)}
+                        className={`h-8 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          pdfSearchOpen ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                        }`}
+                        title="Search within document text"
                       >
-                        <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
-                        <span>AI Flashcards ✨</span>
+                        <IconSearch />
+                        <span>Search</span>
                       </button>
                     )}
-                    {!activeDocument && <select className="csm-pdf-document-select" value="" aria-label="Choose a PDF" onChange={event => { const found = decks.flatMap(deck => (deck.documents || []).map(document => ({ deck, document }))).find(item => item.document.id === event.target.value); if (found) handleOpenDocument(found.deck, found.document); }}><option value="">Choose PDF…</option>{decks.flatMap(deck => (deck.documents || []).map(document => <option key={document.id} value={document.id}>{document.title} · {deck.title}</option>))}</select>}
-                    {['#f5a23a', '#8dc7ef', '#a8d8a8'].map((color, index) => <button key={color} type="button" className={`csm-pdf-color ${highlightColor === color ? 'active' : ''}`} onClick={() => setHighlightColor(color)} aria-label={['Orange', 'Blue', 'Green'][index] + ' highlight color'} aria-pressed={highlightColor === color} style={{ '--swatch': color }} />)}
+
+                    {/* Zoom Controls */}
+                    {activeDocument && (
+                      <div className="flex items-center rounded-xl border border-slate-200 bg-white p-0.5 text-xs font-bold text-slate-700 shadow-xs">
+                        <button
+                          type="button"
+                          onClick={() => setPdfZoom(z => Math.max(0.5, Math.round((z - 0.2) * 10) / 10))}
+                          className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 rounded-lg cursor-pointer"
+                          title="Zoom out"
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPdfZoom(1.0)}
+                          className="px-2 h-7 flex items-center justify-center hover:bg-slate-100 rounded-lg text-[11px] cursor-pointer"
+                          title="Reset zoom to 100%"
+                        >
+                          {Math.round(pdfZoom * 100)}%
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPdfZoom(z => Math.min(2.5, Math.round((z + 0.2) * 10) / 10))}
+                          className="w-7 h-7 flex items-center justify-center hover:bg-slate-100 rounded-lg cursor-pointer"
+                          title="Zoom in"
+                        >
+                          +
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Document Selector if none active */}
+                    {!activeDocument && (
+                      <select
+                        className="csm-pdf-document-select"
+                        value=""
+                        aria-label="Choose a PDF"
+                        onChange={event => {
+                          const found = decks.flatMap(deck => (deck.documents || []).map(document => ({ deck, document }))).find(item => item.document.id === event.target.value);
+                          if (found) handleOpenDocument(found.deck, found.document);
+                        }}
+                      >
+                        <option value="">Choose PDF…</option>
+                        {decks.flatMap(deck => (deck.documents || []).map(document => (
+                          <option key={document.id} value={document.id}>{document.title} · {deck.title}</option>
+                        )))}
+                      </select>
+                    )}
+
+                    {/* Color Swatches */}
+                    {['#f5a23a', '#8dc7ef', '#a8d8a8'].map((color, index) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`csm-pdf-color ${highlightColor === color ? 'active' : ''}`}
+                        onClick={() => setHighlightColor(color)}
+                        aria-label={['Orange', 'Blue', 'Green'][index] + ' highlight color'}
+                        aria-pressed={highlightColor === color}
+                        style={{ '--swatch': color }}
+                      />
+                    ))}
+
                     {activeDocument && <a className="csm-pdf-open-link" href={activeDocument.url} target="_blank" rel="noreferrer">Open PDF ↗</a>}
                   </div>
                 </div>
-                <div className="csm-pdf-instructions"><span className="csm-pdf-instructions-icon">✦</span><span>Drag across text in the page. Then choose whether to save a note or make a question-and-answer Bombcard.</span></div>
-                <PdfStudyViewer document={activeDocument} pageNumber={pdfPage} onPageCount={setPdfPageCount} highlights={highlights} onSelection={handlePdfTextSelection} />
-                <div className="csm-pdf-pagination"><button type="button" className="csm-secondary-button" onClick={() => setPdfPage(page => Math.max(1, page - 1))} disabled={!activeDocument || pdfPage <= 1}>← Previous</button><label>Page <input type="number" min="1" max={pdfPageCount || 1} value={pdfPage} onChange={event => { const page = Number(event.target.value); if (Number.isInteger(page) && page > 0 && page <= pdfPageCount) setPdfPage(page); }} disabled={!activeDocument || !pdfPageCount} /> <span>of {pdfPageCount || '—'}</span></label><button type="button" className="csm-secondary-button" onClick={() => setPdfPage(page => Math.min(pdfPageCount, page + 1))} disabled={!activeDocument || !pdfPageCount || pdfPage >= pdfPageCount}>Next →</button></div>
+
+                {/* Search In-Document Bar */}
+                {pdfSearchOpen && activeDocument && (
+                  <div className="bg-purple-50/80 border-b border-purple-200 p-3 space-y-2 animate-fadeIn">
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          value={pdfSearchQuery}
+                          onChange={e => setPdfSearchQuery(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handlePdfSearch(); }}
+                          placeholder="Search keywords or concepts across document..."
+                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-purple-500 font-medium"
+                        />
+                        <div className="absolute left-2.5 top-2 text-slate-400 pointer-events-none">
+                          <IconSearch />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePdfSearch()}
+                        disabled={pdfSearching || !pdfSearchQuery.trim()}
+                        className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {pdfSearching ? 'Searching…' : 'Find'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setPdfSearchOpen(false); setPdfSearchResults([]); setPdfSearchQuery(''); }}
+                        className="px-2 py-1.5 text-slate-500 hover:text-slate-800 text-xs font-bold cursor-pointer"
+                        title="Close search"
+                      >
+                        <IconClose className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Search Results Summary & Page Jumps */}
+                    {pdfSearchResults.length > 0 && (
+                      <div className="flex items-center gap-2 flex-wrap pt-1">
+                        <span className="text-[11px] font-bold text-purple-900">Matches on pages:</span>
+                        {pdfSearchResults.map((res, rIdx) => (
+                          <button
+                            key={rIdx}
+                            type="button"
+                            onClick={() => setPdfPage(Number(res.page_number))}
+                            className="px-2 py-0.5 rounded-lg bg-white border border-purple-200 hover:bg-purple-600 hover:text-white text-[11px] font-extrabold text-purple-700 transition-colors cursor-pointer shadow-2xs"
+                          >
+                            Page {res.page_number}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Instructions helper banner */}
+                <div className="csm-pdf-instructions">
+                  <span className="csm-pdf-instructions-icon"><IconHighlighter className="w-3.5 h-3.5 text-purple-600" /></span>
+                  <span>Highlight any text in the PDF with the Magic Marker to create flashcards, add notes, or color-code key excerpts.</span>
+                </div>
+
+                {/* Enhanced PDF Canvas & Text Layer Viewer */}
+                <PdfStudyViewer
+                  document={activeDocument}
+                  pageNumber={pdfPage}
+                  onPageCount={setPdfPageCount}
+                  highlights={highlights}
+                  onSelection={handlePdfTextSelection}
+                  zoom={pdfZoom}
+                  onQuickAction={handleQuickAction}
+                />
+
+                {/* Pagination Controls with Reading Position Auto-Sync */}
+                <div className="csm-pdf-pagination">
+                  <button
+                    type="button"
+                    className="csm-secondary-button"
+                    onClick={() => setPdfPage(page => Math.max(1, page - 1))}
+                    disabled={!activeDocument || pdfPage <= 1}
+                  >
+                    ← Previous
+                  </button>
+                  <label>
+                    Page{' '}
+                    <input
+                      type="number"
+                      min="1"
+                      max={pdfPageCount || 1}
+                      value={pdfPage}
+                      onChange={event => {
+                        const page = Number(event.target.value);
+                        if (Number.isInteger(page) && page > 0 && page <= pdfPageCount) setPdfPage(page);
+                      }}
+                      disabled={!activeDocument || !pdfPageCount}
+                    />{' '}
+                    <span>of {pdfPageCount || '—'}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="csm-secondary-button"
+                    onClick={() => setPdfPage(page => Math.min(pdfPageCount, page + 1))}
+                    disabled={!activeDocument || !pdfPageCount || pdfPage >= pdfPageCount}
+                  >
+                    Next →
+                  </button>
+                </div>
               </section>
-              <aside className="csm-highlights-card csm-pdf-notes-panel">
-                <div className="csm-pdf-notes-heading"><div><span className="csm-kicker">YOUR PDF NOTES</span><h2>{highlights.length} saved {highlights.length === 1 ? 'highlight' : 'highlights'}</h2></div><button type="button" className="csm-row-menu" onClick={handleClearHighlights} aria-label="Clear all highlights" disabled={!activeDocument || !highlights.length}>Clear</button></div>
-                {pdfSelection && <section className="csm-pdf-selection-card"><div className="csm-pdf-selection-label"><span className="csm-selection-dot" style={{ background: highlightColor }} />SELECTED TEXT · PAGE {pdfSelection.page}</div><blockquote>“{pdfSelection.text}”</blockquote><div className="csm-pdf-selection-actions"><button type="button" className="csm-secondary-button" onClick={savePdfSelection} disabled={pdfSaving}>Save highlight</button><button type="button" className="csm-primary-button" onClick={() => { setPdfCardComposerOpen(value => !value); setPdfCounterpart(''); }} disabled={pdfSaving}>{pdfCardComposerOpen ? 'Close card form' : 'Make a Bombcard'}</button></div>
-                  {pdfCardComposerOpen && <div className="csm-pdf-card-composer"><strong>Use this excerpt as the…</strong><div className="csm-pdf-role-switch" role="group" aria-label="Choose how to use selected text"><button type="button" className={pdfSelectionRole === 'question' ? 'active' : ''} onClick={() => { setPdfSelectionRole('question'); setPdfCounterpart(''); }}>Question</button><button type="button" className={pdfSelectionRole === 'answer' ? 'active' : ''} onClick={() => { setPdfSelectionRole('answer'); setPdfCounterpart(''); }}>Answer</button></div><label htmlFor="pdf-card-counterpart">{pdfSelectionRole === 'question' ? 'Write the answer' : 'Write the question'}</label><textarea id="pdf-card-counterpart" rows="3" maxLength="10000" value={pdfCounterpart} onChange={event => setPdfCounterpart(event.target.value)} placeholder={pdfSelectionRole === 'question' ? 'Enter the correct answer…' : 'Enter a question for this answer…'} /><small>This creates an Identification Bombcard in the reviewer that contains this PDF.</small><button type="button" className="csm-primary-button csm-pdf-create-card" onClick={createPdfBombcard} disabled={pdfSaving || !pdfCounterpart.trim()}>{pdfSaving ? 'Saving…' : 'Create Bombcard'}</button></div>}
-                </section>}
-                {!pdfSelection && <div className="csm-pdf-selection-empty"><span>✦</span><strong>Select text in the PDF</strong><p>Your selection will appear here. Save it as a color highlight or use it to create a question-and-answer Bombcard.</p></div>}
-                <div className="csm-pdf-saved-list">{highlights.map(item => <article key={item.id} className="csm-pdf-saved-item"><div className="csm-pdf-saved-item-top"><span className="csm-pdf-note-tag" style={{ '--swatch': item.color }}>{item.purpose === 'question' ? 'Question card' : item.purpose === 'answer' ? 'Answer card' : 'Study note'}</span><button type="button" className="csm-row-menu" onClick={() => handleRemoveHighlight(item.id)} aria-label={`Delete highlight ${item.id}`}>×</button></div><p>{item.text}</p><button type="button" className="csm-pdf-page-jump" onClick={() => setPdfPage(Number(item.page) || 1)}>Go to page {item.page}{item.cardId ? ' · linked Bombcard' : ''}</button></article>)}</div>
-                {!!highlights.length && <button type="button" className="csm-add-highlight" onClick={handleClearHighlights}>Clear all saved highlights</button>}
-              </aside>
+
+              {/* Right Column: PDF Learning Workspace Sidebar (Assistant, Notes, Flashcards, Highlights) */}
+              <LearningWorkspaceSidebar
+                activeTab={workspaceSidebarTab}
+                setActiveTab={setWorkspaceSidebarTab}
+                activeDocument={activeDocument}
+                decks={decks}
+                pdfPage={pdfPage}
+                setPdfPage={setPdfPage}
+                pdfSelection={pdfSelection}
+                setPdfSelection={setPdfSelection}
+                // AI assist
+                aiThinking={aiThinking}
+                aiAssistantResponse={aiAssistantResponse}
+                setAiAssistantResponse={setAiAssistantResponse}
+                aiExplainLevel={aiExplainLevel}
+                setAiExplainLevel={setAiExplainLevel}
+                onAiExplain={handleAiExplain}
+                onAiSummarize={handleAiSummarize}
+                onAiQuestions={handleAiQuestions}
+                onAiNotes={handleAiNotes}
+                onAiFlashcards={handleAiFlashcards}
+                onAiAsk={handleAiAsk}
+                // Notes
+                documentNotes={documentNotes}
+                documentNotesLoading={documentNotesLoading}
+                noteComposerOpen={noteComposerOpen}
+                setNoteComposerOpen={setNoteComposerOpen}
+                noteFormTitle={noteFormTitle}
+                setNoteFormTitle={setNoteFormTitle}
+                noteFormContent={noteFormContent}
+                setNoteFormContent={setNoteFormContent}
+                noteFormPage={noteFormPage}
+                setNoteFormPage={setNoteFormPage}
+                noteEditingId={noteEditingId}
+                setNoteEditingId={setNoteEditingId}
+                onSaveNote={handleSaveDocumentNote}
+                onDeleteNote={handleDeleteDocumentNote}
+                // Flashcards
+                studyDecks={studyDecks}
+                activeStudyDeckId={activeStudyDeckId}
+                setActiveStudyDeckId={setActiveStudyDeckId}
+                onCreateStudyDeck={handleCreateStudyDeck}
+                studyCards={studyCards}
+                studyCardsLoading={studyCardsLoading}
+                cardComposerOpen={cardComposerOpen}
+                setCardComposerOpen={setCardComposerOpen}
+                cardFormQuestion={cardFormQuestion}
+                setCardFormQuestion={setCardFormQuestion}
+                cardFormAnswer={cardFormAnswer}
+                setCardFormAnswer={setCardFormAnswer}
+                cardFormExplanation={cardFormExplanation}
+                setCardFormExplanation={setCardFormExplanation}
+                cardFormTags={cardFormTags}
+                setCardFormTags={setCardFormTags}
+                cardFormSourcePage={cardFormSourcePage}
+                setCardFormSourcePage={setCardFormSourcePage}
+                onSaveStudyCard={handleSaveStudyCard}
+                onDeleteStudyCard={handleDeleteStudyCard}
+                onStartFlashcardReview={(deck) => setReviewingDeck(deck || { title: activeDocument?.title ? `${activeDocument.title} Cards` : 'Review Deck' })}
+                // Highlights
+                highlights={highlights}
+                highlightColor={highlightColor}
+                setHighlightColor={setHighlightColor}
+                savePdfSelection={savePdfSelection}
+                createPdfBombcard={createPdfBombcard}
+                handleRemoveHighlight={handleRemoveHighlight}
+                handleClearHighlights={handleClearHighlights}
+                pdfSaving={pdfSaving}
+                pdfCardComposerOpen={pdfCardComposerOpen}
+                setPdfCardComposerOpen={setPdfCardComposerOpen}
+                pdfSelectionRole={pdfSelectionRole}
+                setPdfSelectionRole={setPdfSelectionRole}
+                pdfCounterpart={pdfCounterpart}
+                setPdfCounterpart={setPdfCounterpart}
+                onOpenAiGenerator={() => handleOpenAiGenerator(activeDocument?.deckId, activeDocument)}
+                triggerToast={triggerToast}
+              />
             </div>
+
+            {/* Flashcard Active Recall Practice Session Modal */}
+            {reviewingDeck && (
+              <FlashcardReviewModal
+                deck={reviewingDeck}
+                cards={studyCards}
+                onClose={() => setReviewingDeck(null)}
+                onFinish={() => {
+                  if (activeStudyDeckId) {
+                    CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => {});
+                  }
+                }}
+                onJumpToPage={(p) => setPdfPage(p)}
+                triggerToast={triggerToast}
+              />
+            )}
           </div>
         )}
+
 
         {/* ========================================================
                 VIEW C: BOMBSTYLE ARENA (CO-STUDYMAXX SYSTEM-CONSISTENT)
@@ -5243,7 +7013,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                           : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      <span>📝</span>
+                      <IconFileText className="w-3.5 h-3.5 text-purple-600" />
                       <span>From Pasted Text / Notes</span>
                     </button>
                   </div>
@@ -5750,8 +7520,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                                   #{idx + 1} {card.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
                                 </span>
                                 {card.hint && (
-                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                                    💡 {card.hint}
+                                  <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                    <IconBulb className="w-2.5 h-2.5 text-amber-600" /> Hint: {card.hint}
                                   </span>
                                 )}
                               </div>
@@ -5831,7 +7601,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     ) : (
                       <>
                         <IconSparkles className="w-4 h-4" />
-                        <span>Forge Bombcards with Gemini ✨</span>
+                        <span>Forge Bombcards with Gemini</span>
                       </>
                     )}
                   </button>

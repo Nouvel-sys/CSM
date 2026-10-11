@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/server/bootstrap.php';
 require dirname(__DIR__) . '/server/arena.php';
+require dirname(__DIR__) . '/server/learning_workspace.php';
 
 // ============================================================================
 // 1. Request Context & Security Headers
@@ -1419,8 +1420,12 @@ if ($route === 'account/export' && $method === 'GET') {
 }
 
 // ============================================================================
-// 12. Bombstyle Arena & Fallback
+// 12. Learning Workspace (PDF, AI, Notes, Flashcards) & Bombstyle Arena
 // ============================================================================
+if (handle_learning_workspace_routes($route, $method, $user)) {
+    exit;
+}
+
 arena_routes($route, $method, $user);
 
 fail(404, 'Endpoint not found.');
