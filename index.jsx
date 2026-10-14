@@ -899,11 +899,10 @@ function LearningWorkspaceSidebar({
         <button
           type="button"
           onClick={() => setActiveTab('flashcards')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'flashcards'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'flashcards'
               ? 'bg-purple-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <IconCards className="w-4 h-4" />
           <span>Cards</span>
@@ -917,11 +916,10 @@ function LearningWorkspaceSidebar({
         <button
           type="button"
           onClick={() => setActiveTab('notes')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'notes'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'notes'
               ? 'bg-purple-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <IconFileText className="w-4 h-4" />
           <span>Notes</span>
@@ -935,11 +933,10 @@ function LearningWorkspaceSidebar({
         <button
           type="button"
           onClick={() => setActiveTab('highlights')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'highlights'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${activeTab === 'highlights'
               ? 'bg-purple-600 text-white shadow-xs'
               : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
+            }`}
         >
           <IconHighlighter className="w-4 h-4" />
           <span>Marks</span>
@@ -987,9 +984,8 @@ function LearningWorkspaceSidebar({
             <button
               type="button"
               onClick={() => setNotesPageOnly(!notesPageOnly)}
-              className={`px-2 py-1 text-[10px] font-bold rounded-xl border transition-all cursor-pointer whitespace-nowrap ${
-                notesPageOnly ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-100 text-slate-600 border-slate-200'
-              }`}
+              className={`px-2 py-1 text-[10px] font-bold rounded-xl border transition-all cursor-pointer whitespace-nowrap ${notesPageOnly ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}
             >
               Page {pdfPage} only
             </button>
@@ -1305,7 +1301,7 @@ function LearningWorkspaceSidebar({
                 const status = c.review?.review_status || 'new';
                 const statusColor = status === 'mastered' ? 'bg-emerald-100 text-emerald-800' :
                   status === 'known' ? 'bg-blue-100 text-blue-800' :
-                  status === 'learning' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
+                    status === 'learning' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
 
                 return (
                   <article key={c.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-xs space-y-1.5 group">
@@ -2247,7 +2243,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       status: 'Card added'
     });
 
-    try { sound.correct(); } catch (_) {}
+    try { sound.correct(); } catch (_) { }
     triggerToast(`Bombcard added to ${targetDeck.code || targetDeck.title}!`);
     setCreatorSessionCount(prev => prev + 1);
     setCreatorCardAddedAnimation(true);
@@ -2495,7 +2491,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       if (res && res.cards && res.cards.length > 0) {
         setAiGeneratedCards(res.cards.map(c => ({ ...c, selected: true })));
         setAiStage('preview');
-        try { sound.correct(); } catch (_) {}
+        try { sound.correct(); } catch (_) { }
         triggerToast(`Gemini forged ${res.cards.length} high-yield Bombcards!`);
       } else {
         triggerToast('Could not generate flashcards. Please provide more detailed text.');
@@ -2532,7 +2528,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         });
       }
       await refreshWorkspace();
-      try { sound.correct(); } catch (_) {}
+      try { sound.correct(); } catch (_) { }
       triggerToast(`Added ${cardsToSave.length} Bombcards to ${targetDeck.code || targetDeck.title}!`);
       setAiGeneratorOpen(false);
       setAiStage('input');
@@ -2625,7 +2621,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   useEffect(() => {
     if (!activeDocument?.id || isGuest || pdfPage <= 0) return;
     const timer = setTimeout(() => {
-      CSM.api('documents/page', 'POST', { documentId: activeDocument.id, page: pdfPage }).catch(() => {});
+      CSM.api('documents/page', 'POST', { documentId: activeDocument.id, page: pdfPage }).catch(() => { });
     }, 1200);
     return () => clearTimeout(timer);
   }, [activeDocument?.id, pdfPage, isGuest]);
@@ -2728,7 +2724,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         save: saveDirectly
       });
       if (res?.saved && activeDocument?.id) {
-        CSM.api('document-notes&documentId=' + encodeURIComponent(activeDocument.id)).then(r => setDocumentNotes(r?.notes || [])).catch(() => {});
+        CSM.api('document-notes&documentId=' + encodeURIComponent(activeDocument.id)).then(r => setDocumentNotes(r?.notes || [])).catch(() => { });
         triggerToast('Saved structured note to document!');
       }
       setAiAssistantResponse({ type: 'note', text: text || '', note: res.note });
@@ -2751,7 +2747,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         count: 5
       });
       if (res?.saved && activeStudyDeckId) {
-        CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => {});
+        CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => { });
         triggerToast(`Added ${res.saved} flashcards to deck!`);
       }
       setAiAssistantResponse({ type: 'flashcards', text: text || '', cards: res.cards || [], saved: res.saved });
@@ -2915,6 +2911,58 @@ function App({ isGuest = false, sharedDeck = null }) {
     ? Math.round(activeDeckKnownAnswers / (activeDeckKnownAnswers + activeDeckUnknownAnswers) * 100)
     : 0;
   const activeDeckMissedCount = activeDeckProgress.filter(item => (Number(item.times_unknown) || 0) > (Number(item.times_known) || 0)).length;
+
+  const mostRecentDeck = useMemo(() => {
+    if (recentActivities && recentActivities.length > 0) {
+      const recentWithDeck = recentActivities.find(a => a.deckId && decks.some(d => d.id === a.deckId));
+      if (recentWithDeck) {
+        return decks.find(d => d.id === recentWithDeck.deckId) || decks[0] || null;
+      }
+    }
+    return decks[0] || null;
+  }, [decks, recentActivities]);
+
+  const todayDayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date().getDay()];
+  const todayChartItem = activityChart.find(item => item.day === todayDayName);
+  const todayActivityCount = Number(todayChartItem?.current) || 0;
+  const dailyGoalTarget = 20;
+  const dailyGoalPercent = Math.min(100, Math.round((todayActivityCount / dailyGoalTarget) * 100));
+
+  const totalWeekActivity = useMemo(() => {
+    return activityChart.reduce((acc, item) => acc + (Number(item.current) || 0), 0);
+  }, [activityChart]);
+
+  const deckMasteryList = useMemo(() => {
+    return decks.slice(0, 4).map(deck => {
+      const deckCards = deck.cards || [];
+      const deckProgress = studyProgress.filter(p => p.deck_id === deck.id);
+      const knownCount = deckProgress.filter(p => p.status === 'known' || (Number(p.times_known) || 0) > (Number(p.times_unknown) || 0)).length;
+      const masteryPct = deckCards.length ? Math.min(100, Math.round((knownCount / deckCards.length) * 100)) : 0;
+      return {
+        ...deck,
+        masteryPct,
+        knownCount,
+        totalCards: deckCards.length
+      };
+    });
+  }, [decks, studyProgress]);
+
+  const badgesList = useMemo(() => {
+    const hasDecks = totalReviewers >= 1;
+    const hasStreak = (accountStats.studyDays || 0) >= 1;
+    const hasArena = (arenaSessions?.length || 0) >= 1;
+    const hasDocs = totalDocuments >= 1;
+    const hasAccuracy = (accountStats.accuracy || 0) >= 75 && totalBombCards >= 3;
+
+    return [
+      { id: 'first_deck', icon: <i className="bi bi-bullseye text-red-500 text-lg"></i>, title: 'First Reviewer', desc: 'Created a study deck', unlocked: hasDecks, progress: hasDecks ? 'Unlocked' : `${totalReviewers}/1` },
+      { id: 'streak_starter', icon: <i className="bi bi-fire text-orange-500 text-lg"></i>, title: 'Streak Flame', desc: 'Active study streak', unlocked: hasStreak, progress: hasStreak ? `${accountStats.studyDays || 0}d` : '0d' },
+      { id: 'arena_warrior', icon: <i className="bi bi-lightning-charge-fill text-amber-500 text-lg"></i>, title: 'Arena Champion', desc: 'Completed Arena match', unlocked: hasArena, progress: hasArena ? 'Unlocked' : `${arenaSessions?.length || 0}/1` },
+      { id: 'pdf_scholar', icon: <i className="bi bi-journal-bookmark-fill text-blue-500 text-lg"></i>, title: 'PDF Scholar', desc: 'Added study documents', unlocked: hasDocs, progress: hasDocs ? 'Unlocked' : `${totalDocuments}/1` },
+      { id: 'master_mind', icon: <i className="bi bi-lightbulb-fill text-purple-500 text-lg"></i>, title: 'Sharp Recall', desc: 'Achieved 75%+ accuracy', unlocked: hasAccuracy, progress: hasAccuracy ? `${accountStats.accuracy}%` : `${accountStats.accuracy || 0}%/75%` },
+    ];
+  }, [totalReviewers, accountStats, arenaSessions, totalDocuments, totalBombCards]);
+
   const flashcards = activeFlashcardDeck?.cards || [];
   const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
   const flipFlashcard = () => {
@@ -3145,7 +3193,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         if (res?.last_page && Number(res.last_page) > 1) {
           setPdfPage(Number(res.last_page));
         }
-      }).catch(() => {});
+      }).catch(() => { });
       // Load document notes
       setDocumentNotesLoading(true);
       CSM.api('document-notes&documentId=' + encodeURIComponent(document.id))
@@ -3168,7 +3216,7 @@ function App({ isGuest = false, sharedDeck = null }) {
             }).then(created => {
               setStudyDecks([created]);
               setActiveStudyDeckId(created.id);
-            }).catch(() => {});
+            }).catch(() => { });
           }
         })
         .catch(err => console.warn(err));
@@ -4365,7 +4413,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <span className="csm-notification-item-icon" aria-hidden="true">{notification.type?.startsWith('deck') ? '▦' : '•'}</span>
                           <div className="csm-notification-item-copy"><strong>{notification.title}</strong><p>{notification.message}</p><time dateTime={notification.createdAt}>{new Date(`${notification.createdAt}Z`).toLocaleString()}</time></div>
                           {!notification.isRead && <button className="csm-notification-mark-read" type="button" aria-label={`Mark ${notification.title} as read`} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', { id: notification.id }); setNotifications(items => items.map(item => item.id === notification.id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); setNotificationsUnread(count => Math.max(0, count - 1)); } catch (error) { triggerToast(error.message); } }}>Mark read</button>}
-                        </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon">✓</span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
+                        </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon"><i className="bi bi-check2-circle"></i></span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
                       </div>
                       <div className="csm-notifications-actions"><button type="button" disabled={!notificationsUnread} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', {}); setNotifications(items => items.map(item => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }))); setNotificationsUnread(0); } catch (error) { triggerToast(error.message); } }}>Mark all as read</button><button type="button" disabled={!notifications.length} onClick={() => { if (!notifications.length) return; requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: async () => { try { await CSM.api('notifications', 'DELETE'); setNotifications([]); setNotificationsUnread(0); triggerToast('Notifications cleared'); } catch (error) { triggerToast(error.message); } } }); }}>Clear all</button></div>
                     </div>
@@ -4442,17 +4490,20 @@ function App({ isGuest = false, sharedDeck = null }) {
             <div className="home-dashboard-content flex-1 w-full overflow-y-auto custom-scroll">
 
               {/* Header */}
-              <div className="home-dashboard-header">
-                <span className="home-dashboard-eyebrow">OVERVIEW</span>
-                <h1 className="home-dashboard-title">{greeting}, {displayFirstName}</h1>
-                <p className="home-dashboard-subtitle">Stay on top of your reviewers, practice progress, and study streak.</p>
+              <div className="home-dashboard-header flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+                <div>
+                  <span className="home-dashboard-eyebrow">OVERVIEW</span>
+                  <h1 className="home-dashboard-title">{greeting}, {displayFirstName}</h1>
+                  <p className="home-dashboard-subtitle">Stay on top of your reviewers, practice progress, and study streak.</p>
+                </div>
               </div>
 
               {/* Statistic Cards Row */}
-              <div className="home-stat-grid">
+              <div className="home-stat-grid mb-6">
                 <div
                   onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                  className="home-stat-card"
+                  className="home-stat-card cursor-pointer"
+                  title="View your reviewers library"
                 >
                   <span className="home-stat-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -4463,12 +4514,20 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">TOTAL DECKS</span>
                     <span className="home-stat-value">{totalReviewers}</span>
-                    <span className="home-stat-description"><b className="csm-trend up">{formatTrend(accountStats.decksTrend)}</b> this month</span>
+                    <span className="home-stat-description">
+                      {totalReviewers > 0 ? (
+                        <React.Fragment><b className="csm-trend up">{formatTrend(accountStats.decksTrend)}</b> this month</React.Fragment>
+                      ) : (
+                        <span className="text-orange-600 font-semibold">Create your first deck →</span>
+                      )}
+                    </span>
                   </span>
                 </div>
+
                 <div
                   onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                  className="home-stat-card cards-stat"
+                  className="home-stat-card cards-stat cursor-pointer"
+                  title="View Bombcards"
                 >
                   <span className="home-stat-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4479,190 +4538,495 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <span className="home-stat-copy">
                     <span className="home-stat-label">TOTAL BOMBCARDS</span>
                     <span className="home-stat-value">{totalBombCards}</span>
-                    <span className="home-stat-description"><b className="csm-trend up">{formatTrend(accountStats.cardsTrend)}</b> across your sets</span>
+                    <span className="home-stat-description">
+                      {totalBombCards > 0 ? (
+                        <React.Fragment><b className="csm-trend up">{formatTrend(accountStats.cardsTrend)}</b> across your sets</React.Fragment>
+                      ) : (
+                        <span className="text-white/95 font-bold underline">Create cards to practice →</span>
+                      )}
+                    </span>
                   </span>
                 </div>
-                <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
+
+                <div className="home-stat-card cursor-pointer" onClick={() => setActiveTab('flashcards')} title="Practice cards to protect streak">
                   <span className="home-stat-icon csm-stat-streak" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21a8 8 0 0 0 5.8-13.7C16.4 6 14.5 4.4 14 2c-3 2-4.2 4.2-3.4 6.3A4.6 4.6 0 0 0 7.5 12c0 1.3.6 2.5 1.5 3.4" /><path d="M12 21c-2.8 0-5-1.8-5-4.2 0-1.5.8-2.7 2.2-3.6.1 2.1 1.4 3.5 3.2 3.5 1.4 0 2.5-1 2.5-2.5 1.3 1.1 2.1 2.4 2.1 3.8 0 1.7-1.3 3-3 3Z" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 21a8 8 0 0 0 5.8-13.7C16.4 6 14.5 4.4 14 2c-3 2-4.2 4.2-3.4 6.3A4.6 4.6 0 0 0 7.5 12c0 1.3.6 2.5 1.5 3.4" />
+                      <path d="M12 21c-2.8 0-5-1.8-5-4.2 0-1.5.8-2.7 2.2-3.6.1 2.1 1.4 3.5 3.2 3.5 1.4 0 2.5-1 2.5-2.5 1.3 1.1 2.1 2.4 2.1 3.8 0 1.7-1.3 3-3 3Z" />
+                    </svg>
                   </span>
                   <span className="home-stat-copy">
                     <span className="home-stat-label">STUDY STREAK</span>
-                    <span className="home-stat-value">{accountStats.studyDays || 0} days</span>
-                    <span className="home-stat-description"><b className="csm-trend up">{accountStats.studyBestDays || 0} days</b> personal best</span>
+                    <span className="home-stat-value">
+                      {(accountStats.studyDays || 0) === 1 ? '1 day' : `${accountStats.studyDays || 0} days`}
+                    </span>
+                    <span className="home-stat-description">
+                      <b className="csm-trend up">
+                        {(accountStats.studyBestDays || 0) === 1 ? '1 day' : `${accountStats.studyBestDays || 0} days`}
+                      </b> personal best
+                    </span>
                   </span>
                 </div>
-                <div className="home-stat-card" onClick={() => setActiveTab('flashcards')}>
+
+                <div className="home-stat-card cursor-pointer" onClick={() => handleOpenGameMode()} title="Test accuracy in Bombstyle Arena">
                   <span className="home-stat-icon csm-stat-accuracy" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19V5M4 19h16" /><path d="m7 15 3-4 3 2 5-7" /></svg>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 19V5M4 19h16" />
+                      <path d="m7 15 3-4 3 2 5-7" />
+                    </svg>
                   </span>
                   <span className="home-stat-copy">
                     <span className="home-stat-label">AVG. ACCURACY</span>
                     <span className="home-stat-value">{accountStats.accuracy || 0}%</span>
-                    <span className="home-stat-description"><b className={`csm-trend ${(accountStats.accuracyTrend || 0) < 0 ? 'down' : 'up'}`}>{formatTrend(accountStats.accuracyTrend)}</b> than last week</span>
+                    <span className="home-stat-description">
+                      {(accountStats.accuracy || 0) > 0 ? (
+                        <React.Fragment><b className={`csm-trend ${(accountStats.accuracyTrend || 0) < 0 ? 'down' : 'up'}`}>{formatTrend(accountStats.accuracyTrend)}</b> than last week</React.Fragment>
+                      ) : (
+                        <span className="text-orange-600 font-semibold">Test in Arena quiz →</span>
+                      )}
+                    </span>
                   </span>
                 </div>
               </div>
 
-              <div className="csm-home-grid">
-                <section className="csm-chart-card">
-                  <div className="csm-card-heading"><div><span className="csm-kicker">PROGRESS</span><h2>Study activity</h2></div><div className="csm-chart-legend"><span><i className="legend-dark" />This week</span><span><i className="legend-orange" />Last week</span></div></div>
-                  <div className="csm-chart" aria-label="Study activity by day">
-                    {activityChart.map(({ day, current = 0, previous = 0 }) => <div className="csm-chart-column" key={day}><div className="csm-bars"><span className="csm-bar previous" style={{ height: previous ? `${Math.max(7, previous / activityChartMax * 100)}%` : 0, display: previous ? 'block' : 'none' }} /><span className="csm-bar current" style={{ height: current ? `${Math.max(7, current / activityChartMax * 100)}%` : 0, display: current ? 'block' : 'none' }} /></div><small>{day}</small></div>)}
+              {/* Quick Resume Hero Banner */}
+              {mostRecentDeck ? (
+                <section className="csm-resume-hero mb-6 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-[#141d2b] via-[#1a2538] to-[#251f28] text-white shadow-lg relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-5 border border-zinc-700/60">
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider bg-[#f04824]/20 text-[#ff7a58] border border-[#f04824]/40 uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#f04824] animate-pulse"></span>
+                        Pick up where you left off
+                      </span>
+                      {mostRecentDeck.subject && (
+                        <span className="text-xs text-zinc-300 font-medium px-2 py-0.5 rounded bg-white/10">{mostRecentDeck.subject}</span>
+                      )}
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-1.5 flex items-center gap-2.5">
+                      <span>{mostRecentDeck.code}</span>
+                      {mostRecentDeck.title && <span className="text-zinc-300 font-medium text-base sm:text-lg hidden sm:inline">· {mostRecentDeck.title}</span>}
+                    </h2>
+                    <p className="text-xs text-zinc-300 flex flex-wrap items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5"><i className="bi bi-collection text-[#ff7a58]"></i> {mostRecentDeck.cards?.length || 0} Bombcards</span>
+                      <span>·</span>
+                      <span className="inline-flex items-center gap-1.5"><i className="bi bi-clock-history text-zinc-400"></i> Ready for review</span>
+                      {mostRecentDeck.documents?.length > 0 && (
+                        <React.Fragment>
+                          <span>·</span>
+                          <span className="inline-flex items-center gap-1.5"><i className="bi bi-file-earmark-pdf text-red-400"></i> {mostRecentDeck.documents.length} PDF notes</span>
+                        </React.Fragment>
+                      )}
+                    </p>
+                  </div>
+                  <div className="relative z-10 flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeckIds([mostRecentDeck.id]);
+                        setActiveTab('flashcards');
+                      }}
+                      className="px-4 py-2.5 rounded-xl font-bold text-xs bg-[#f04824] hover:bg-[#d83c1b] text-white shadow-md flex items-center gap-2 transition-all duration-150 transform hover:-translate-y-0.5"
+                    >
+                      <IconPlay className="w-3.5 h-3.5" />
+                      <span>Continue Review</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeckIds([mostRecentDeck.id]);
+                        handleOpenGameMode();
+                      }}
+                      className="px-4 py-2.5 rounded-xl font-bold text-xs bg-white/10 hover:bg-white/20 text-white border border-white/20 flex items-center gap-2 transition-all"
+                    >
+                      <span className="inline-flex items-center gap-1.5"><i className="bi bi-controller"></i> Enter Arena</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedDeckForFolderView(mostRecentDeck);
+                        setActiveTab('library');
+                      }}
+                      className="px-3 py-2.5 rounded-xl font-medium text-xs text-zinc-300 hover:text-white transition-colors"
+                      title="View in Library"
+                    >
+                      View details →
+                    </button>
                   </div>
                 </section>
-                <section className="csm-detail-card">
-                  <div className="csm-card-heading"><div><span className="csm-kicker">FOCUS PLAN</span><h2>Study streak</h2></div><span className="csm-detail-menu">•••</span></div>
-                  <div className="csm-progress-ring"><strong>{accountStats.studyDays || 0}</strong><small>days</small></div>
-                  <div className="csm-progress-track"><span style={{ width: `${Math.min(100, (accountStats.studyDays || 0) * 10)}%` }} /></div>
-                  <div className="csm-progress-labels"><span>3 days to goal</span><b>10 day goal</b></div>
-                  <p className="csm-card-note">Keep your momentum going. A short review today protects your streak.</p>
+              ) : (
+                <section className="csm-welcome-banner mb-6 p-6 rounded-2xl bg-gradient-to-r from-orange-50/90 via-amber-50/70 to-orange-100/50 border border-orange-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5">
+                  <div>
+                    <span className="text-[11px] font-bold text-orange-700 tracking-wider uppercase mb-1 block">Getting Started</span>
+                    <h2 className="text-xl font-extrabold text-zinc-900 mb-1 flex items-center gap-2">Welcome to Co-StudyMaxx! <i className="bi bi-stars text-orange-500"></i></h2>
+                    <p className="text-xs text-zinc-600 max-w-md">Create your first reviewer deck, upload PDF notes, or generate high-retention Bombcards with AI.</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleOpenCreateDeck}
+                      className="px-4 py-2.5 rounded-xl font-bold text-xs bg-[#f04824] hover:bg-[#d83c1b] text-white shadow-sm flex items-center gap-2 transition-all"
+                    >
+                      <IconPlus className="w-3.5 h-3.5" />
+                      <span>Create First Deck</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenAiGenerator}
+                      className="px-4 py-2.5 rounded-xl font-bold text-xs bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 shadow-2xs flex items-center gap-2 transition-all"
+                    >
+                      <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span>AI Flashcards</span>
+                    </button>
+                  </div>
                 </section>
+              )}
+
+              {/* Analytics & Focus Goal Row */}
+              <div className="csm-dash-analytics-grid grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+                {/* Left (2 cols): Weekly Study Activity Chart */}
+                <section className="lg:col-span-2 csm-chart-card bg-white rounded-2xl p-5 sm:p-6 border border-[#dce5ee] shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div>
+                        <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">DATA & PROGRESS</span>
+                        <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Weekly Study Activity</h2>
+                        <p className="text-xs text-zinc-500 mt-0.5">Your study sessions and practice frequency across the week.</p>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] font-medium text-zinc-500">
+                        <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-[#182231] inline-block"></i> This week</span>
+                        <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-[#f04824] inline-block"></i> Last week</span>
+                      </div>
+                    </div>
+
+                    {/* Chart Columns */}
+                    <div className="csm-modern-chart h-40 flex items-end justify-around gap-2 pt-4 pb-2 border-b border-zinc-100 relative">
+                      {activityChart.map(({ day, current = 0, previous = 0 }) => {
+                        const isToday = day === todayDayName;
+                        const currHeight = Math.max(8, (Number(current) || 0) / activityChartMax * 100);
+                        const prevHeight = Math.max(8, (Number(previous) || 0) / activityChartMax * 100);
+
+                        return (
+                          <div className={`flex-1 flex flex-col items-center justify-end h-full gap-2 group relative ${isToday ? 'csm-chart-today' : ''}`} key={day}>
+                            {/* Hover tooltip */}
+                            <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-[10px] font-semibold py-1 px-2 rounded pointer-events-none whitespace-nowrap z-20 shadow-md">
+                              {day}: {current} sessions {previous ? `(vs ${previous})` : ''}
+                            </div>
+                            <div className="w-full flex items-end justify-center gap-1.5 h-full">
+                              {previous > 0 && (
+                                <span
+                                  className="w-2.5 sm:w-3.5 bg-[#f04824]/60 hover:bg-[#f04824] rounded-t-sm transition-all"
+                                  style={{ height: `${prevHeight}%` }}
+                                  title={`Last week: ${previous}`}
+                                />
+                              )}
+                              <span
+                                className={`w-2.5 sm:w-3.5 rounded-t-sm transition-all ${isToday ? 'bg-[#f04824] shadow-sm shadow-orange-500/30' : 'bg-[#182231] hover:bg-[#283850]'}`}
+                                style={{ height: `${currHeight}%` }}
+                                title={`This week: ${current}`}
+                              />
+                            </div>
+                            <span className={`text-[11px] font-semibold ${isToday ? 'text-[#f04824] font-extrabold underline' : 'text-zinc-500'}`}>
+                              {day}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 text-xs text-zinc-500 flex items-center gap-1.5 border-t border-zinc-100">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+                    <span><b>{totalWeekActivity}</b> study sessions recorded this week</span>
+                  </div>
+                </section>
+
+                {/* Right (1 col): Daily Study Goal & Streak Tracker */}
+                <section className="csm-daily-goal-card bg-white rounded-2xl p-5 sm:p-6 border border-[#dce5ee] shadow-sm flex flex-col justify-between">
+                  <div>
+                    <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">DAILY FOCUS</span>
+                    <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Today's Study Goal</h2>
+                    <p className="text-xs text-zinc-500 mt-0.5">Stay consistent with regular flashcard practice.</p>
+
+                    {/* Progress Stats */}
+                    <div className="my-5 p-4 rounded-xl bg-gradient-to-br from-zinc-50 to-orange-50/40 border border-zinc-100 flex items-center justify-between">
+                      <div>
+                        <div className="text-2xl font-black text-zinc-900">
+                          {todayActivityCount} <span className="text-sm font-semibold text-zinc-400">/ {dailyGoalTarget} cards</span>
+                        </div>
+                        <span className="text-[11px] font-medium text-zinc-500">
+                          {dailyGoalPercent >= 100 ? (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-600 font-bold">
+                              <i className="bi bi-check-circle-fill"></i> Goal accomplished today!
+                            </span>
+                          ) : (
+                            `${dailyGoalTarget - todayActivityCount} more cards to hit goal`
+                          )}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-black text-[#f04824]">{dailyGoalPercent}%</span>
+                      </div>
+                    </div>
+
+                    {/* Progress bar track */}
+                    <div className="w-full bg-zinc-100 rounded-full h-2.5 overflow-hidden mb-3">
+                      <div
+                        className="bg-gradient-to-r from-orange-500 to-[#f04824] h-2.5 rounded-full transition-all duration-500"
+                        style={{ width: `${dailyGoalPercent}%` }}
+                      ></div>
+                    </div>
+
+                    <p className="text-[11px] text-zinc-500 leading-relaxed inline-flex items-center gap-1.5">
+                      <i className="bi bi-lightbulb-fill text-amber-500 shrink-0"></i>
+                      <span>A short 5-minute review session protects your streak and cements spaced-repetition memory.</span>
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('flashcards')}
+                      className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-black text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <IconPlay className="w-3.5 h-3.5 text-[#f04824]" />
+                      <span>Practice 10 Cards Now</span>
+                    </button>
+                  </div>
+                </section>
+
               </div>
 
-              <section className="csm-deck-row-card">
-                <div className="csm-card-heading"><div><span className="csm-kicker">YOUR DECKS</span><h2>Pick up where you left off</h2></div><button type="button" className="csm-outline-button" onClick={() => setActiveTab('library')}>View all <span>→</span></button></div>
-                <div className="csm-deck-row">{decks.map(deck => <button type="button" className="csm-deck-tile" key={deck.id} onClick={() => { setSelectedDeckIds([deck.id]); setActiveTab('flashcards'); }}><span className="csm-deck-tile-icon">▦</span><span><strong>{deck.code}</strong><small>{deck.cards?.length || 0} cards · {deck.subject}</small></span><span className="csm-deck-tile-arrow">→</span></button>)}</div>
-              </section>
-
-              <section className="csm-activity-card">
-                <div className="csm-card-heading"><div><span className="csm-kicker">ACTIVITY</span><h2>Recent study sessions</h2></div><button type="button" className="csm-outline-button" onClick={() => setActiveTab('library')}>View library <span>→</span></button></div>
-                <div className="csm-table-wrap"><table className="csm-table"><thead><tr><th><input type="checkbox" aria-label="Select all sessions" /></th><th>Material</th><th>Mode</th><th>Accuracy</th><th>Status</th><th>Last studied</th><th /></tr></thead><tbody>
-                  {recentActivities.slice(0, 8).map(activity => [activity.material, activity.mode, activity.accuracy || '—', activity.status, formatActivityTime(activity.timestamp), activity.deckId || activity.id]).map(([name, mode, accuracy, status, date, id]) => <tr key={id}><td><input type="checkbox" aria-label={`Select ${name}`} /></td><td><button className="csm-table-material" type="button" onClick={() => openRecentActivity(recentActivities.find(item => item.id === id) || recentActivities[0])}><span className="csm-material-icon">▦</span><strong>{name}</strong></button></td><td>{mode}</td><td><strong>{accuracy}</strong></td><td><span className={`csm-status ${status === 'Completed' ? 'done' : status === 'In progress' ? 'progress' : 'review'}`}><i />{status}</span></td><td>{date}</td><td><button type="button" className="csm-row-menu" aria-label={`More actions for ${name}`}>•••</button></td></tr>)}
-                </tbody></table></div>
-              </section>
-
-              <section className="csm-live-activity-card">
-                <div className="csm-live-activity-heading"><div><span className="csm-kicker">ACTIVITY</span><h2>Recent Activity</h2><p>Your latest accessed study areas appear here.</p></div><button type="button" className="csm-outline-button" onClick={handleOpenLibrary}>View library <span>-&gt;</span></button></div>
-                <div className="csm-live-activity-list">
-                  {recentActivities.length ? recentActivities.slice(0, 4).map(activity => <button key={activity.id} type="button" className="csm-live-activity-row" onClick={() => openRecentActivity(activity)}><span className="csm-live-activity-icon">{activity.mode === 'PDF Tools' ? 'PDF' : activity.mode === 'Profile' ? 'ME' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'BS' : 'FC'}</span><span className="csm-live-activity-copy"><strong>{activity.material}</strong><small>{activity.mode} · {formatActivityTime(activity.timestamp)}</small></span><span className="csm-live-activity-status">{activity.status}</span><span className="csm-live-activity-arrow">-&gt;</span></button>) : <div className="csm-live-activity-empty">No activity has been recorded yet.</div>}
-                </div>
-              </section>
-
-              {/* Study Tools */}
-              <section className="home-tools-section">
-                <h2 className="home-tools-heading">Your Study Tools</h2>
-                <p className="home-tools-subtitle">Everything you need to create, study, and improve.</p>
-                <div className="home-tools-grid">
-                  <article className="home-tool-card" onClick={handleOpenLibrary}>
-                    <span className="home-tool-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="7" height="7" rx="1" />
-                        <rect x="14" y="3" width="7" height="7" rx="1" />
-                        <rect x="3" y="14" width="7" height="7" rx="1" />
-                        <rect x="14" y="14" width="7" height="7" rx="1" />
-                      </svg>
-                    </span>
-                    <h3 className="home-tool-title">Reviewer Library</h3>
-                    <p className="home-tool-description">Create, edit, and manage<br />your reviewers and PDF materials.</p>
-                    <button className="home-tool-button" type="button" onClick={handleOpenLibrary}>
-                      <span>Open Library</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 12h15" />
-                        <path d="m13 6 6 6-6 6" />
-                      </svg>
+              {/* Subject Mastery & Readiness Breakdown */}
+              {deckMasteryList.length > 0 && (
+                <section className="csm-subject-mastery mb-6 p-5 sm:p-6 rounded-2xl bg-white border border-[#dce5ee] shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">READINESS</span>
+                      <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Subject Mastery & Weak Spots</h2>
+                      <p className="text-xs text-zinc-500 mt-0.5">Track your confidence level and mastered cards across subjects.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('library')}
+                      className="text-xs font-bold text-[#f04824] hover:underline flex items-center gap-1"
+                    >
+                      View all decks <span>→</span>
                     </button>
-                  </article>
+                  </div>
 
-                  <article className="home-tool-card bomb-tool" onClick={handleOpenGameMode}>
-                    <span className="home-tool-icon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="5" y="4" width="11" height="14" rx="2" transform="rotate(-12 5 4)" />
-                        <rect x="9" y="6" width="11" height="14" rx="2" transform="rotate(12 9 6)" />
-                      </svg>
-                    </span>
-                    <h3 className="home-tool-title">Bombstyle Arena</h3>
-                    <p className="home-tool-description">Pressure-based recall.<br />One countdown for the entire round.</p>
-                    <button className="home-tool-button" type="button" onClick={handleOpenGameMode}>
-                      <span>Enter Arena</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 12h15" />
-                        <path d="m13 6 6 6-6 6" />
-                      </svg>
-                    </button>
-                  </article>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    {deckMasteryList.map(deck => (
+                      <div
+                        key={deck.id}
+                        className="p-4 rounded-xl border border-zinc-100 hover:border-orange-200 bg-zinc-50/50 hover:bg-orange-50/20 transition-all flex flex-col justify-between"
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2.5">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-zinc-900">{deck.code}</span>
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-zinc-200/70 text-zinc-700">
+                                {deck.subject || 'General'}
+                              </span>
+                            </div>
+                            {deck.title && <p className="text-xs text-zinc-600 mt-0.5 truncate max-w-[200px]">{deck.title}</p>}
+                          </div>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${deck.masteryPct >= 75 ? 'bg-emerald-50 text-emerald-700' : deck.masteryPct >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-orange-50 text-orange-700'}`}>
+                            {deck.masteryPct}% Mastery
+                          </span>
+                        </div>
 
-                  <article className="home-tool-card pdf-tool" onClick={() => {
-                    if (!activeDocument) {
-                      const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
-                      if (firstDocDeck && firstDocDeck.documents[0]) {
-                        handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
-                        return;
-                      }
-                    }
-                    setActiveTab('highlighter');
-                  }}>
-                    <span className="home-tool-icon pdf-icon" aria-hidden="true">
-                      <IconPdf className="w-5 h-5 text-red-600" />
-                    </span>
-                    <h3 className="home-tool-title">PDF Study Tool</h3>
-                    <p className="home-tool-description">Highlight notes, select passages,<br />and turn documents into flashcards.</p>
-                    <button className="home-tool-button" type="button" onClick={(e) => {
-                      e.stopPropagation();
-                      if (!activeDocument) {
-                        const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
-                        if (firstDocDeck && firstDocDeck.documents[0]) {
-                          handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
-                          return;
-                        }
-                      }
-                      setActiveTab('highlighter');
-                    }}>
-                      <span>Open PDF Tools</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 12h15" />
-                        <path d="m13 6 6 6-6 6" />
-                      </svg>
-                    </button>
-                  </article>
+                        {/* Mastery Bar */}
+                        <div className="w-full bg-zinc-200/80 rounded-full h-1.5 overflow-hidden mb-3">
+                          <div
+                            className={`h-1.5 rounded-full ${deck.masteryPct >= 75 ? 'bg-emerald-500' : deck.masteryPct >= 40 ? 'bg-amber-500' : 'bg-[#f04824]'}`}
+                            style={{ width: `${Math.max(4, deck.masteryPct)}%` }}
+                          ></div>
+                        </div>
 
-                  <article className="home-tool-card ai-tool" onClick={() => {
-                    if (isGuest) { setGuestLockedSection('creator'); return; }
-                    handleOpenAiGenerator();
-                  }}>
-                    <span className="home-tool-icon ai-icon" aria-hidden="true">
-                      <IconSparkles className="w-5 h-5 text-purple-600" />
-                    </span>
-                    <h3 className="home-tool-title">AI Flashcard Maker</h3>
-                    <p className="home-tool-description">Drop PDFs or paste notes<br />to forge high-retention Bombcards.</p>
-                    <button className="home-tool-button" type="button" onClick={(e) => {
-                      e.stopPropagation();
-                      if (isGuest) { setGuestLockedSection('creator'); return; }
-                      handleOpenAiGenerator();
-                    }}>
-                      <span>Generate Cards</span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M4 12h15" />
-                        <path d="m13 6 6 6-6 6" />
-                      </svg>
+                        <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 border-t border-zinc-200/40">
+                          <span>{deck.knownCount} of {deck.totalCards} cards known</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDeckIds([deck.id]);
+                                setActiveTab('flashcards');
+                              }}
+                              className="font-bold text-[#f04824] hover:underline"
+                            >
+                              Study →
+                            </button>
+                            <span className="text-zinc-300">·</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedDeckIds([deck.id]);
+                                handleOpenGameMode();
+                              }}
+                              className="font-bold text-zinc-700 hover:text-black"
+                            >
+                              Arena
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+
+
+              {/* Co-Study & Gamification Row */}
+              <div className="csm-dash-social-grid grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+
+                {/* Arena & Community Challenge Card */}
+                <section className="csm-arena-challenge-card bg-white rounded-2xl p-5 sm:p-6 border border-[#dce5ee] shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">CO-STUDYMAXX ARENA</span>
+                        <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Arena Countdown Challenge</h2>
+                      </div>
+                      <span className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100/80 flex items-center justify-center text-[#f04824] shadow-xs">
+                        <i className="bi bi-controller text-xl"></i>
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-4">
+                      Pressure-based recall with high scores. Challenge your personal record or study with friends.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-100 mb-4">
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Best Arena Streak</span>
+                        <span className="text-xl font-extrabold text-zinc-900 flex items-center gap-1.5 mt-0.5">
+                          <i className="bi bi-fire text-orange-500"></i> {accountStats.studyBestDays || 0}
+                          <span className="text-xs font-semibold text-zinc-400">cards</span>
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Arena Sessions</span>
+                        <span className="text-xl font-extrabold text-zinc-900 mt-0.5 block">
+                          {arenaSessions.length} <span className="text-xs font-semibold text-zinc-400">played</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {arenaSessions.length > 0 && arenaSessions[0] && (
+                      <div className="text-xs text-zinc-600 bg-orange-50/50 p-2.5 rounded-lg border border-orange-100/60 mb-3 flex items-center justify-between">
+                        <span>Latest: <b>{arenaSessions[0].title || 'Arena Run'}</b></span>
+                        <span className="font-bold text-[#f04824]">{arenaSessions[0].correctCount || 0} correct</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-3 border-t border-zinc-100">
+                    <button
+                      type="button"
+                      onClick={handleOpenGameMode}
+                      className="flex-1 py-2.5 px-4 rounded-xl bg-[#f04824] hover:bg-[#d83c1b] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+                    >
+                      <span>Enter Bombstyle Arena →</span>
                     </button>
-                  </article>
-                </div>
-              </section>
+                    {mostRecentDeck && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleShareDeck(mostRecentDeck, e)}
+                        className="py-2.5 px-3 rounded-xl border border-zinc-200 hover:border-zinc-300 text-zinc-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                        title="Share reviewer with study group"
+                      >
+                        <IconShare />
+                        <span>Share Deck</span>
+                      </button>
+                    )}
+                  </div>
+                </section>
+
+                {/* Gamified Achievements & Badges Card */}
+                <section className="csm-badges-card bg-white rounded-2xl p-5 sm:p-6 border border-[#dce5ee] shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">ACHIEVEMENTS</span>
+                        <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Study Milestones & Badges</h2>
+                      </div>
+                      <span className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 flex items-center justify-center text-amber-500 shadow-xs">
+                        <i className="bi bi-trophy-fill text-xl"></i>
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-500 mb-4">
+                      Earn recognition as you build consistent study habits and master your decks.
+                    </p>
+
+                    <div className="space-y-2.5">
+                      {badgesList.map(badge => (
+                        <div
+                          key={badge.id}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${badge.unlocked ? 'bg-orange-50/40 border-orange-200/60' : 'bg-zinc-50/60 border-zinc-100 opacity-60'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-8 h-8 rounded-lg bg-white shadow-2xs flex items-center justify-center shrink-0">{badge.icon}</span>
+                            <div>
+                              <span className="text-xs font-bold text-zinc-900 block leading-tight">{badge.title}</span>
+                              <span className="text-[10px] text-zinc-500">{badge.desc}</span>
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${badge.unlocked ? 'bg-emerald-100 text-emerald-800' : 'bg-zinc-200 text-zinc-600'}`}>
+                            {badge.unlocked ? <span className="inline-flex items-center gap-1"><i className="bi bi-check-circle-fill text-[10px]"></i> Unlocked</span> : badge.progress}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-400">
+                    <span>{badgesList.filter(b => b.unlocked).length} of {badgesList.length} badges earned</span>
+                    <span className="font-semibold text-zinc-600">Keep studying to unlock all!</span>
+                  </div>
+                </section>
+
+              </div>
 
               {/* Recent Activity */}
-              <section className="home-recent-card">
-                <h2 className="home-recent-heading">Recent Activity</h2>
-                <p className="home-recent-subtitle">Pick up where you left off.</p>
-                <div className="home-recent-divider" />
-                <div className="home-recent-row">
-                  <span className="home-activity-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M7 3h7l4 4v14H7z" />
-                      <path d="M14 3v5h4M10 12h5M10 15h5M10 18h3" />
-                    </svg>
-                  </span>
-                  <span className="home-activity-copy">
-                    <span className="home-activity-title">ITE 292 B1</span>
-                    <span className="home-activity-meta">Last studied 2 hours ago · 3 cards</span>
-                  </span>
-                  <button className="home-activity-button" type="button" onClick={() => setActiveTab('library')}>
-                    <span>Continue</span>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M4 12h15" />
-                      <path d="m13 6 6 6-6 6" />
-                    </svg>
+              <section className="csm-live-activity-card">
+                <div className="csm-live-activity-heading">
+                  <div>
+                    <span className="csm-kicker">ACTIVITY</span>
+                    <h2>Recent Activity</h2>
+                    <p>Your latest accessed study areas and quiz sessions appear here.</p>
+                  </div>
+                  <button type="button" className="csm-outline-button" onClick={handleOpenLibrary}>
+                    View library <span>-&gt;</span>
                   </button>
+                </div>
+                <div className="csm-live-activity-list">
+                  {recentActivities.length ? recentActivities.slice(0, 5).map(activity => (
+                    <button
+                      key={activity.id}
+                      type="button"
+                      className="csm-live-activity-row group"
+                      onClick={() => openRecentActivity(activity)}
+                      title={`Jump into ${activity.material}`}
+                    >
+                      <span className={`csm-live-activity-icon ${activity.mode === 'PDF Tools' ? 'bg-red-50 text-red-600 border border-red-200' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'bg-blue-50 text-blue-600 border border-blue-200'}`}>
+                        {activity.mode === 'PDF Tools' ? 'PDF' : activity.mode === 'Profile' ? 'ME' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'BS' : 'FC'}
+                      </span>
+                      <span className="csm-live-activity-copy">
+                        <strong>{activity.material}</strong>
+                        <small>{activity.mode} · {formatActivityTime(activity.timestamp)}</small>
+                      </span>
+                      {activity.accuracy && activity.accuracy !== '—' && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 hidden sm:inline-block">
+                          {activity.accuracy} acc
+                        </span>
+                      )}
+                      <span className="csm-live-activity-status">{activity.status}</span>
+                      <span className="csm-live-activity-arrow group-hover:translate-x-1 transition-transform">-&gt;</span>
+                    </button>
+                  )) : (
+                    <div className="csm-live-activity-empty">No activity has been recorded yet. Study a deck to start tracking!</div>
+                  )}
                 </div>
               </section>
 
@@ -5181,10 +5545,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                       className={`csm-studio-type-btn ${creatorType === 'MULTIPLE_CHOICE' ? 'active' : ''}`}
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <circle cx="6" cy="6" r="2" fill="currentColor"/>
-                        <circle cx="18" cy="6" r="2" fill="currentColor"/>
-                        <circle cx="6" cy="18" r="2" fill="currentColor"/>
-                        <circle cx="18" cy="18" r="2" fill="currentColor"/>
+                        <circle cx="6" cy="6" r="2" fill="currentColor" />
+                        <circle cx="18" cy="6" r="2" fill="currentColor" />
+                        <circle cx="6" cy="18" r="2" fill="currentColor" />
+                        <circle cx="18" cy="18" r="2" fill="currentColor" />
                       </svg>
                       Multiple Choice
                     </button>
@@ -5194,9 +5558,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                       className={`csm-studio-type-btn ${creatorType === 'IDENTIFICATION' ? 'active' : ''}`}
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                        <line x1="4" y1="7" x2="20" y2="7"/>
-                        <line x1="4" y1="12" x2="14" y2="12"/>
-                        <line x1="4" y1="17" x2="18" y2="17"/>
+                        <line x1="4" y1="7" x2="20" y2="7" />
+                        <line x1="4" y1="12" x2="14" y2="12" />
+                        <line x1="4" y1="17" x2="18" y2="17" />
                       </svg>
                       Identification
                     </button>
@@ -5308,11 +5672,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                                 type="button"
                                 disabled={!creatorPrompt.trim()}
                                 onClick={() => setCreatorStep(2)}
-                                className={`h-10 px-5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${
-                                  creatorPrompt.trim()
+                                className={`h-10 px-5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all ${creatorPrompt.trim()
                                     ? 'bg-[#f04824] hover:bg-[#e03e1b] text-white shadow-md shadow-orange-500/20 active:scale-95 cursor-pointer'
                                     : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                }`}
+                                  }`}
                               >
                                 Next: Set Answers
                                 <span>→</span>
@@ -5669,9 +6032,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                       <button
                         type="button"
                         onClick={() => setPdfSearchOpen(!pdfSearchOpen)}
-                        className={`h-8 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                          pdfSearchOpen ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
-                        }`}
+                        className={`h-8 px-2.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${pdfSearchOpen ? 'bg-purple-600 text-white border-purple-600 shadow-xs' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                          }`}
                         title="Search within document text"
                       >
                         <IconSearch />
@@ -5938,7 +6300,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 onClose={() => setReviewingDeck(null)}
                 onFinish={() => {
                   if (activeStudyDeckId) {
-                    CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => {});
+                    CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => { });
                   }
                 }}
                 onJumpToPage={(p) => setPdfPage(p)}
@@ -6706,7 +7068,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     onClick={handleCopyShareUrl}
                   >
                     {shareModalCopied ? (
-                      <React.Fragment>✓ Copied!</React.Fragment>
+                      <React.Fragment><i className="bi bi-check-lg"></i> Copied!</React.Fragment>
                     ) : (
                       <React.Fragment><IconShare /> Copy Link</React.Fragment>
                     )}
@@ -6990,11 +7352,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                     <button
                       type="button"
                       onClick={() => setAiSourceType('pdf')}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        aiSourceType === 'pdf'
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${aiSourceType === 'pdf'
                           ? 'bg-white text-purple-900 shadow-sm border border-slate-200/60'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       <IconPdf className="w-3.5 h-4 text-purple-600" />
                       <span>From PDF Document</span>
@@ -7007,11 +7368,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                     <button
                       type="button"
                       onClick={() => setAiSourceType('text')}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                        aiSourceType === 'text'
+                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${aiSourceType === 'text'
                           ? 'bg-white text-purple-900 shadow-sm border border-slate-200/60'
                           : 'text-slate-600 hover:text-slate-900'
-                      }`}
+                        }`}
                     >
                       <IconFileText className="w-3.5 h-3.5 text-purple-600" />
                       <span>From Pasted Text / Notes</span>
@@ -7060,11 +7420,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                                       extractPdfText({ type: 'file', file: aiUploadedPdfFile });
                                     }
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
-                                    aiPdfSourceMode === 'upload'
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${aiPdfSourceMode === 'upload'
                                       ? 'bg-purple-600 text-white shadow-xs'
                                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                  }`}
+                                    }`}
                                 >
                                   Upload / Drop PDF
                                 </button>
@@ -7076,11 +7435,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     setAiSelectedLibraryDoc(defaultDoc);
                                     extractPdfText({ type: 'doc', doc: defaultDoc });
                                   }}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
-                                    aiPdfSourceMode === 'library'
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${aiPdfSourceMode === 'library'
                                       ? 'bg-purple-600 text-white shadow-xs'
                                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                  }`}
+                                    }`}
                                 >
                                   <span>Deck PDFs ({deckDocs.length})</span>
                                 </button>
@@ -7104,11 +7462,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     onDragLeave={() => setAiPdfDragActive(false)}
                                     onDrop={handlePdfDrop}
                                     onClick={() => aiPdfFileInputRef.current?.click()}
-                                    className={`p-6 sm:p-7 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer flex flex-col items-center justify-center ${
-                                      aiPdfDragActive
+                                    className={`p-6 sm:p-7 rounded-2xl border-2 border-dashed transition-all text-center cursor-pointer flex flex-col items-center justify-center ${aiPdfDragActive
                                         ? 'border-purple-600 bg-purple-50/70 shadow-inner'
                                         : 'border-slate-300 bg-[#f8fafc] hover:bg-purple-50/30 hover:border-purple-400'
-                                    }`}
+                                      }`}
                                   >
                                     <div className="w-12 h-12 rounded-2xl bg-purple-100 text-purple-600 flex items-center justify-center mb-3 shadow-xs">
                                       <IconUpload className="w-6 h-6" />
@@ -7184,11 +7541,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                                           setAiSelectedLibraryDoc(doc);
                                           extractPdfText({ type: 'doc', doc });
                                         }}
-                                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
-                                          isSelected
+                                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${isSelected
                                             ? 'border-purple-500 bg-purple-50 shadow-xs'
                                             : 'border-slate-200 bg-[#f8fafc] hover:bg-slate-50'
-                                        }`}
+                                          }`}
                                       >
                                         <div className="flex items-center gap-2.5 min-w-0">
                                           <IconPdf className={`w-4 h-5 ${isSelected ? 'text-purple-700' : 'text-slate-500'}`} />
@@ -7229,22 +7585,20 @@ function App({ isGuest = false, sharedDeck = null }) {
                                   const src = aiPdfSourceMode === 'upload' ? { type: 'file', file: aiUploadedPdfFile } : { type: 'doc', doc: aiSelectedLibraryDoc };
                                   extractPdfText(src, { type: 'all', start: 1, end: aiPdfTotalPages });
                                 }}
-                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                                  aiPdfPageRangeType === 'all'
+                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiPdfPageRangeType === 'all'
                                     ? 'bg-purple-600 text-white shadow-xs'
                                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }`}
+                                  }`}
                               >
                                 All ({aiPdfTotalPages} pages)
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setAiPdfPageRangeType('custom')}
-                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                                  aiPdfPageRangeType === 'custom'
+                                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiPdfPageRangeType === 'custom'
                                     ? 'bg-purple-600 text-white shadow-xs'
                                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                                }`}
+                                  }`}
                               >
                                 Custom Range
                               </button>
@@ -7511,7 +7865,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                             <input
                               type="checkbox"
                               checked={!!card.selected}
-                              onChange={() => {}}
+                              onChange={() => { }}
                               className="mt-1 w-4 h-4 rounded text-purple-600 accent-purple-600 cursor-pointer"
                             />
                             <div className="flex-1 min-w-0">
@@ -7582,11 +7936,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                     type="button"
                     disabled={aiLoading || aiExtractingPdf || !aiNotes.trim()}
                     onClick={handleGenerateWithAi}
-                    className={`h-11 px-6 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
-                      aiLoading || aiExtractingPdf || !aiNotes.trim()
+                    className={`h-11 px-6 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${aiLoading || aiExtractingPdf || !aiNotes.trim()
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                         : 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/25 active:scale-95'
-                    }`}
+                      }`}
                   >
                     {aiLoading ? (
                       <>
