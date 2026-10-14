@@ -26,6 +26,10 @@ if "%PHP_BIN%"=="" (
 )
 
 echo Using PHP: %PHP_BIN%
+echo.
+echo Starting mailer service on http://127.0.0.1:8091 ...
+start /B cmd /c "npm run mailer 2>&1"
+timeout /t 2 /nobreak >nul
 echo Starting Co-StudyMaxx on http://127.0.0.1:8080 ...
 echo Press Ctrl+C to stop the server.
 echo.
