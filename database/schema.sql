@@ -31,7 +31,7 @@ CREATE TABLE decks (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- One source of truth for hand-authored and future approved generated Bombcards.
 CREATE TABLE cards (
- id CHAR(32) PRIMARY KEY,deck_id CHAR(32) NOT NULL,type ENUM('MULTIPLE_CHOICE','IDENTIFICATION') NOT NULL,prompt TEXT NOT NULL,hint VARCHAR(500) NOT NULL DEFAULT '',
+ id CHAR(32) PRIMARY KEY,deck_id CHAR(32) NOT NULL,type ENUM('MULTIPLE_CHOICE','TRUE_FALSE','IDENTIFICATION') NOT NULL,prompt TEXT NOT NULL,hint VARCHAR(500) NOT NULL DEFAULT '',
  correct_answer TEXT NOT NULL,alternates TEXT NOT NULL,explanation TEXT NOT NULL,position INT NOT NULL DEFAULT 0,
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  INDEX(deck_id,position),FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE CASCADE
@@ -94,6 +94,13 @@ CREATE TABLE user_notifications (
  INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
  FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE user_achievements (
+ user_id CHAR(32) NOT NULL,achievement_key VARCHAR(40) NOT NULL,
+ earned_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ PRIMARY KEY(user_id,achievement_key),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE security_events (

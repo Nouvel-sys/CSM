@@ -89,6 +89,14 @@
     .success-modal p { margin: 10px 0 21px; color: rgba(255,255,255,.58); font-size: 11px; line-height: 1.5; }
     .redirect-status { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 40px; border-radius: 7px; color: #fff; background: var(--orange); font-size: 11px; font-weight: 900; }
     .redirect-spinner { width: 15px; height: 15px; flex: 0 0 15px; border: 2px solid rgba(255,255,255,.42); border-top-color: #fff; border-radius: 50%; animation: redirectSpin .7s linear infinite; }
+    .signout-modal { width: min(100%, 390px); padding: 30px; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; color: #fff; background: linear-gradient(145deg, #211817, #2d1a14); box-shadow: 0 25px 80px rgba(0,0,0,.45); text-align: center; animation: modalIn .25s ease both; }
+    .signout-icon { width: 48px; height: 48px; display: grid; place-items: center; margin: 0 auto 16px; border-radius: 50%; color: #fff; background: rgba(255,79,34,.18); border: 1px solid rgba(255,112,76,.45); }
+    .signout-icon svg { width: 23px; height: 23px; }
+    .signout-modal h2 { margin: 0; font-size: 25px; letter-spacing: -.055em; }
+    .signout-modal p { margin: 10px 0 22px; color: rgba(255,255,255,.64); font-size: 12px; line-height: 1.55; }
+    .signout-confirm { width: 100%; min-height: 42px; border: 0; border-radius: 8px; color: #fff; background: var(--orange); font-size: 11px; font-weight: 900; cursor: pointer; transition: transform .2s ease, background .2s ease; }
+    .signout-confirm:hover { transform: translateY(-1px); background: #ff623a; }
+    .signout-confirm:focus-visible { outline: 3px solid rgba(255,255,255,.72); outline-offset: 3px; }
     .auth-loading-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 20px; background: rgba(18,10,9,.78); backdrop-filter: blur(9px); }
     .auth-loading-card { width: min(100%, 330px); padding: 30px 26px 27px; border: 1px solid rgba(255,255,255,.12); border-radius: 17px; color: #fff; background: linear-gradient(145deg, #211817, #2d1a14); box-shadow: 0 24px 70px rgba(0,0,0,.4); text-align: center; animation: modalIn .25s ease both; }
     .auth-loading-mascot { width: 82px; height: 82px; object-fit: contain; filter: drop-shadow(0 12px 12px rgba(0,0,0,.3)); animation: loadingBounce .8s ease-in-out infinite; }
@@ -313,7 +321,7 @@
           <li>Collaborative reviews</li>
           <li>Data-driven insights</li>
         </ul>
-        <img class="brand-mascot" src="csm-mascot.png" alt="Co-StudyMaxx mascot">
+        <img class="brand-mascot" src="assets/images/csm-mascot.png" alt="Co-StudyMaxx mascot">
       </section>
 
       <section class="form-panel" aria-label="Account access">
@@ -379,16 +387,27 @@
     </div>
   </div>
 
+  <div class="success-backdrop" id="signout-modal" role="alertdialog" aria-modal="true" aria-labelledby="signout-title" aria-describedby="signout-copy" hidden>
+    <div class="signout-modal">
+      <div class="signout-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M15 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/></svg>
+      </div>
+      <h2 id="signout-title">You’ve been signed out.</h2>
+      <p id="signout-copy">Your session has ended. Please sign in again to continue.</p>
+      <button class="signout-confirm" id="signout-confirm" type="button">Okay</button>
+    </div>
+  </div>
+
   <div class="auth-loading-backdrop" id="auth-loading" role="status" aria-live="polite" hidden>
     <div class="auth-loading-card">
-      <img class="auth-loading-mascot" src="csm-mascot.png" alt="">
+      <img class="auth-loading-mascot" src="assets/images/csm-mascot.png" alt="">
       <h2 id="loading-title">Logging you in…</h2>
       <p id="loading-copy">Checking your account and preparing your workspace.</p>
       <div class="auth-loading-dots" aria-hidden="true"><i></i><i></i><i></i></div>
     </div>
   </div>
 
-  <script src="api.js"></script>
+  <script src="api.js?v=1.30"></script>
   <script>
     // Retained only as migration history; the following browser-only demo auth is intentionally disabled.
     if (false) {
@@ -652,6 +671,7 @@
       oldForm.replaceWith(form);
       const byId = id => document.getElementById(id);
       const params = new URLSearchParams(location.search);
+      const adminRequested = params.get('next') === 'admin';
       const fragment = new URLSearchParams(location.hash.slice(1));
       let resetToken = params.get('mode') === 'reset' ? (fragment.get('token') || '') : '';
       let mode = ['register', 'forgot', 'reset'].includes(params.get('mode')) ? params.get('mode') : 'signin';
@@ -660,6 +680,14 @@
       const loading = byId('auth-loading');
       const complete = byId('recovery-complete');
       const arrow = '<svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+      const signoutModal = byId('signout-modal');
+      const signoutNotices = {
+        idle_timeout: ['Session timed out', 'You were signed out after 20 minutes of inactivity. Please sign in again to continue.'],
+        'another-tab': ['Signed out of this tab', 'Your account was signed in from another tab, so this tab was signed out.'],
+        signed_out: ['You’ve been signed out', 'Your session ended securely. Sign in again whenever you’re ready.'],
+        session_ended: ['Session ended', 'Your session is no longer active. Please sign in again to continue.']
+      };
+      const signoutNotice = signoutNotices[params.get('reason')] || null;
 
       const setMode = (nextMode, updateUrl = true) => {
         mode = nextMode;
@@ -730,6 +758,13 @@
         else { resetToken = ''; setMode('signin'); }
       });
       byId('forgot-bottom').addEventListener('click', () => { form.reset(); setMode('forgot'); });
+      byId('signout-confirm').addEventListener('click', () => {
+        signoutModal.hidden = true;
+        const cleanUrl = new URL(location.href);
+        cleanUrl.searchParams.delete('reason');
+        history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
+        if (mode === 'signin') byId('username').focus();
+      });
       document.querySelectorAll('[data-toggle-password]').forEach(button => button.addEventListener('click', () => {
         const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
         input.type = visible ? 'password' : 'text';
@@ -793,7 +828,7 @@
           byId('success-title').textContent = 'You’re signed in.';
           byId('success-copy').textContent = 'Your workspace is ready. Loading your saved reviewers…';
           byId('success-modal').hidden = false;
-          window.setTimeout(() => location.replace('index.html?screen=home'), 1200);
+          window.setTimeout(() => location.replace(adminRequested ? 'admin' : 'index.html?screen=home'), 1200);
         } catch (failure) {
           loading.hidden = true;
           showError(failure.message || 'The request could not be completed. Please try again.');
@@ -802,13 +837,19 @@
 
       const initialMode = mode;
       setMode(mode, false);
+      if (signoutNotice) {
+        byId('signout-title').textContent = signoutNotice[0];
+        byId('signout-copy').textContent = signoutNotice[1];
+        signoutModal.hidden = false;
+        requestAnimationFrame(() => byId('signout-confirm').focus());
+      }
       if (initialMode === 'reset') {
         // The token remains in memory for this page only and is removed from visible browser history.
         history.replaceState({}, '', 'login.html?mode=reset');
         if (!/^[a-f0-9]{64}$/.test(resetToken)) showError('This reset link is invalid or incomplete. Request a new password reset link.');
       }
       CSM.api('auth/session').then(session => {
-        if (session.authenticated && mode !== 'reset') location.replace('index.html?screen=home');
+        if (session.authenticated && mode !== 'reset') location.replace(adminRequested && ['admin', 'superadmin'].includes(session.profile?.role) ? 'admin' : 'index.html?screen=home');
       }).catch(() => {});
     })();
   </script>

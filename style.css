@@ -2,8 +2,6 @@
    CO-STUDYMAXX (VAIA-INSPIRED DESIGN SYSTEM)
    Palette: Cream White, Hunter Green, Warm Amber Highlight, Terracotta
    ======================================================== */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&family=Outfit:wght@600;700;800;900&display=swap');
-
 :root {
   /* Colors */
   --bg-cream: #FAF7F2;
@@ -44,9 +42,9 @@
   --warning: #F4A261;
 
   /* Typography */
-  --font-main: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Outfit', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+  --font-mono: "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
 
   /* Radii & Shadows */
   --radius-sm: 8px;
@@ -5480,5 +5478,17 @@ body.logged-out .csm-nav-capsule {
   overflow-y: auto;
   box-sizing: border-box;
   z-index: 20;
+}
+
+/* Professional platform typography: SF Pro where available, with reliable desktop fallbacks. */
+.csm-landing-page,
+.csm-landing-page *:not(i):not(svg):not(path) {
+  font-family: var(--font-main) !important;
+}
+
+.csm-landing-page .font-mono,
+.csm-landing-page code,
+.csm-landing-page pre {
+  font-family: var(--font-mono) !important;
 }
 

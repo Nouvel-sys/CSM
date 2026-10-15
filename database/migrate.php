@@ -42,6 +42,8 @@ if(!in_array('role',$userColumns,true)){$db->exec("ALTER TABLE users ADD COLUMN 
 if(!in_array('locked_until',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN locked_until DATETIME(3) NULL AFTER role');echo "Added temporary account-lock status.\n";}
 $deckColumns=array_column($db->query('SHOW COLUMNS FROM decks')->fetchAll(),'Field');
 if(!in_array('moderation_status',$deckColumns,true)){$db->exec("ALTER TABLE decks ADD COLUMN moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible' AFTER category");echo "Added moderation visibility without changing existing decks.\n";}
+$cardType=$db->query("SHOW COLUMNS FROM cards LIKE 'type'")->fetch();
+if($cardType && strpos((string)($cardType['Type']??''),"'TRUE_FALSE'")===false){$db->exec("ALTER TABLE cards MODIFY type ENUM('MULTIPLE_CHOICE','TRUE_FALSE','IDENTIFICATION') NOT NULL");echo "Added True/False Bombcard support; existing card types were preserved.\n";}
 $db->exec("CREATE TABLE IF NOT EXISTS deck_reports (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,deck_id CHAR(32) NOT NULL,flagged_by_user_id CHAR(32) NULL,
  reason VARCHAR(1000) NOT NULL,status ENUM('open','dismissed','actioned') NOT NULL DEFAULT 'open',
@@ -59,6 +61,12 @@ $db->exec("CREATE TABLE IF NOT EXISTS user_notifications (
  INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
  FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$db->exec("CREATE TABLE IF NOT EXISTS user_achievements (
+ user_id CHAR(32) NOT NULL,achievement_key VARCHAR(40) NOT NULL,
+ earned_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ PRIMARY KEY(user_id,achievement_key),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 $db->exec("CREATE TABLE IF NOT EXISTS security_events (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,actor_user_id CHAR(32) NULL,target_user_id CHAR(32) NULL,

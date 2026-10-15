@@ -1,5 +1,7 @@
 # Co-StudyMaxx System Architecture
 
+Start with [the README](../README.md) for installation and commands. Static branding images live in `assets/images/`; project documentation lives in `docs/`. Browser entry pages stay at the project root so existing routes and relative API requests continue to work.
+
 Co-StudyMaxx is a lightweight, high-performance study platform combining active recall flashcards ("Bombcards"), PDF annotation tools, pressure-based countdown quiz games ("Bombstyle Arena"), and AI flashcard generation.
 
 The architecture emphasizes **simplicity, zero build friction, strong data isolation, and immediate accessibility**.
@@ -33,7 +35,7 @@ The architecture emphasizes **simplicity, zero build friction, strong data isola
 |  - Bombcard.php |                                     |                 |
 |  - Material.php |                                     | - Node Mailer   |
 |  - DeckShare.php|                                     |   (Port 8091)   |
-|  - Arena.php    |                                     |                 |
+|  - Achievements.php |                                 |                 |
 +--------+--------+                                     +-----------------+
          |
          v
@@ -54,6 +56,9 @@ CSM/
 ├── start.bat             # 1-Click developer startup script for Windows
 ├── package.json          # Node scripts ("dev", "start", "mailer", "test")
 ├── router.php            # Built-in PHP server router for clean URLs
+├── assets/images/        # Mascot and sidebar branding images
+├── docs/                 # Architecture and maintenance documentation
+├── database/             # Canonical schema.sql and additive migrations
 │
 ├── index.html            # Main SPA host page (includes React & Tailwind CDN)
 ├── index.jsx             # Unified React application (Components, State, UI)
@@ -69,7 +74,8 @@ CSM/
 │   ├── Database.php      # PDO database connection & query wrapper
 │   ├── User.php          # User registration, authentication, and profiles
 │   ├── Deck.php          # Reviewer decks, categorization, and ownership
-│   ├── Bombcard.php      # Flashcards CRUD (Multiple Choice, Identification)
+│   ├── Bombcard.php      # Flashcards CRUD (Multiple Choice, True/False, Identification)
+│   ├── Achievements.php  # Persistent badge awards and notification creation
 │   ├── Material.php      # PDF document records & secure file management
 │   ├── DeckShare.php     # Public guest sharing tokens (64-char hex)
 │   ├── StudyProgress.php # Leitner box spaced repetition tracking
@@ -79,7 +85,8 @@ CSM/
 ├── server/
 │   ├── bootstrap.php     # Zero-dependency .env loader, session handler, helpers
 │   ├── config.local.php  # Local database credentials & upload limits
-│   └── arena.php         # Bombstyle Arena game round logic & scoring
+│   ├── arena.php         # Bombstyle Arena game round logic & scoring
+│   └── learning_workspace.php # PDF notes, study cards, and AI routes
 │
 ├── mailer/
 │   └── server.js         # Optional background microservice for password reset emails

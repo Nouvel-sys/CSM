@@ -72,6 +72,22 @@ try {
     $answer=expect($a,'arena/answer','POST',['id'=>$session['id'],'position'=>1,'result'=>'correct']);check($answer['answers'][1]['adjustment']===8&&$answer['status']==='completed'&&$answer['remainingMs']>45000,'Correct answer did not award +8 seconds to the existing timer and finish the round.');
     foreach(['easy'=>60,'hard'=>30] as $difficulty=>$seconds){$other=expect($a,'arena/start','POST',['deckId'=>$deckId,'difficulty'=>$difficulty],201);check($other['startingSeconds']===$seconds,"$difficulty starting time is not $seconds seconds.");expect($a,'arena/abandon','POST',['id'=>$other['id']]);}
     $work=expect($a,'workspace');check(count(array_filter($work['decks'],fn($d)=>$d['id']===$deckId))===1,'Created deck disappeared on refresh.');check(count($work['sessions'])===3,'Arena results are missing from persisted history.');check(count($work['studyProgress'])===2,'Arena answers did not save per-card progress.');
+    $earned=$work['achievements'];sort($earned);
+    check($earned===['arena_warrior','first_deck','pdf_scholar','streak_starter'],'Workspace did not persist the four eligible achievements or awarded Sharp Recall too early.');
+    $achievementNotices=expect($a,'notifications');
+    check(count($achievementNotices['notifications'])===4&&$achievementNotices['unreadCount']===4,'Achievement unlocks did not create four unread notifications.');
+    check(count(array_filter($achievementNotices['notifications'],fn($notice)=>$notice['type']==='achievement_unlocked'))===4,'Achievement notifications have the wrong type.');
+    expect($a,'workspace');
+    check(expect($a,'notifications')['unreadCount']===4,'Refreshing awarded duplicate achievement notifications.');
+    check(expect($b,'notifications')['notifications']===[],'Achievement notifications leaked to another user.');
+    $achievementNoticeId=$achievementNotices['notifications'][0]['id'];
+    expect($b,'notifications/read','PATCH',['id'=>$achievementNoticeId]);
+    check(expect($a,'notifications')['unreadCount']===4,'A different account marked an achievement notification as read.');
+    expect($a,'notifications/read','PATCH',['id'=>$achievementNoticeId]);
+    check(expect($a,'notifications')['unreadCount']===3,'Reading an achievement did not update the unread count.');
+    expect($a,'notifications','DELETE');
+    $afterClear=expect($a,'workspace');
+    check(count($afterClear['achievements'])===4&&expect($a,'notifications')['notifications']===[],'Clearing notifications erased badges or recreated old unlock notifications.');
     $fromHighlight=expect($a,'highlights/card','POST',['documentId'=>$doc['id'],'page'=>1,'text'=>'Selected answer passage','counterpart'=>'What is the PDF excerpt about?','purpose'=>'answer','color'=>'#8dc7ef','selection'=>[['x'=>0.2,'y'=>0.4,'width'=>0.2,'height'=>0.03]]],201);
     $deckAfterHighlightCard=expect($a,'decks&id='.$deckId);$sourceHighlight=array_values(array_filter(expect($a,'highlights&documentId='.$doc['id']),fn($item)=>$item['cardId']===$fromHighlight['cardId']));
     check(count($sourceHighlight)===1&&$sourceHighlight[0]['purpose']==='answer','PDF-created Bombcard was not linked to its source highlight.');

@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0"
 
 echo ========================================================
 echo    Co-StudyMaxx Development Server
@@ -27,9 +28,15 @@ if "%PHP_BIN%"=="" (
 
 echo Using PHP: %PHP_BIN%
 echo.
-echo Starting mailer service on http://127.0.0.1:8091 ...
-start /B cmd /c "npm run mailer 2>&1"
-timeout /t 2 /nobreak >nul
+where npm.cmd >nul 2>nul
+if not errorlevel 1 (
+    echo Starting mailer service on http://127.0.0.1:8091 ...
+    start "" /B cmd /d /c "call npm.cmd run mailer"
+    timeout /t 2 /nobreak >nul
+) else (
+    echo [WARNING] Node.js/npm was not found. The PHP app will still start, but password-recovery email will be unavailable.
+    echo.
+)
 echo Starting Co-StudyMaxx on http://127.0.0.1:8080 ...
 echo Press Ctrl+C to stop the server.
 echo.

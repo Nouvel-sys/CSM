@@ -23,6 +23,14 @@ if (!in_array($method, ['GET', 'POST', 'PATCH', 'DELETE'], true)) {
     fail(405, 'Method not allowed.');
 }
 
+if (str_starts_with($route, 'admin/')) {
+    enforce_admin_access();
+}
+
+if ($method !== 'GET' && !same_origin_request()) {
+    fail(403, 'Cross-origin state-changing requests are not allowed.');
+}
+
 $publicSessionRoutes = [
     'auth/session',
     'auth/login',
@@ -52,10 +60,13 @@ if ($route === 'auth/session' && $method === 'GET') {
         $u = query('SELECT auth_version FROM users WHERE id=?', [$_SESSION['user_id']])->fetch();
         $ok = $u && (int)$u['auth_version'] == ($_SESSION['auth_version'] ?? 0) && tab_session_matches((string)$_SESSION['user_id'], $u);
     }
+    $sessionProfile = $ok ? profile($_SESSION['user_id']) : null;
     respond([
         'authenticated' => (bool)$ok,
+        'timedOut' => $sessionTimedOut,
         'csrf' => $_SESSION['csrf'],
-        'profile' => $ok ? profile($_SESSION['user_id']) : null,
+        'profile' => $sessionProfile,
+        'adminUrl' => $sessionProfile && in_array($sessionProfile['role'] ?? '', ['admin', 'superadmin'], true) ? admin_entry_url() : null,
     ]);
 }
 
@@ -210,6 +221,7 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
         'user_id' => $row['id'],
         'auth_version' => (int)$row['auth_version'],
         'expires_at' => $until,
+        'last_activity' => time(),
         'csrf' => bin2hex(random_bytes(32)),
     ];
     setcookie(session_name(), session_id(), [
@@ -308,7 +320,7 @@ if ($route === 'shared/document' && $method === 'GET') {
     header('Content-Length: ' . filesize($path));
     $disp = ($_GET['download'] ?? '') === '1' ? 'attachment' : 'inline';
     header("Content-Disposition: $disp; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode((string)$document['title']));
-    header('Cache-Control: public, max-age=3600');
+    header('Cache-Control: private, no-store');
     header('X-Content-Type-Options: nosniff');
     header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
     readfile($path);
@@ -992,6 +1004,9 @@ if ($route === 'ai/generate' && $method === 'POST') {
     if ($apiKey === '') {
         fail(503, 'Gemini AI is not configured on this server.');
     }
+    if (!throttle_allows(hash_hmac('sha256', 'ai-generate:' . $user, (string)($config['mailer_secret'] ?: 'local-ai-throttle-key-change-this')), 20, 3600)) {
+        fail(429, 'AI generation is temporarily rate-limited. Please try again later.');
+    }
 
     $data = input();
     $notes = field($data, 'notes', 60000);
@@ -1004,10 +1019,12 @@ if ($route === 'ai/generate' && $method === 'POST') {
     $instruction = "You are an expert academic study assistant for Co-StudyMaxx.\nGenerate exactly {$count} high-yield study flashcards based SOLELY on the study notes below.\n";
     if ($format === 'MULTIPLE_CHOICE') {
         $instruction .= "All {$count} flashcards must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";
+    } elseif ($format === 'TRUE_FALSE') {
+        $instruction .= "All {$count} flashcards must be TRUE_FALSE statements with correctAnswer exactly True or False.\n";
     } elseif ($format === 'IDENTIFICATION') {
         $instruction .= "All {$count} flashcards must be IDENTIFICATION with prompt and clear concise correctAnswer term/concept.\n";
     } else {
-        $instruction .= "Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer) and IDENTIFICATION (prompt, correctAnswer).\n";
+        $instruction .= "Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer), TRUE_FALSE (correctAnswer exactly True or False), and IDENTIFICATION (prompt, correctAnswer).\n";
     }
 
     if ($focus === 'key_terms') {
@@ -1016,14 +1033,19 @@ if ($route === 'ai/generate' && $method === 'POST') {
         $instruction .= "Focus: Emphasize conceptual understanding, cause-and-effect relationships, and practical scenarios.\n";
     }
 
-    $instruction .= "Output schema: Return ONLY a raw JSON array matching this structure:\n[{\"type\":\"MULTIPLE_CHOICE\"|\"IDENTIFICATION\",\"prompt\":\"...\",\"options\":[\"...\"],\"correctIndex\":0,\"correctAnswer\":\"...\",\"hint\":\"...\"}]\nDo NOT wrap in markdown fences like ```json. Return ONLY valid JSON array.\n\nSTUDY MATERIAL:\n" . $notes;
+    $instruction .= "Output schema: Return ONLY a raw JSON array matching this structure:\n[{\"type\":\"MULTIPLE_CHOICE\"|\"TRUE_FALSE\"|\"IDENTIFICATION\",\"prompt\":\"...\",\"options\":[\"...\"],\"correctIndex\":0,\"correctAnswer\":\"...\",\"alternates\":\"...\",\"hint\":\"...\"}]\nDo NOT wrap in markdown fences like ```json. Return ONLY valid JSON array.\n\nSTUDY MATERIAL:\n" . $notes;
 
-    $modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    $modelsToTry = array_values(array_unique(array_filter([
+        trim((string)($config['gemini_model'] ?? 'gemini-3.8-flash')),
+        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-2.5-flash',
+    ])));
     $geminiResponse = null;
     $lastErr = '';
 
     foreach ($modelsToTry as $mName) {
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent?key=' . rawurlencode($apiKey);
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent';
         $payload = json_encode([
             'contents' => [['parts' => [['text' => $instruction]]]],
             'generationConfig' => [
@@ -1037,9 +1059,10 @@ if ($route === 'ai/generate' && $method === 'POST') {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'x-goog-api-key: ' . $apiKey]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
         $raw = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -1083,7 +1106,8 @@ if ($route === 'ai/generate' && $method === 'POST') {
         if (!is_array($c) || empty($c['prompt'])) {
             continue;
         }
-        $type = ($c['type'] ?? 'MULTIPLE_CHOICE') === 'IDENTIFICATION' ? 'IDENTIFICATION' : 'MULTIPLE_CHOICE';
+        $rawType = strtoupper(trim((string)($c['type'] ?? 'MULTIPLE_CHOICE')));
+        $type = in_array($rawType, ['MULTIPLE_CHOICE','TRUE_FALSE','IDENTIFICATION'], true) ? $rawType : 'MULTIPLE_CHOICE';
         $prompt = trim((string)$c['prompt']);
         $hint = !empty($c['hint']) ? trim((string)$c['hint']) : null;
 
@@ -1113,6 +1137,21 @@ if ($route === 'ai/generate' && $method === 'POST') {
                 'correctAnswer' => $ans,
                 'hint' => $hint,
             ];
+        } elseif ($type === 'TRUE_FALSE') {
+            $rawAnswer = $c['correctAnswer'] ?? ($c['answer'] ?? '');
+            $ans = is_bool($rawAnswer) ? ($rawAnswer ? 'True' : 'False') : ucfirst(strtolower(trim((string)$rawAnswer)));
+            if (!in_array($ans, ['True','False'], true)) {
+                continue;
+            }
+            $normalized[] = [
+                'id' => 'ai-' . ($idx + 1) . '-' . uid(),
+                'type' => 'TRUE_FALSE',
+                'prompt' => $prompt,
+                'options' => ['True','False'],
+                'correctIndex' => $ans === 'True' ? 0 : 1,
+                'correctAnswer' => $ans,
+                'hint' => $hint,
+            ];
         } else {
             $ans = trim((string)($c['correctAnswer'] ?? ''));
             if ($ans === '') {
@@ -1123,6 +1162,7 @@ if ($route === 'ai/generate' && $method === 'POST') {
                 'type' => 'IDENTIFICATION',
                 'prompt' => $prompt,
                 'correctAnswer' => $ans,
+                'alternates' => !empty($c['alternates']) ? trim((string)$c['alternates']) : '',
                 'hint' => $hint,
             ];
         }
@@ -1165,6 +1205,9 @@ if ($route === 'documents' && $method === 'POST') {
     if ($file['error'] !== UPLOAD_ERR_OK) {
         fail(413, 'Upload failed; check the PDF size and PHP limits.');
     }
+    if (!isset($file['tmp_name'], $file['name'], $file['size']) || !is_string($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+        fail(422, 'The uploaded file could not be verified.');
+    }
     if ($file['size'] < 5 || $file['size'] > $config['max_upload_bytes']) {
         fail(413, 'PDFs must be no larger than 10 MB.');
     }
@@ -1189,6 +1232,9 @@ if ($route === 'documents' && $method === 'POST') {
     }
 
     $real = realpath($dir);
+    if ($real === false) {
+        fail(500, 'Private file storage could not be resolved.');
+    }
     $root = realpath(dirname(__DIR__));
     if (str_starts_with(strtolower(str_replace('\\', '/', $real) . '/'), strtolower(str_replace('\\', '/', $root) . '/'))) {
         fail(503, 'PDF storage must be outside the public project directory.');

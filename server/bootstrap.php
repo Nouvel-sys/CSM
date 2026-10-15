@@ -22,17 +22,44 @@ date_default_timezone_set('UTC');ini_set('display_errors','0');
 })();
 foreach(glob(dirname(__DIR__).'/classes/*.php') as $classFile)require_once $classFile;
 function respond($data,int $status=200):void{http_response_code($status);header('Content-Type: application/json; charset=utf-8');header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');echo json_encode($data,JSON_UNESCAPED_UNICODE|JSON_INVALID_UTF8_SUBSTITUTE);exit;}
-function fail(int $status,string $message):void{if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();respond(['error'=>$message],$status);}
+function fail(int $status,string $message,array $extra=[]):void{if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();respond(array_merge(['error'=>$message],$extra),$status);}
+function security_headers():void{
+    if(PHP_SAPI==='cli')return;
+    if(function_exists('header_remove'))@header_remove('X-Powered-By');
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: SAMEORIGIN');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header('Cross-Origin-Resource-Policy: same-origin');
+    header("Content-Security-Policy: object-src 'none'; base-uri 'self'; frame-ancestors 'self'");
+    if((!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')||($_SERVER['SERVER_PORT']??'')==='443')header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+}
+security_headers();
 set_exception_handler(function(Throwable $error){if(isset($GLOBALS['db'])&&$GLOBALS['db']->inTransaction())$GLOBALS['db']->rollBack();error_log((string)$error);fail(500,'The server could not complete the request. Please try again.');});
 if(!is_file(__DIR__.'/config.local.php'))fail(503,'Server setup is incomplete. Copy server/config.example.php to config.local.php and configure MySQL.');
 $config=require __DIR__.'/config.local.php';$config+=[
  'app_env'=>getenv('APP_ENV')?:'local',
  'app_base_url'=>getenv('APP_BASE_URL')?:'',
+ 'admin_base_url'=>getenv('ADMIN_BASE_URL')?:'',
+ 'admin_host'=>getenv('ADMIN_HOST')?:'',
+ 'admin_ip_allowlist'=>getenv('ADMIN_IP_ALLOWLIST')?:'',
  'mailer_url'=>getenv('CSM_MAILER_URL')?:'http://127.0.0.1:8091/send',
  'mailer_secret'=>getenv('CSM_MAILER_SECRET')?:'',
  'gemini_api_key'=>getenv('GEMINI_API_KEY')?:($config['gemini_api_key']??''),
+ 'gemini_model'=>getenv('GEMINI_MODEL')?:'gemini-3.8-flash',
 ];$database=new Database($config);$db=$database->getConnection();
-foreach(['APP_BASE_URL'=>'app_base_url','CSM_MAILER_URL'=>'mailer_url','CSM_MAILER_SECRET'=>'mailer_secret','GEMINI_API_KEY'=>'gemini_api_key'] as $environmentKey=>$configKey){$environmentValue=getenv($environmentKey);if($environmentValue!==false&&$environmentValue!=='')$config[$configKey]=$environmentValue;}
+foreach(['APP_BASE_URL'=>'app_base_url','ADMIN_BASE_URL'=>'admin_base_url','ADMIN_HOST'=>'admin_host','ADMIN_IP_ALLOWLIST'=>'admin_ip_allowlist','CSM_MAILER_URL'=>'mailer_url','CSM_MAILER_SECRET'=>'mailer_secret','GEMINI_API_KEY'=>'gemini_api_key','GEMINI_MODEL'=>'gemini_model'] as $environmentKey=>$configKey){$environmentValue=getenv($environmentKey);if($environmentValue!==false&&$environmentValue!=='')$config[$configKey]=$environmentValue;}
+function normalized_host_value(string $value):string{$value=trim($value);if($value==='')return '';$parsed=parse_url(str_contains($value,'://')?$value:'http://'.$value);if(!is_array($parsed)||empty($parsed['host']))return '';$host=strtolower((string)$parsed['host']);return $host.(isset($parsed['port'])?':'.(int)$parsed['port']:'');}
+function configured_admin_host():string{global $config;$host=normalized_host_value((string)($config['admin_host']??''));if($host!=='')return $host;$base=parse_url((string)($config['admin_base_url']??''));if(!is_array($base)||empty($base['host']))return '';return strtolower((string)$base['host']).(isset($base['port'])?':'.(int)$base['port']:'');}
+function admin_entry_url():string{global $config;$base=trim((string)($config['admin_base_url']??''));return rtrim($base!==''?$base:app_base_url(),'/').'/admin';}
+function enforce_admin_access():void{global $config;$expected=configured_admin_host();if($expected!==''&&normalized_host_value((string)($_SERVER['HTTP_HOST']??''))!==$expected)fail(404,'Not found.');$allowlist=preg_split('/[\s,]+/',trim((string)($config['admin_ip_allowlist']??'')),-1,PREG_SPLIT_NO_EMPTY);if($allowlist&& !in_array((string)($_SERVER['REMOTE_ADDR']??''),$allowlist,true))fail(404,'Not found.');}
+if(($config['app_env']??'local')==='production'){
+ $base=parse_url((string)($config['app_base_url']??''));
+ $adminBase=parse_url((string)($config['admin_base_url']??''));
+ if(empty($config['secure_cookie'])||!is_array($base)||($base['scheme']??'')!=='https')fail(503,'Production requires HTTPS and secure session cookies.');
+ if(!is_array($adminBase)||($adminBase['scheme']??'')!=='https'||configured_admin_host()===''||strtolower((string)($adminBase['host']??''))===strtolower((string)($base['host']??'')))fail(503,'Production requires a separate HTTPS admin host.');
+}
 $users=new User($database);$passwordRecovery=new PasswordRecovery($database,$users);$decksService=new Deck($database);$bombcardsService=new Bombcard($database);$materialsService=new Material($database);$progressService=new StudyProgress($database);$bombstyleService=new BombstyleSession($database);$deckSharesService=new DeckShare($database);$documentPagesService=new DocumentPage($database);$documentNotesService=new DocumentNote($database);$studyDecksService=new StudyDeck($database);$studyCardsService=new StudyCard($database);$studyReviewService=new StudyReview($database);
 function app_base_url():string{global $config;if(!empty($config['app_base_url']))return rtrim($config['app_base_url'],'/');$scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')||(isset($_SERVER['SERVER_PORT'])&&(int)$_SERVER['SERVER_PORT']===443)?'https':'http';$host=$_SERVER['HTTP_HOST']??'localhost';$script=str_replace('\\','/',$_SERVER['SCRIPT_NAME']??'');$basePath=preg_replace('~/api(?:/index\.php)?$~i','',dirname($script));$basePath=rtrim(str_replace('\\','/',$basePath),'/');return $scheme.'://'.$host.($basePath!==''?'/'.ltrim($basePath,'/'):'');}
 function query(string $sql,array $params=[]):PDOStatement{global $database;return $database->query($sql,$params);}
@@ -53,9 +80,16 @@ class DatabaseSessionHandler implements SessionHandlerInterface{
  public function write($id,$data):bool{query('INSERT INTO web_sessions (id,payload,expires_at) VALUES (?,?,?) ON DUPLICATE KEY UPDATE payload=VALUES(payload),expires_at=VALUES(expires_at)',[$id,$data,$_SESSION['expires_at']??time()+7200]);return true;}
  public function destroy($id):bool{query('DELETE FROM web_sessions WHERE id=?',[$id]);return true;}public function gc($lifetime):int{return query('DELETE FROM web_sessions WHERE expires_at<?',[time()])->rowCount();}
 }
-session_set_save_handler(new DatabaseSessionHandler(),true);ini_set('session.use_only_cookies','1');ini_set('session.use_strict_mode','1');session_name('csm_session');
+const CSM_IDLE_TIMEOUT_SECONDS=1200;
+session_set_save_handler(new DatabaseSessionHandler(),true);ini_set('session.use_only_cookies','1');ini_set('session.use_trans_sid','0');ini_set('session.use_strict_mode','1');session_name('csm_session');
 session_set_cookie_params(['lifetime'=>0,'path'=>'/','secure'=>(bool)$config['secure_cookie'],'httponly'=>true,'samesite'=>'Lax']);session_start();
-if(($_SESSION['expires_at']??PHP_INT_MAX)<=time()){$_SESSION=[];session_regenerate_id(true);}$_SESSION['csrf']=$_SESSION['csrf']??bin2hex(random_bytes(32));
+$sessionTimedOut=false;
+$sessionExpired=($_SESSION['expires_at']??PHP_INT_MAX)<=time();
+$idleExpired=isset($_SESSION['user_id'])&&isset($_SESSION['last_activity'])&&(int)$_SESSION['last_activity']+CSM_IDLE_TIMEOUT_SECONDS<=time();
+if($sessionExpired||$idleExpired){$_SESSION=[];session_regenerate_id(true);$sessionTimedOut=$idleExpired;}
+if($sessionTimedOut)$_SESSION['idle_logout']=true;
+$_SESSION['csrf']=$_SESSION['csrf']??bin2hex(random_bytes(32));
+if(isset($_SESSION['user_id']))$_SESSION['last_activity']=time();
 function csrf():void{if(!hash_equals($_SESSION['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']??''))fail(403,'Invalid CSRF token. Reload and try again.');}
 function recovery_delivery_configured():bool{
  global $config;
@@ -73,8 +107,19 @@ function request_tab_id():?string{$tab=$_SERVER['HTTP_X_CSM_TAB_ID']??null;if(!i
 function request_browser_id():?string{$browser=$_SERVER['HTTP_X_CSM_BROWSER_ID']??null;if(!is_string($browser)&&in_array($_GET['r']??'', ['documents/file','admin/documents/file'],true))$browser=$_GET['browserId']??null;return is_string($browser)&&preg_match('/^[a-f0-9]{32}$/D',$browser)?$browser:null;}
 function request_tab_hash():?string{$tab=request_tab_id();return $tab?hash('sha256',$tab):null;}
 function request_browser_hash():?string{$browser=request_browser_id();return $browser?hash('sha256',$browser):null;}
+function same_origin_request():bool{
+ $site=strtolower((string)($_SERVER['HTTP_SEC_FETCH_SITE']??''));
+ if($site==='cross-site')return false;
+ $origin=(string)($_SERVER['HTTP_ORIGIN']??'');
+ if($origin==='')return true;
+ $parsed=parse_url($origin);$hostHeader=(string)($_SERVER['HTTP_HOST']??'');$expected=parse_url('http://'.$hostHeader);
+ if(!is_array($parsed)||!is_array($expected)||empty($parsed['host'])||empty($expected['host']))return false;
+ $scheme=(!empty($_SERVER['HTTPS'])&&$_SERVER['HTTPS']!=='off')?'https':'http';
+ $originPort=(int)($parsed['port']??($parsed['scheme']==='https'?443:80));$expectedPort=(int)($expected['port']??($scheme==='https'?443:80));
+ return strtolower((string)$parsed['scheme'])===$scheme&&strtolower((string)$parsed['host'])===strtolower((string)$expected['host'])&&$originPort===$expectedPort;
+}
 function tab_session_matches(string $user,?array $row=null):bool{$tabHash=request_tab_hash();$browserHash=request_browser_hash();if(!$tabHash||!$browserHash)return false;$row=$row??query('SELECT auth_version FROM users WHERE id=?',[$user])->fetch();if(!$row||(int)$row['auth_version']!==(int)($_SESSION['auth_version']??0))return false;query('INSERT IGNORE INTO user_active_tabs(user_id,browser_hash,active_tab_hash) VALUES(?,?,?)',[$user,$browserHash,$tabHash]);$active=query('SELECT active_tab_hash FROM user_active_tabs WHERE user_id=? AND browser_hash=?',[$user,$browserHash])->fetchColumn();$matches=is_string($active)&&hash_equals($active,$tabHash);if($matches)query('UPDATE user_active_tabs SET updated_at=UTC_TIMESTAMP(3) WHERE user_id=? AND browser_hash=? AND active_tab_hash=?',[$user,$browserHash,$tabHash]);return $matches;}
-function user_id():string{$id=$_SESSION['user_id']??'';$row=$id?query('SELECT auth_version FROM users WHERE id=?',[$id])->fetch():false;if(!$row||(int)$row['auth_version']!==($_SESSION['auth_version']??0))fail(401,'Please sign in.');if(!tab_session_matches($id,$row))fail(401,'This tab was signed out because the account was opened in another tab. Please sign in again.');return $id;}
+function user_id():string{$id=$_SESSION['user_id']??'';if(!$id&&isset($_SESSION['idle_logout']))fail(401,'Your account was signed out after 20 minutes of inactivity.',['code'=>'idle_timeout']);$row=$id?query('SELECT auth_version FROM users WHERE id=?',[$id])->fetch():false;if(!$row||(int)$row['auth_version']!==($_SESSION['auth_version']??0))fail(401,'Please sign in.');if(!tab_session_matches($id,$row))fail(401,'This tab was signed out because the account was opened in another tab. Please sign in again.');return $id;}
 function current_role(string $user):string{$role=query('SELECT role FROM users WHERE id=?',[$user])->fetchColumn();if(!is_string($role))fail(401,'Please sign in.');return $role;}
 function audit_event(?string $actor,string $event,?string $target=null,array $details=[],string $targetType='user'):void{global $database;(new Admin($database))->audit($actor,$event,$target,$details,$targetType);}
 function notify_user(string $recipient,string $type,string $title,string $message,?string $deckId=null):void{$slice=static fn(string $value,int $limit):string=>function_exists('mb_substr')?mb_substr($value,0,$limit,'UTF-8'):substr($value,0,$limit);query('INSERT INTO user_notifications(user_id,deck_id,notification_type,title,message) VALUES(?,?,?,?,?)',[$recipient,$deckId,$type,$slice($title,160),$slice($message,1000)]);}
@@ -86,7 +131,7 @@ function card_data(array $row):array{$opts=query('SELECT * FROM card_options WHE
 function deck_data(array $row):array{global $bombcardsService,$materialsService;$cards=array_map('card_data',$bombcardsService->forDeck($row['id']));$docs=$materialsService->byDeck($row['id']);$tabId=request_tab_id();$browserId=request_browser_id();foreach($docs as &$doc){$doc['deckId']=$row['id'];$doc['url']='api/index.php?r=documents/file&id='.$doc['id'].($tabId&&$browserId?'&tabId='.$tabId.'&browserId='.$browserId:'');}unset($doc);$shareRow=query('SELECT share_token,is_active FROM deck_shares WHERE deck_id=?',[$row['id']])->fetch();$shareInfo=null;if($shareRow){$shareInfo=['token'=>$shareRow['share_token'],'isActive'=>(bool)$shareRow['is_active'],'url'=>app_base_url().'/shared/deck/'.$shareRow['share_token']];}return ['id'=>$row['id'],'code'=>$row['title'],'title'=>$row['title'],'subject'=>$row['subject'],'category'=>$row['category'],'owner'=>'You','lastModified'=>$row['updated_at'],'section'=>strtotime($row['updated_at'])>time()-604800?'recent':'older','cards'=>$cards,'documents'=>$docs,'share'=>$shareInfo];}
 function save_card(array $data,string $deck,?string $id=null,int $position=0):string{global $bombcardsService;return $bombcardsService->save($data,$deck,$id,$position);}
 function workspace(string $user):array{
- global $config,$decksService,$progressService,$bombstyleService,$users;
+ global $config,$decksService,$progressService,$bombstyleService,$users,$database;
  if(in_array(current_role($user),['admin','superadmin'],true))return ['profile'=>$users->profile($user),'decks'=>[],'activities'=>[],'stats'=>['decks'=>0,'cards'=>0,'documents'=>0,'decksTrend'=>0,'cardsTrend'=>0,'studyDays'=>0,'studyBestDays'=>0,'accuracy'=>0,'accuracyTrend'=>0,'activityChart'=>[]],'sessions'=>[],'studyProgress'=>[],'aiConfigured'=>!empty($config['gemini_api_key'])];
  $decks=array_map('deck_data',$decksService->allForUser($user));
  $activities=query('SELECT id,deck_id AS deckId,material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC LIMIT 100',[$user])->fetchAll();
@@ -106,5 +151,6 @@ function workspace(string $user):array{
  $days=query('SELECT DISTINCT DATE(created_at) FROM study_activity WHERE user_id=? ORDER BY DATE(created_at)',[$user])->fetchAll(PDO::FETCH_COLUMN);$streak=0;$day=gmdate('Y-m-d');if(!in_array($day,$days,true))$day=gmdate('Y-m-d',time()-86400);while(in_array($day,$days,true)){$streak++;$day=gmdate('Y-m-d',strtotime($day)-86400);}$stats['studyDays']=$streak;
  $best=0;$run=0;$previousDay=null;foreach($days as $date){$run=$previousDay!==null&&strtotime($date)===strtotime($previousDay.' +1 day')?$run+1:1;$best=max($best,$run);$previousDay=$date;}$stats['studyBestDays']=$best;
  $sessions=$bombstyleService->history($user);$sessions=array_map(fn($s)=>['id'=>$s['id'],'deckId'=>$s['deck_id'],'title'=>$s['deck_title'],'difficulty'=>$s['difficulty'],'status'=>$s['status'],'correctCount'=>(int)$s['correct_count'],'answered'=>(int)$s['current_index'],'bestStreak'=>(int)$s['max_streak'],'started_at'=>$s['started_at'],'ended_at'=>$s['ended_at']],$sessions);
- return ['profile'=>$users->profile($user),'decks'=>$decks,'activities'=>$activities,'stats'=>$stats,'sessions'=>$sessions,'studyProgress'=>$progressService->forUser($user),'aiConfigured'=>!empty($config['gemini_api_key'])];
+ $achievements=(new Achievements($database))->sync($user,$stats,$sessions);
+ return ['profile'=>$users->profile($user),'decks'=>$decks,'activities'=>$activities,'stats'=>$stats,'sessions'=>$sessions,'achievements'=>$achievements,'studyProgress'=>$progressService->forUser($user),'aiConfigured'=>!empty($config['gemini_api_key'])];
 }

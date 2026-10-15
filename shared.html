@@ -8,12 +8,7 @@
   <meta name="description"
     content="Study this shared reviewer deck on Co-StudyMaxx. Practice cards, flip flashcards, and test yourself with countdown quiz mode.">
 
-  <!-- Typography: Plus Jakarta Sans (Body/UI), Outfit (Display/Headings), JetBrains Mono (Timer/Mono) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap"
-    rel="stylesheet">
+  <!-- Use the platform's professional system font stack (SF Pro on Apple devices). -->
 
   <script>
     (function () {
@@ -33,9 +28,9 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['Outfit', 'Plus Jakarta Sans', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace']
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            mono: ['SF Mono', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'monospace']
           },
           colors: {
             brand: {
@@ -93,7 +88,7 @@
     }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
   </script>
 
-  <link rel="stylesheet" href="index.css?v=1.18">
+  <link rel="stylesheet" href="index.css?v=1.21">
 </head>
 
 <body>
@@ -105,8 +100,8 @@
     window.CSM_GUEST_SHARE_TOKEN = <?php echo json_encode((string)$_GET['share_token']); ?>;
     <?php endif; ?>
   </script>
-  <script src="api.js?v=1.18"></script>
-  <script type="text/babel" src="index.jsx?v=1.18"></script>
+  <script src="api.js?v=1.19"></script>
+  <script type="text/babel" src="index.jsx?v=1.35"></script>
 </body>
 
 </html>

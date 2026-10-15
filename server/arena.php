@@ -5,6 +5,19 @@ function arena_tick(array &$s):void{$now=now_ms();if($s['status']==='active'&&!(
 function arena_view(array $s):array{$questions=query('SELECT snapshot FROM arena_questions WHERE session_id=? ORDER BY position',[$s['id']])->fetchAll(PDO::FETCH_COLUMN);$answers=query('SELECT position,result,adjustment_seconds adjustment,remaining_ms remainingMs,submitted_at FROM arena_answers WHERE session_id=? ORDER BY position',[$s['id']])->fetchAll();return ['id'=>$s['id'],'version'=>(int)$s['clock_at_ms'],'deckId'=>$s['deck_id'],'deckTitle'=>$s['deck_title'],'difficulty'=>$s['difficulty'],'startingSeconds'=>(int)$s['starting_seconds'],'remainingMs'=>(int)$s['remaining_ms'],'paused'=>(bool)$s['paused'],'status'=>$s['status'],'index'=>(int)$s['current_index'],'correct'=>(int)$s['correct_count'],'streak'=>(int)$s['streak'],'maxStreak'=>(int)$s['max_streak'],'durationMs'=>(int)$s['duration_ms'],'queue'=>array_map(fn($q)=>json_decode($q,true),$questions),'answers'=>$answers];}
 function arena_locked(string $id,string $user):array{global $db;$db->beginTransaction();$s=query('SELECT * FROM arena_sessions WHERE id=? AND user_id=? FOR UPDATE',[$id,$user])->fetch();if(!$s)fail(404,'Session not found.');if($s['deck_id']&&query("SELECT id FROM decks WHERE id=? AND moderation_status='visible'",[$s['deck_id']])->fetchColumn()===false)fail(404,'Session not found.');arena_tick($s);return $s;}
 function arena_stop_hidden_deck(string $deckId):void{foreach(query("SELECT * FROM arena_sessions WHERE deck_id=? AND status='active' FOR UPDATE",[$deckId])->fetchAll() as $session){arena_tick($session);arena_finish($session,'abandoned');arena_save($session);}}
+function arena_normalize_answer(string $answer):string{$answer=preg_replace('/\s+/u',' ',trim($answer));return strtolower((string)$answer);}
+function arena_answer_matches(array $card,string $answer):bool{
+ $candidate=arena_normalize_answer($answer);$correct=arena_normalize_answer((string)($card['correctAnswer']??''));
+ if(($card['type']??'')==='TRUE_FALSE')return in_array($candidate,['true','false'],true)&&$candidate===$correct;
+ if(($card['type']??'')==='MULTIPLE_CHOICE'){
+  $options=is_array($card['options']??null)?$card['options']:[];$index=isset($card['correctIndex'])?(int)$card['correctIndex']:-1;
+  $optionCorrect=$index>=0&&isset($options[$index])?arena_normalize_answer((string)$options[$index]):'';
+  return $candidate!==''&&($candidate===$correct||($optionCorrect!==''&&$candidate===$optionCorrect));
+ }
+ $accepted=array_merge([$correct],preg_split('/[,;\n]+/',(string)($card['alternates']??''),-1,PREG_SPLIT_NO_EMPTY));
+ foreach($accepted as $value)if($candidate!==''&&$candidate===arena_normalize_answer((string)$value))return true;
+ return false;
+}
 function arena_routes(string $route,string $method,string $user):void{
  global $db,$decksService,$bombcardsService,$bombstyleService,$progressService;
  if($route==='arena/start'&&$method==='POST'){
@@ -14,6 +27,28 @@ function arena_routes(string $route,string $method,string $user):void{
  }
  if($route==='arena/active'&&$method==='GET'){$s=$bombstyleService->activeForUser($user);if(!$s)respond(null);$s=arena_locked($s['id'],$user);arena_save($s);$view=arena_view($s);$db->commit();respond($view);}
  if($route==='arena/session'&&$method==='GET'){$s=arena_locked(id_field($_GET),$user);arena_save($s);$view=arena_view($s);$db->commit();respond($view);}
+ if($route==='arena/answer'&&$method==='POST'){
+  $data=input();$s=arena_locked(id_field($data),$user);$position=$data['position']??null;
+  if(!is_int($position)||$position<0)fail(422,'Invalid answer.');
+  $answerProvided=array_key_exists('answer',$data);
+  if($answerProvided&&!is_string($data['answer']))fail(422,'Invalid answer.');
+  $result=null;
+  if($answerProvided){
+   $snapshot=query('SELECT snapshot FROM arena_questions WHERE session_id=? AND position=?',[$s['id'],$position])->fetchColumn();
+   $card=is_string($snapshot)?json_decode($snapshot,true):null;
+   if(!is_array($card))fail(404,'Question not found.');
+   $result=arena_answer_matches($card,(string)$data['answer'])?'correct':'wrong';
+  } else {$result=field($data,'result',10);if(!in_array($result,['correct','wrong'],true))fail(422,'Invalid answer.');}
+  $exists=query('SELECT result FROM arena_answers WHERE session_id=? AND position=?',[$s['id'],$position])->fetch();
+  if(!$exists&&$s['status']==='active'){
+   if($s['paused'])fail(409,'Resume this session first.');if($position!==(int)$s['current_index'])fail(409,'This is not the current question.');
+   $q=query('SELECT card_id FROM arena_questions WHERE session_id=? AND position=?',[$s['id'],$position])->fetch();if(!$q)fail(404,'Question not found.');
+   $delta=$result==='correct'?8:-5;$s['remaining_ms']=max(0,$s['remaining_ms']+$delta*1000);$s['current_index']++;$s['correct_count']+=(int)($result==='correct');$s['streak']=$result==='correct'?$s['streak']+1:0;$s['max_streak']=max($s['max_streak'],$s['streak']);
+   query('INSERT INTO arena_answers (id,session_id,position,result,adjustment_seconds,remaining_ms) VALUES (?,?,?,?,?,?)',[uid(),$s['id'],$position,$result,$delta,$s['remaining_ms']]);if($q['card_id'])$progressService->record($user,$q['card_id'],$result==='correct'?'known':'unknown');
+   $count=(int)query('SELECT COUNT(*) FROM arena_questions WHERE session_id=?',[$s['id']])->fetchColumn();if(!$s['remaining_ms'])arena_finish($s,'timeout');elseif($s['current_index']>=$count)arena_finish($s,'completed');
+  }
+  arena_save($s);$view=arena_view($s);$view['answerResult']=$result;$db->commit();respond($view);
+ }
  if(in_array($route,['arena/answer','arena/pause','arena/resume','arena/abandon'],true)&&$method==='POST'){
   $data=input();$s=arena_locked(id_field($data),$user);
   if($route==='arena/answer'){$position=$data['position']??null;$result=field($data,'result',10);if(!is_int($position)||$position<0||!in_array($result,['correct','wrong'],true))fail(422,'Invalid answer.');$exists=query('SELECT result FROM arena_answers WHERE session_id=? AND position=?',[$s['id'],$position])->fetch();if(!$exists&&$s['status']==='active'){if($s['paused'])fail(409,'Resume this session first.');if($position!==(int)$s['current_index'])fail(409,'This is not the current question.');$q=query('SELECT card_id FROM arena_questions WHERE session_id=? AND position=?',[$s['id'],$position])->fetch();if(!$q)fail(404,'Question not found.');$delta=$result==='correct'?8:-5;$s['remaining_ms']=max(0,$s['remaining_ms']+$delta*1000);$s['current_index']++;$s['correct_count']+=(int)($result==='correct');$s['streak']=$result==='correct'?$s['streak']+1:0;$s['max_streak']=max($s['max_streak'],$s['streak']);query('INSERT INTO arena_answers (id,session_id,position,result,adjustment_seconds,remaining_ms) VALUES (?,?,?,?,?,?)',[uid(),$s['id'],$position,$result,$delta,$s['remaining_ms']]);if($q['card_id'])$progressService->record($user,$q['card_id'],$result==='correct'?'known':'unknown');$count=(int)query('SELECT COUNT(*) FROM arena_questions WHERE session_id=?',[$s['id']])->fetchColumn();if(!$s['remaining_ms'])arena_finish($s,'timeout');elseif($s['current_index']>=$count)arena_finish($s,'completed');}}

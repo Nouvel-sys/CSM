@@ -13,12 +13,17 @@ function gemini_execute_prompt(string $prompt, bool $jsonMode = false, float $te
         fail(503, 'Gemini AI is not configured on this server. Please configure GEMINI_API_KEY.');
     }
 
-    $modelsToTry = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash'];
+    $modelsToTry = array_values(array_unique(array_filter([
+        trim((string)($config['gemini_model'] ?? 'gemini-3.8-flash')),
+        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-2.5-flash',
+    ])));
     $geminiResponse = null;
     $lastErr = '';
 
     foreach ($modelsToTry as $mName) {
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent?key=' . rawurlencode($apiKey);
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent';
         $reqData = [
             'contents' => [['parts' => [['text' => $prompt]]]],
             'generationConfig' => [
@@ -34,9 +39,10 @@ function gemini_execute_prompt(string $prompt, bool $jsonMode = false, float $te
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($reqData));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'x-goog-api-key: ' . $apiKey]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 45);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
         $raw = curl_exec($ch);
         $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);

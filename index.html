@@ -8,12 +8,7 @@
   <meta name="description"
     content="Create private study reviewers, practice what you missed, and turn every deck into a focused countdown quiz.">
 
-  <!-- Typography: Plus Jakarta Sans (Body/UI), Outfit (Display/Headings), JetBrains Mono (Timer/Mono) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap"
-    rel="stylesheet">
+  <!-- Use the platform's professional system font stack (SF Pro on Apple devices). -->
 
   <!-- Bootstrap Icons CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -25,9 +20,9 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Plus Jakarta Sans', 'system-ui', '-apple-system', 'sans-serif'],
-            display: ['Outfit', 'Plus Jakarta Sans', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace']
+            sans: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            display: ['-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', 'sans-serif'],
+            mono: ['SF Mono', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'monospace']
           },
           colors: {
             brand: {
@@ -85,15 +80,15 @@
     }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
   </script>
 
-  <link rel="stylesheet" href="index.css?v=1.29">
+  <link rel="stylesheet" href="index.css?v=1.32">
 </head>
 
 <body>
   <div class="outer-glow-backdrop"></div>
   <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden"></div>
 
-  <script src="api.js?v=1.29"></script>
-  <script type="text/babel" src="index.jsx?v=1.29"></script>
+  <script src="api.js?v=1.30"></script>
+  <script type="text/babel" src="index.jsx?v=1.46"></script>
 </body>
 
 </html>

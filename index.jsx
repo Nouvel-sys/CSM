@@ -77,6 +77,48 @@ class SoundEngine {
       osc.stop(this.ctx.currentTime + 0.22);
     } catch (e) { }
   }
+  arenaCorrect() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [659.25, 783.99, 1046.5, 1318.5].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.065);
+        gain.gain.setValueAtTime(0.0001, now + idx * 0.065);
+        gain.gain.exponentialRampToValueAtTime(0.12, now + idx * 0.065 + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.065 + 0.24);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.065);
+        osc.stop(now + idx * 0.065 + 0.25);
+      });
+    } catch (e) { }
+  }
+  arenaWrong() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      [220, 146.83].forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+        gain.gain.setValueAtTime(0.0001, now + idx * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.09, now + idx * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.18);
+      });
+    } catch (e) { }
+  }
   detonation() {
     if (this.muted) return;
     this.init();
@@ -124,17 +166,9 @@ const IconLibrary = () => (
   </svg>
 );
 
-const IconBomb = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="14" r="7" />
-    <path d="M12 7V4" />
-    <path d="M9 4h6" />
-    <circle cx="16" cy="3" r="1" fill="currentColor" />
-  </svg>
-);
 
-const IconUser = () => (
-  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+const IconUser = ({ className = "w-5 h-5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
     <circle cx="12" cy="7" r="4" />
   </svg>
@@ -260,15 +294,6 @@ const IconCards = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
-const IconBot = ({ className = "w-4 h-4" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <path d="M12 7v4" />
-    <line x1="8" y1="16" x2="8" y2="16" />
-    <line x1="16" y1="16" x2="16" y2="16" />
-  </svg>
-);
 
 const IconFileText = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -280,20 +305,7 @@ const IconFileText = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
-const IconHelpCircle = ({ className = "w-4 h-4" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-    <line x1="12" y1="17" x2="12.01" y2="17" />
-  </svg>
-);
 
-const IconPin = ({ className = "w-4 h-4" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="17" x2="12" y2="22" />
-    <path d="M5 17h14v-2l-2-2V5h1V3H6v2h1v8l-2 2v2z" />
-  </svg>
-);
 
 const IconBulb = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -326,247 +338,14 @@ const IconTrophy = ({ className = "w-6 h-6" }) => (
   </svg>
 );
 
-const IconCopy = ({ className = "w-3.5 h-3.5" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
 
-const IconCheck = ({ className = "w-3.5 h-3.5" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
 
-const MiniBombIcon = ({ active }) => (
-  <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${active
-    ? 'bg-[#2a1309] border border-[#f04824] shadow-[0_0_12px_rgba(240,72,36,0.4)] text-[#f04824]'
-    : 'bg-[#181818] border border-[#333333] text-[#444444]'
-    }`}>
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="14" r="7" fill={active ? "#f04824" : "#242424"} stroke={active ? "#ff6b4a" : "#444444"} strokeWidth="1.5" />
-      <path d="M12 7V4" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
-      <path d="M9 4h6" stroke={active ? "#ff8c37" : "#555555"} strokeWidth="2" />
-    </svg>
-  </div>
-);
 
 // ========================================================
-// 3. INITIAL MOCK DECKS (With Full BombCards in State)
-// ========================================================
-const INITIAL_DECKS = [
-  {
-    id: 'deck-2',
-    code: 'ITE 292 B1',
-    title: 'ITE 292 B1',
-    subject: 'Information Technology',
-    owner: 'Gavin Dave',
-    lastModified: 'Sep 13, 2026',
-    category: 'Finals',
-    section: 'recent',
-    cards: [
-      {
-        id: 'c201',
-        type: 'MULTIPLE_CHOICE',
-        prompt: 'Which SQL command removes all rows from a table without logging individual row deletions?',
-        options: ['DELETE', 'TRUNCATE', 'DROP', 'REMOVE'],
-        correctIndex: 1,
-        correctAnswer: 'TRUNCATE',
-        hint: 'DDL Fast Erase'
-      },
-      {
-        id: 'c202',
-        type: 'IDENTIFICATION',
-        prompt: 'What normal form eliminates transitive functional dependencies?',
-        correctAnswer: '3NF',
-        alternates: '3nf, third normal form',
-        hint: '3 Letters'
-      },
-      {
-        id: 'c203',
-        type: 'MULTIPLE_CHOICE',
-        prompt: 'What ACID property ensures all transactions are either completely committed or fully aborted?',
-        options: ['Atomicity', 'Consistency', 'Isolation', 'Durability'],
-        correctIndex: 0,
-        correctAnswer: 'Atomicity',
-        hint: 'All-or-nothing'
-      }
-    ],
-    documents: [
-      { id: 'd201', title: 'ITE 292 B1 M1 - Normalization Rules.pdf' },
-      { id: 'd202', title: 'ITE 292 B1 M2 - SQL Joins Visualized.pdf' },
-      { id: 'd203', title: 'ITE 292 B1 M3 - Indexing Strategies.pdf' }
-    ]
-  },
-  {
-    id: 'deck-3',
-    code: 'ITE 083',
-    title: 'ITE 083',
-    subject: 'Information Technology',
-    owner: 'Gavin Dave',
-    lastModified: 'Sep 10, 2026',
-    category: 'Midterms',
-    section: 'older',
-    cards: [
-      {
-        id: 'c301',
-        type: 'IDENTIFICATION',
-        prompt: 'What HTTP status code represents an unauthorized access error?',
-        correctAnswer: '401',
-        alternates: '401, 401 unauthorized',
-        hint: '3 Digits'
-      },
-      {
-        id: 'c302',
-        type: 'MULTIPLE_CHOICE',
-        prompt: 'Which CSS property creates a responsive flexbox layout container?',
-        options: ['display: flex', 'float: left', 'position: relative', 'display: grid'],
-        correctIndex: 0,
-        correctAnswer: 'display: flex',
-        hint: 'Flex Container'
-      }
-    ],
-    documents: [
-      { id: 'd301', title: 'ITE 083 - DOM Manipulation & Events.pdf' }
-    ]
-  },
-  {
-    id: 'deck-1',
-    code: 'ITE 001',
-    title: 'ITE 001',
-    subject: 'Networking & Telecommunications',
-    owner: 'Gavin Dave',
-    lastModified: 'Sep 14, 2026',
-    category: 'Midterms',
-    section: 'older',
-    cards: [
-      {
-        id: 'c1',
-        type: 'MULTIPLE_CHOICE',
-        prompt: 'What protocol operates on Port 443?',
-        options: ['HTTP', 'HTTPS', 'FTP', 'SSH'],
-        correctIndex: 1,
-        correctAnswer: 'HTTPS',
-        hint: 'Secure Web Browsing'
-      },
-      {
-        id: 'c2',
-        type: 'IDENTIFICATION',
-        prompt: 'Identify the topology where all nodes connect directly to a central switch.',
-        correctAnswer: 'Star',
-        alternates: 'star, star topology',
-        hint: '4 Letters'
-      }
-    ],
-    documents: [
-      { id: 'd1', title: 'ITE 001 - Ch 1 & 2 OSI Model Notes.pdf' }
-    ]
-  }
-];
-
-// ========================================================
-// 4. MAIN APP CONTAINER & STATE CONTROLLER
-// ========================================================
-// ========================================================
-// 4. PDF LEARNING WORKSPACE COMPONENTS
+// 3. PDF LEARNING WORKSPACE COMPONENTS
 // ========================================================
 
-function formatInlineMarkdown(text) {
-  if (!text) return '';
-  const parts = [];
-  let remaining = String(text);
-  let key = 0;
-  while (remaining) {
-    const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
-    const codeMatch = remaining.match(/`(.*?)`/);
-    let nextMatch = null;
-    let type = null;
-    if (boldMatch && (!codeMatch || boldMatch.index < codeMatch.index)) {
-      nextMatch = boldMatch;
-      type = 'bold';
-    } else if (codeMatch) {
-      nextMatch = codeMatch;
-      type = 'code';
-    }
-    if (!nextMatch) {
-      parts.push(remaining);
-      break;
-    }
-    if (nextMatch.index > 0) {
-      parts.push(remaining.substring(0, nextMatch.index));
-    }
-    if (type === 'bold') {
-      parts.push(<strong key={key++} className="font-extrabold text-slate-900">{nextMatch[1]}</strong>);
-    } else if (type === 'code') {
-      parts.push(<code key={key++} className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-xs font-mono font-semibold">{nextMatch[1]}</code>);
-    }
-    remaining = remaining.substring(nextMatch.index + nextMatch[0].length);
-  }
-  return parts;
-}
 
-function MarkdownView({ content }) {
-  if (!content) return null;
-  const lines = String(content).split('\n');
-  return (
-    <div className="space-y-2.5 text-xs text-slate-700 leading-relaxed font-sans">
-      {lines.map((line, idx) => {
-        const trimmed = line.trim();
-        if (!trimmed) return <div key={idx} className="h-1" />;
-        if (trimmed.startsWith('### ')) {
-          return (
-            <h4 key={idx} className="font-extrabold text-slate-900 text-xs mt-3 mb-1 text-purple-900 flex items-center gap-1.5 uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-600 inline-block"></span>
-              {trimmed.replace(/^###\s*/, '')}
-            </h4>
-          );
-        }
-        if (trimmed.startsWith('## ')) {
-          return (
-            <h3 key={idx} className="font-extrabold text-slate-900 text-sm mt-3.5 mb-1.5 text-purple-950 flex items-center gap-1.5">
-              {trimmed.replace(/^##\s*/, '')}
-            </h3>
-          );
-        }
-        if (trimmed.startsWith('# ')) {
-          return (
-            <h2 key={idx} className="font-black text-slate-900 text-base mt-4 mb-2">
-              {trimmed.replace(/^#\s*/, '')}
-            </h2>
-          );
-        }
-        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-          const itemText = trimmed.replace(/^[-*]\s*/, '');
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-1.5 my-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1.5 shrink-0" />
-              <div className="flex-1">{formatInlineMarkdown(itemText)}</div>
-            </div>
-          );
-        }
-        if (/^\d+\.\s/.test(trimmed)) {
-          const num = trimmed.match(/^(\d+)\.\s/)[1];
-          const itemText = trimmed.replace(/^\d+\.\s*/, '');
-          return (
-            <div key={idx} className="flex items-start gap-2 pl-1.5 my-1">
-              <span className="font-bold text-[11px] text-purple-700 shrink-0 w-4 text-right">{num}.</span>
-              <div className="flex-1">{formatInlineMarkdown(itemText)}</div>
-            </div>
-          );
-        }
-        if (trimmed.startsWith('> ')) {
-          return (
-            <blockquote key={idx} className="border-l-3 border-purple-400 pl-3 italic text-slate-600 my-1.5 bg-purple-50/50 py-1.5 rounded-r-lg">
-              {formatInlineMarkdown(trimmed.replace(/^>\s*/, ''))}
-            </blockquote>
-          );
-        }
-        return <p key={idx} className="my-1">{formatInlineMarkdown(line)}</p>;
-      })}
-    </div>
-  );
-}
 
 function PdfStudyViewer({ document, pageNumber, onPageCount, highlights, onSelection, zoom = 1.0, onQuickAction }) {
   const [pdf, setPdf] = useState(null);
@@ -1462,7 +1241,6 @@ function LearningWorkspaceSidebar({
 function FlashcardReviewModal({ deck, cards, onClose, onFinish, onJumpToPage, triggerToast }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
-  const [reviewedCount, setReviewedCount] = useState(0);
   const [ratings, setRatings] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
   const [completed, setCompleted] = useState(false);
 
@@ -1474,7 +1252,6 @@ function FlashcardReviewModal({ deck, cards, onClose, onFinish, onJumpToPage, tr
     try {
       await CSM.api('study-cards/review', 'POST', { cardId: card.id, rating });
       setRatings(prev => ({ ...prev, [rating]: prev[rating] + 1 }));
-      setReviewedCount(c => c + 1);
 
       if (index + 1 < total) {
         setIndex(index + 1);
@@ -1919,7 +1696,7 @@ function AdminPanel({ profile }) {
     {section === 'system' && isSuper && <div className="csm-admin-system-grid">{settings && <>
       <section className="csm-admin-card"><span className="csm-kicker">SERVICE AVAILABILITY</span><h2>Maintenance mode</h2><p>When enabled, regular accounts cannot load or change workspace data. Administrators can continue working; sign-in and sign-out remain available.</p><div className="csm-admin-setting-row"><span className={`csm-admin-status ${settings.maintenanceMode ? 'is-locked' : ''}`}>{settings.maintenanceMode ? 'Enabled' : 'Disabled'}</span><button type="button" className={settings.maintenanceMode ? 'csm-secondary-button' : 'csm-primary-button'} disabled={busy} onClick={event => requestAdminAction(event, { title: `${settings.maintenanceMode ? 'Disable' : 'Enable'} maintenance mode?`, message: settings.maintenanceMode ? 'Regular users will be able to access the workspace again.' : 'Regular users will see the maintenance page. Admins and superadmins can continue working.', confirmLabel: settings.maintenanceMode ? 'Disable maintenance' : 'Enable maintenance', success: `Maintenance mode ${settings.maintenanceMode ? 'disabled' : 'enabled'}.`, action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { maintenanceMode: !settings.maintenanceMode })) })}>{settings.maintenanceMode ? 'Disable' : 'Enable'}</button></div></section>
       <section className="csm-admin-card"><span className="csm-kicker">DOCUMENT STORAGE</span><h2>Global PDF storage limit</h2><p>Limits the combined stored PDF size across all accounts. Existing files are retained if the limit is reduced.</p><form className="csm-admin-storage-form" onSubmit={event => { event.preventDefault(); const bytes = Math.round(Number(event.currentTarget.elements.storage.value) * 1048576); requestAdminAction(event, { title: 'Update the storage limit?', message: 'The new limit applies across all stored PDFs. Existing files will not be removed.', confirmLabel: 'Save storage limit', success: 'Storage limit updated.', action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { storageLimitBytes: bytes })) }); }}><label>Limit in MiB<input name="storage" type="number" min="1" max="1048576" step="1" defaultValue={Math.floor(settings.storageLimitBytes / 1048576)} /></label><div className="csm-admin-subtle">Currently used: {(settings.storageUsedBytes / 1048576).toFixed(1)} MiB</div><button type="submit" className="csm-secondary-button" disabled={busy}>Save limit</button></form></section>
-      <section className="csm-admin-card csm-admin-danger-card"><span className="csm-kicker">SESSION SECURITY</span><h2>Sign out all users</h2><p>Revokes every active login on every device, including yours. Everyone must sign in again.</p><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Sign out every user?', message: 'This revokes every active login on every device, including yours. Everyone will need to sign in again.', confirmLabel: 'Clear all sessions', danger: true, success: 'All sessions cleared.', action: async () => { const result = await CSM.api('admin/sessions/clear', 'POST', { confirm: true }); setNotice(`${result.sessionsRemoved} sessions cleared; ${result.accountsInvalidated} accounts must sign in again.`); setTimeout(() => location.replace('login.html?mode=signin'), 1200); } })}>Clear all sessions</button></section>
+      <section className="csm-admin-card csm-admin-danger-card"><span className="csm-kicker">SESSION SECURITY</span><h2>Sign out all users</h2><p>Revokes every active login on every device, including yours. Everyone must sign in again.</p><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Sign out every user?', message: 'This revokes every active login on every device, including yours. Everyone will need to sign in again.', confirmLabel: 'Clear all sessions', danger: true, success: 'All sessions cleared.', action: async () => { const result = await CSM.api('admin/sessions/clear', 'POST', { confirm: true }); setNotice(`${result.sessionsRemoved} sessions cleared; ${result.accountsInvalidated} accounts must sign in again.`); setTimeout(() => location.replace('login.html?mode=signin&reason=session_ended'), 1200); } })}>Clear all sessions</button></section>
     </>}</div>}
 
     {(flagDeckTarget || adminActionModal || deckPreview) && ReactDOM.createPortal(<>
@@ -1964,7 +1741,7 @@ function AdminPanel({ profile }) {
               </section>
               <section className="csm-admin-preview-bombcards" aria-label="Bombcards in this deck"><div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">STUDY CONTENT</span><h3>Bombcards</h3></div><span className="csm-admin-status">{deckPreview.cards?.length || 0} cards</span></div>
                 {deckPreview.cards?.length ? deckPreview.cards.map((card, index) => <article className="csm-admin-preview-card" key={card.id || index}>
-                  <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</span></div>
+                  <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : card.type === 'TRUE_FALSE' ? 'True / False' : 'Identification'}</span></div>
                   <h3>{card.prompt || 'Untitled question'}</h3>
                   {card.hint && <p className="csm-admin-preview-detail"><strong>Hint:</strong> {card.hint}</p>}
                   {card.type === 'MULTIPLE_CHOICE' && <ol className="csm-admin-preview-options">{(card.options || []).map((option, optionIndex) => <li className={optionIndex === Number(card.correctIndex) ? 'is-correct' : ''} key={`${card.id}-${optionIndex}`}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{optionIndex === Number(card.correctIndex) && <small>Correct</small>}</li>)}</ol>}
@@ -2066,7 +1843,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const staffRestrictedScreens = ['library', 'flashcards', 'creator', 'highlighter', 'game', 'arena'];
   const requestedScreen = new URLSearchParams(window.location.search).get('screen');
   const allowedScreens = ['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account', 'admin'];
-  const initialScreen = allowedScreens.includes(requestedScreen) ? requestedScreen : (isGuest ? 'library' : 'home');
+  const isAdminPath = /\/admin\/?$/i.test(window.location.pathname);
+  const initialScreen = isAdminPath ? 'admin' : (allowedScreens.includes(requestedScreen) ? requestedScreen : (isGuest ? 'library' : 'home'));
   const guestAllowedScreens = ['library', 'flashcards', 'arena', 'game'];
   const defaultScreen = isGuest ? (guestAllowedScreens.includes(initialScreen) ? initialScreen : 'library') : initialScreen;
   const [activeTab, setActiveTab] = useState(isStaffAccount && staffRestrictedScreens.includes(defaultScreen) ? 'home' : (!isStaffAccount && defaultScreen === 'admin' ? 'home' : defaultScreen));
@@ -2079,6 +1857,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   const defaultProfile = { displayName: isGuest ? 'Guest Student' : 'Gavin Dave', username: isGuest ? 'guest' : 'gavin_dave', avatar: 'ember', nameChangedAt: null };
   const [profile, setProfile] = useState(() => ({ ...defaultProfile, ...(window.CSM?.initial?.profile || {}) }));
   const isStaff = !isGuest && ['admin', 'superadmin'].includes(profile.role);
+  const openAdminAccess = () => window.location.assign(window.CSM.adminUrl || 'admin');
   const refreshNotifications = async () => {
     if (isGuest) return;
     try {
@@ -2113,6 +1892,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   const [decks, setDecks] = useState(() => window.CSM?.initial?.decks || []);
   const [accountStats, setAccountStats] = useState(() => window.CSM?.initial?.stats || {});
+  const [earnedAchievements, setEarnedAchievements] = useState(() => window.CSM?.initial?.achievements || []);
   const [studyProgress, setStudyProgress] = useState(() => window.CSM?.initial?.studyProgress || []);
   const [arenaSessions, setArenaSessions] = useState(() => window.CSM?.initial?.sessions || []);
   const [recentActivities, setRecentActivities] = useState(() => {
@@ -2136,13 +1916,14 @@ function App({ isGuest = false, sharedDeck = null }) {
     const data = await CSM.api('workspace');
     setProfile(data.profile); setDecks(data.decks); setRecentActivities(data.activities);
     setAccountStats(data.stats); setStudyProgress(data.studyProgress); setArenaSessions(data.sessions);
+    setEarnedAchievements(data.achievements || []);
+    await refreshNotifications();
     return data;
   };
 
   // --- Library Workshop State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState('All subjects');
-  const [filterPill, setFilterPill] = useState('All');
   const [selectedDeckForFolderView, setSelectedDeckForFolderView] = useState(() => (isGuest && sharedDeck) ? sharedDeck : null); // When clicking folder
   const [isDeckEditorOpen, setIsDeckEditorOpen] = useState(false);
   const [editingDeck, setEditingDeck] = useState(null);
@@ -2271,6 +2052,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiStage, setAiStage] = useState('input'); // 'input' | 'preview'
   const [aiGeneratedCards, setAiGeneratedCards] = useState([]);
+  const [aiCardsAddedModal, setAiCardsAddedModal] = useState(null);
 
   // Dedicated PDF Extraction & Source Management
   const [aiPdfSourceMode, setAiPdfSourceMode] = useState('upload'); // 'upload' | 'library'
@@ -2524,12 +2306,13 @@ function App({ isGuest = false, sharedDeck = null }) {
           options: card.options,
           correctIndex: card.correctIndex,
           correctAnswer: card.correctAnswer,
+          alternates: card.alternates,
           hint: card.hint
         });
       }
       await refreshWorkspace();
       try { sound.correct(); } catch (_) { }
-      triggerToast(`Added ${cardsToSave.length} Bombcards to ${targetDeck.code || targetDeck.title}!`);
+      setAiCardsAddedModal({ count: cardsToSave.length, deckTitle: targetDeck.code || targetDeck.title });
       setAiGeneratorOpen(false);
       setAiStage('input');
       setAiNotes('');
@@ -2560,11 +2343,11 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [bombstyleQueue, setBombstyleQueue] = useState([]);
   const [bombstyleIndex, setBombstyleIndex] = useState(0);
   const [bombstyleRevealed, setBombstyleRevealed] = useState(false);
+  const [bombstyleAnswerDraft, setBombstyleAnswerDraft] = useState('');
   const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(45);
   const [bombstyleStreak, setBombstyleStreak] = useState(0);
   const [bombstyleMaxStreak, setBombstyleMaxStreak] = useState(0);
   const [bombstyleCorrectCount, setBombstyleCorrectCount] = useState(0);
-  const [bombstyleHistory, setBombstyleHistory] = useState([]);
   const [bombstyleMissedCards, setBombstyleMissedCards] = useState([]);
   const [bombstyleStartTime, setBombstyleStartTime] = useState(null);
   const [bombstyleDurationSeconds, setBombstyleDurationSeconds] = useState(0);
@@ -2748,7 +2531,8 @@ function App({ isGuest = false, sharedDeck = null }) {
       });
       if (res?.saved && activeStudyDeckId) {
         CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => { });
-        triggerToast(`Added ${res.saved} flashcards to deck!`);
+        const targetDeck = decks.find(deck => deck.id === activeStudyDeckId);
+        setAiCardsAddedModal({ count: Number(res.saved), deckTitle: targetDeck?.code || targetDeck?.title || 'your deck' });
       }
       setAiAssistantResponse({ type: 'flashcards', text: text || '', cards: res.cards || [], saved: res.saved });
     } catch (e) {
@@ -2893,8 +2677,6 @@ function App({ isGuest = false, sharedDeck = null }) {
     return () => document.removeEventListener('mousedown', closeDeckMenuOnOutsideClick);
   }, []);
 
-  const arenaTimerRef = useRef(null);
-  const idInputRef = useRef(null);
 
   // --- Stats Computation ---
   const totalReviewers = decks.length;
@@ -2948,11 +2730,11 @@ function App({ isGuest = false, sharedDeck = null }) {
   }, [decks, studyProgress]);
 
   const badgesList = useMemo(() => {
-    const hasDecks = totalReviewers >= 1;
-    const hasStreak = (accountStats.studyDays || 0) >= 1;
-    const hasArena = (arenaSessions?.length || 0) >= 1;
-    const hasDocs = totalDocuments >= 1;
-    const hasAccuracy = (accountStats.accuracy || 0) >= 75 && totalBombCards >= 3;
+    const hasDecks = earnedAchievements.includes('first_deck');
+    const hasStreak = earnedAchievements.includes('streak_starter');
+    const hasArena = earnedAchievements.includes('arena_warrior');
+    const hasDocs = earnedAchievements.includes('pdf_scholar');
+    const hasAccuracy = earnedAchievements.includes('master_mind');
 
     return [
       { id: 'first_deck', icon: <i className="bi bi-bullseye text-red-500 text-lg"></i>, title: 'First Reviewer', desc: 'Created a study deck', unlocked: hasDecks, progress: hasDecks ? 'Unlocked' : `${totalReviewers}/1` },
@@ -2961,7 +2743,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       { id: 'pdf_scholar', icon: <i className="bi bi-journal-bookmark-fill text-blue-500 text-lg"></i>, title: 'PDF Scholar', desc: 'Added study documents', unlocked: hasDocs, progress: hasDocs ? 'Unlocked' : `${totalDocuments}/1` },
       { id: 'master_mind', icon: <i className="bi bi-lightbulb-fill text-purple-500 text-lg"></i>, title: 'Sharp Recall', desc: 'Achieved 75%+ accuracy', unlocked: hasAccuracy, progress: hasAccuracy ? `${accountStats.accuracy}%` : `${accountStats.accuracy || 0}%/75%` },
     ];
-  }, [totalReviewers, accountStats, arenaSessions, totalDocuments, totalBombCards]);
+  }, [earnedAchievements, totalReviewers, accountStats, arenaSessions, totalDocuments, totalBombCards]);
 
   const flashcards = activeFlashcardDeck?.cards || [];
   const activeFlashcard = flashcards[flashcardIndex] || flashcards[0];
@@ -3527,17 +3309,6 @@ function App({ isGuest = false, sharedDeck = null }) {
     setIsDeckEditorOpen(true);
   };
 
-  const handleOpenEditDeck = (deck, e) => {
-    if (e) e.stopPropagation();
-    setEditingDeck(deck);
-    setEditorCode(deck.code || '');
-    setEditorTitle(deck.title || '');
-    setEditorSubject(deck.subject || '');
-    setEditorCards([...(deck.cards || [])]);
-    setEditorDocuments([...(deck.documents || [])]);
-    resetNewQForm();
-    setIsDeckEditorOpen(true);
-  };
 
   const handlePdfUpload = (e) => {
     const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
@@ -3564,11 +3335,6 @@ function App({ isGuest = false, sharedDeck = null }) {
     });
   };
 
-  const handleDeleteDeck = (deckId, e) => {
-    if (e) e.stopPropagation();
-    const target = decks.find(deck => deck.id === deckId);
-    setDeleteDeckTarget(target || { id: deckId, code: 'this deck', title: 'this deck' });
-  };
 
   const handleShareDeck = async (deck, e) => {
     if (e) e.stopPropagation();
@@ -3648,12 +3414,16 @@ function App({ isGuest = false, sharedDeck = null }) {
   const handleAddQuestionToEditor = (e) => {
     e.preventDefault();
     if (!newQPrompt.trim()) return;
+    if (newQType === 'TRUE_FALSE' && !newQAnswer.trim()) {
+      triggerToast('Choose True or False before appending this card.');
+      return;
+    }
 
     let cardObj = {
       id: 'card-' + Date.now(),
       type: newQType,
       prompt: newQPrompt.trim(),
-      hint: newQHint.trim() || (newQType === 'MULTIPLE_CHOICE' ? 'Knowledge Check' : 'Identification')
+      hint: newQHint.trim() || (newQType === 'MULTIPLE_CHOICE' ? 'Knowledge Check' : newQType === 'TRUE_FALSE' ? 'True / False' : 'Identification')
     };
 
     if (newQType === 'MULTIPLE_CHOICE') {
@@ -3661,6 +3431,10 @@ function App({ isGuest = false, sharedDeck = null }) {
       cardObj.options = filledOptions;
       cardObj.correctIndex = newQCorrectIndex;
       cardObj.correctAnswer = filledOptions[newQCorrectIndex];
+    } else if (newQType === 'TRUE_FALSE') {
+      cardObj.options = ['True', 'False'];
+      cardObj.correctIndex = newQAnswer.trim().toLowerCase() === 'false' ? 1 : 0;
+      cardObj.correctAnswer = newQAnswer.trim() || 'True';
     } else {
       cardObj.correctAnswer = newQAnswer.trim() || 'Answer';
       cardObj.alternates = newQAlternates.trim() || cardObj.correctAnswer.toLowerCase();
@@ -3675,7 +3449,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     const card = editorCards.find(item => item.id === cardId);
     requestDeleteConfirmation({
       title: 'Delete this Bombcard?',
-      message: `This ${card?.type === 'MULTIPLE_CHOICE' ? 'multiple-choice' : 'identification'} card will be removed from the current draft.`,
+      message: `This ${card?.type === 'MULTIPLE_CHOICE' ? 'multiple-choice' : card?.type === 'TRUE_FALSE' ? 'true/false' : 'identification'} card will be removed from the current draft.`,
       confirmLabel: 'Delete card',
       action: () => {
         setEditorCards(prev => prev.filter(c => c.id !== cardId));
@@ -3707,6 +3481,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   // 6. BOMBSTYLE ARENA GAME ENGINE
   // ========================================================
   const bombstyleTimerRef = useRef(null);
+  const bombstyleDeadlineRef = useRef(null);
   const bombstyleAnswerSubmittedRef = useRef(false);
 
   const bombstyleActiveDeck = useMemo(() => {
@@ -3724,12 +3499,49 @@ function App({ isGuest = false, sharedDeck = null }) {
     hard: { label: 'Hard', seconds: 30, timeLabel: '30 seconds' }
   };
   const selectedBombstyleDifficulty = BOMBSTYLE_DIFFICULTIES[bombstyleDifficulty] || BOMBSTYLE_DIFFICULTIES.normal;
+  const isBombExploded = bombstyleFeedback === 'exploded';
   const isBombDanger = bombstyleTimeRemaining <= 5.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
+  const isBombStartled = bombstyleTimeRemaining <= 10.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
+  const isBombWorried = !isBombStartled && bombstyleTimeRemaining <= (selectedBombstyleDifficulty.seconds / 2) && bombstylePhase === 'gameplay' && !bombstyleFeedback;
   const bombTimerPercent = Math.max(0, Math.min(100, (bombstyleTimeRemaining / (selectedBombstyleDifficulty.seconds || 45)) * 100));
 
   const handleSelectBombstyleDeck = (deckId) => {
     setBombstyleDeckId(deckId);
     setBombstylePhase('configure');
+  };
+
+  const setBombstyleClock = (remainingMs) => {
+    const safeRemainingMs = Math.max(0, Number(remainingMs) || 0);
+    bombstyleDeadlineRef.current = Date.now() + safeRemainingMs;
+    setBombstyleTimeRemaining(safeRemainingMs / 1000);
+  };
+
+  const currentBombstyleRemainingMs = () => {
+    if (typeof bombstyleDeadlineRef.current === 'number') {
+      return Math.max(0, bombstyleDeadlineRef.current - Date.now());
+    }
+    return Math.max(0, bombstyleTimeRemaining * 1000);
+  };
+
+  const pauseBombstyleSession = async () => {
+    setBombstyleExitModalOpen(true);
+    try {
+      if (isGuest) setBombstyleClock(currentBombstyleRemainingMs());
+      else {
+        const session = await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId });
+        if (session?.remainingMs != null) setBombstyleClock(session.remainingMs);
+      }
+    } catch (_) { }
+  };
+
+  const resumeBombstyleSession = async () => {
+    try {
+      if (!isGuest) {
+        const session = await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId });
+        if (session?.remainingMs != null) setBombstyleClock(session.remainingMs);
+      } else setBombstyleClock(currentBombstyleRemainingMs());
+    } catch (_) { }
+    setBombstyleExitModalOpen(false);
   };
 
   const handleSetDifficulty = (diff) => {
@@ -3750,12 +3562,12 @@ function App({ isGuest = false, sharedDeck = null }) {
       setBombstyleQueue(cardsToUse);
       setBombstyleIndex(0);
       setBombstyleRevealed(false);
+      setBombstyleAnswerDraft('');
       bombstyleAnswerSubmittedRef.current = false;
-      setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
+      setBombstyleClock(selectedBombstyleDifficulty.seconds * 1000);
       setBombstyleStreak(0);
       setBombstyleMaxStreak(0);
       setBombstyleCorrectCount(0);
-      setBombstyleHistory([]);
       setBombstyleMissedCards([]);
       setBombstyleFeedback(null);
       setBombstyleStartTime(Date.now());
@@ -3772,12 +3584,12 @@ function App({ isGuest = false, sharedDeck = null }) {
       setBombstyleQueue(cardsToUse);
       setBombstyleIndex(0);
       setBombstyleRevealed(false);
+      setBombstyleAnswerDraft('');
       bombstyleAnswerSubmittedRef.current = false;
-      setBombstyleTimeRemaining(selectedBombstyleDifficulty.seconds);
+      setBombstyleClock(selectedBombstyleDifficulty.seconds * 1000);
       setBombstyleStreak(0);
       setBombstyleMaxStreak(0);
       setBombstyleCorrectCount(0);
-      setBombstyleHistory([]);
       setBombstyleMissedCards([]);
       setBombstyleFeedback(null);
       setBombstyleStartTime(Date.now());
@@ -3801,9 +3613,10 @@ function App({ isGuest = false, sharedDeck = null }) {
       setBombstyleSessionId(session.id); setBombstyleDeckId(session.deckId); setBombstyleDifficulty(session.difficulty);
       const restoredQueue = session.queue || [];
       setBombstyleQueue(restoredQueue); setBombstyleIndex(session.index || 0);
+      setBombstyleAnswerDraft(''); setBombstyleRevealed(false);
       const restoredAnswers = (session.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
-      setBombstyleHistory(restoredAnswers); setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
-      setBombstyleTimeRemaining(session.remainingMs / 1000); setBombstyleStreak(session.streak || 0);
+      setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
+      setBombstyleClock(session.remainingMs); setBombstyleStreak(session.streak || 0);
       setBombstyleMaxStreak(session.maxStreak || 0); setBombstyleCorrectCount(session.correct || 0);
       setBombstyleStartTime(Date.now() - (session.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
       setBombstyleExitModalOpen(!!session.paused);
@@ -3818,81 +3631,91 @@ function App({ isGuest = false, sharedDeck = null }) {
     }
 
     if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
-    bombstyleTimerRef.current = setInterval(() => {
-      setBombstyleTimeRemaining(prev => {
-        if (prev <= 0.1) {
-          clearInterval(bombstyleTimerRef.current);
-          handleBombstyleTimeout();
-          return 0;
-        }
-        // Brief warning ticks when the session timer is nearly out.
-        if (prev <= 5.0 && Math.round(prev * 10) % 10 === 0) {
-          sound.tick();
-        }
-        return Math.max(0, +(prev - 0.1).toFixed(1));
-      });
-    }, 100);
+    const syncLocalClock = () => {
+      const remainingMs = currentBombstyleRemainingMs();
+      if (remainingMs <= 0) {
+        clearInterval(bombstyleTimerRef.current);
+        setBombstyleTimeRemaining(0);
+        handleBombstyleTimeout();
+        return;
+      }
+      setBombstyleTimeRemaining(remainingMs / 1000);
+      if (remainingMs <= 5000 && Math.ceil(remainingMs / 100) % 10 === 0) sound.tick();
+    };
+
+    const syncVisibleSession = async () => {
+      syncLocalClock();
+      if (document.visibilityState !== 'visible' || isGuest || !bombstyleSessionId) return;
+      try {
+        const session = await CSM.api('arena/session&id=' + bombstyleSessionId);
+        if (session?.status === 'active') setBombstyleClock(session.remainingMs);
+        else if (session?.status === 'timeout') handleBombstyleTimeout();
+        else if (session?.status === 'completed') finishBombstyleSession();
+      } catch (error) { console.warn('Could not resync the Arena clock:', error); }
+    };
+
+    syncLocalClock();
+    bombstyleTimerRef.current = setInterval(syncLocalClock, 100);
+    document.addEventListener('visibilitychange', syncVisibleSession);
+    window.addEventListener('focus', syncVisibleSession);
 
     return () => {
       if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+      document.removeEventListener('visibilitychange', syncVisibleSession);
+      window.removeEventListener('focus', syncVisibleSession);
     };
-  }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds]);
+  }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds, bombstyleSessionId, isGuest]);
 
-  const handleBombstyleReveal = () => {
-    if (bombstyleRevealed || bombstyleFeedback) return;
-    setBombstyleRevealed(true);
+  const normalizeBombstyleAnswer = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+  const isBombstyleAnswerCorrect = (answer, card) => {
+    const candidate = normalizeBombstyleAnswer(answer);
+    const expected = normalizeBombstyleAnswer(card?.correctAnswer);
+    if (card?.type === 'TRUE_FALSE') return candidate === expected;
+    if (card?.type === 'MULTIPLE_CHOICE') {
+      const option = Array.isArray(card.options) ? card.options[Number(card.correctIndex)] : '';
+      return candidate === expected || (option && candidate === normalizeBombstyleAnswer(option));
+    }
+    const accepted = [card?.correctAnswer, ...(String(card?.alternates || '').split(/[,;\n]+/))];
+    return accepted.some(value => candidate && candidate === normalizeBombstyleAnswer(value));
   };
 
-  const handleBombstyleDecision = async (knewIt) => {
+  const handleBombstyleAnswer = async (answer) => {
     if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+    const submittedAnswer = String(answer ?? '').trim();
+    if (!submittedAnswer) { triggerToast('Enter or choose an answer first.'); return; }
     bombstyleAnswerSubmittedRef.current = true;
     let serverResult = { status: 'active', remainingMs: 0 };
+    let isCorrect = false;
     if (isGuest) {
-      const delta = knewIt ? 8 : -5;
-      setBombstyleTimeRemaining(prev => {
-        const next = Math.max(0, +(prev + delta).toFixed(1));
-        serverResult.remainingMs = next * 1000;
-        return next;
-      });
+      isCorrect = isBombstyleAnswerCorrect(submittedAnswer, activeBombstyleCard);
+      const delta = isCorrect ? 8 : -5;
+      const nextRemainingMs = Math.max(0, currentBombstyleRemainingMs() + (delta * 1000));
+      serverResult.remainingMs = nextRemainingMs;
+      setBombstyleClock(nextRemainingMs);
     } else {
-      try { serverResult = await CSM.api('arena/answer', 'POST', { id: bombstyleSessionId, position: bombstyleIndex, result: knewIt ? 'correct' : 'wrong' }); }
+      try { serverResult = await CSM.api('arena/answer', 'POST', { id: bombstyleSessionId, position: bombstyleIndex, answer: submittedAnswer }); }
       catch (error) { bombstyleAnswerSubmittedRef.current = false; triggerToast(error.message); return; }
-      setBombstyleTimeRemaining(Math.max(0, serverResult.remainingMs / 1000));
+      isCorrect = serverResult.answerResult === 'correct';
+      setBombstyleClock(serverResult.remainingMs);
     }
 
-    if (knewIt) {
-      sound.correct();
+    setBombstyleAnswerDraft(submittedAnswer);
+    setBombstyleRevealed(true);
+    if (isCorrect) {
+      sound.arenaCorrect();
       setBombstyleFeedback('defused');
       const nextStreak = bombstyleStreak + 1;
       setBombstyleStreak(nextStreak);
       if (nextStreak > bombstyleMaxStreak) setBombstyleMaxStreak(nextStreak);
       setBombstyleCorrectCount(c => c + 1);
-      setBombstyleHistory(prev => [
-        ...prev,
-        {
-          id: activeBombstyleCard.id,
-          prompt: activeBombstyleCard.prompt,
-          correctAnswer: activeBombstyleCard.correctAnswer,
-          result: 'defused'
-        }
-      ]);
 
       setTimeout(() => advanceBombstyleCard(), 600);
     } else {
-      sound.wrong();
+      sound.arenaWrong();
       sound.detonation();
       setBombstyleFeedback('exploded');
       const nextTime = Math.max(0, serverResult.remainingMs / 1000);
       setBombstyleStreak(0);
-      setBombstyleHistory(prev => [
-        ...prev,
-        {
-          id: activeBombstyleCard.id,
-          prompt: activeBombstyleCard.prompt,
-          correctAnswer: activeBombstyleCard.correctAnswer,
-          result: 'exploded'
-        }
-      ]);
       setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
 
       setTimeout(() => {
@@ -3908,33 +3731,25 @@ function App({ isGuest = false, sharedDeck = null }) {
   const handleBombstyleTimeout = async () => {
     if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
     bombstyleAnswerSubmittedRef.current = true;
-    sound.wrong();
+    sound.arenaWrong();
     sound.detonation();
     if (!isGuest && bombstyleSessionId) {
       try { await CSM.api('arena/session&id=' + bombstyleSessionId); }
       catch (error) { console.warn(error); }
     }
-    setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleTimeRemaining(0);
+    setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleClock(0);
     setBombstyleStreak(0);
-    setBombstyleHistory(prev => [
-      ...prev,
-      {
-        id: activeBombstyleCard.id,
-        prompt: activeBombstyleCard.prompt,
-        correctAnswer: activeBombstyleCard.correctAnswer,
-        result: 'timeout'
-      }
-    ]);
     setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
 
     setTimeout(() => {
       finishBombstyleSession();
-    }, 800);
+    }, 1000);
   };
 
   const advanceBombstyleCard = () => {
     setBombstyleFeedback(null);
     setBombstyleRevealed(false);
+    setBombstyleAnswerDraft('');
     bombstyleAnswerSubmittedRef.current = false;
     if (bombstyleIndex + 1 < bombstyleQueue.length) {
       setBombstyleIndex(i => i + 1);
@@ -3967,22 +3782,17 @@ function App({ isGuest = false, sharedDeck = null }) {
       if (activeTab === 'arena') {
         if (bombstylePhase === 'gameplay' && !bombstyleFeedback) {
           if (e.key === 'Escape') {
-            CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }).catch(() => { });
-            setBombstyleExitModalOpen(true);
+            pauseBombstyleSession();
             return;
           }
           if (!bombstyleRevealed) {
-            if (e.code === 'Space') {
+            if (activeBombstyleCard?.type === 'TRUE_FALSE' && (e.key === '1' || e.key === '2')) {
               e.preventDefault();
-              handleBombstyleReveal();
-            }
-          } else {
-            if (e.key === '1' || e.key === 'd' || e.key === 'D' || e.key === 'ArrowUp') {
+              handleBombstyleAnswer(e.key === '1' ? 'True' : 'False');
+            } else if (activeBombstyleCard?.type === 'MULTIPLE_CHOICE' && /^[1-8]$/.test(e.key)) {
               e.preventDefault();
-              handleBombstyleDecision(true);
-            } else if (e.key === '2' || e.key === 'e' || e.key === 'E' || e.key === 'ArrowDown') {
-              e.preventDefault();
-              handleBombstyleDecision(false);
+              const option = activeBombstyleCard.options?.[Number(e.key) - 1];
+              if (option) handleBombstyleAnswer(option);
             }
           }
         }
@@ -4058,7 +3868,7 @@ function App({ isGuest = false, sharedDeck = null }) {
             aria-label={sidebarExpanded ? 'Co-StudyMaxx Home' : 'Open sidebar'}
           >
             <img
-              src="csm-sidebar-logo.png"
+              src="assets/images/csm-sidebar-logo.png"
               alt="Co-StudyMaxx Logo"
               className="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
             />
@@ -4261,7 +4071,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               type="button"
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'admin' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
               title="Admin console" data-tooltip="Admin console" aria-label="Admin console"
-              onClick={() => setActiveTab('admin')}
+              onClick={openAdminAccess}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
               <span className="csm-sidebar-label">Admin</span>
@@ -4361,7 +4171,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 aria-label={`Account role: ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
                 title={`Signed in as ${profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}`}
               >
-                <span className="csm-topbar-role-dot" aria-hidden="true" />
+                <IconUser className="csm-topbar-role-icon" />
                 {profile.role === 'superadmin' ? 'Superadmin' : 'Admin'}
               </span>
             )}
@@ -4410,10 +4220,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                       <div className="csm-notifications-header"><strong>Notifications</strong><span>{notificationsUnread ? `${notificationsUnread} unread` : 'All caught up'}</span></div>
                       <div className="csm-notifications-list">
                         {notifications.length ? notifications.map(notification => <article className={`csm-notification-item ${notification.isRead ? '' : 'is-unread'}`} key={notification.id}>
-                          <span className="csm-notification-item-icon" aria-hidden="true">{notification.type?.startsWith('deck') ? '▦' : '•'}</span>
+                          <span className="csm-notification-item-icon" aria-hidden="true">{notification.type === 'achievement_unlocked' ? <i className="bi bi-trophy-fill text-amber-500"></i> : notification.type?.startsWith('deck') ? '▦' : '•'}</span>
                           <div className="csm-notification-item-copy"><strong>{notification.title}</strong><p>{notification.message}</p><time dateTime={notification.createdAt}>{new Date(`${notification.createdAt}Z`).toLocaleString()}</time></div>
                           {!notification.isRead && <button className="csm-notification-mark-read" type="button" aria-label={`Mark ${notification.title} as read`} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', { id: notification.id }); setNotifications(items => items.map(item => item.id === notification.id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)); setNotificationsUnread(count => Math.max(0, count - 1)); } catch (error) { triggerToast(error.message); } }}>Mark read</button>}
-                        </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon"><i className="bi bi-check2-circle"></i></span><strong>No notifications</strong><p>You’re all caught up. Deck review updates will appear here.</p></div>}
+                        </article>) : <div className="csm-notifications-empty"><span className="csm-notifications-empty-icon"><i className="bi bi-check2-circle"></i></span><strong>No notifications</strong><p>You’re all caught up. Achievements and deck review updates will appear here.</p></div>}
                       </div>
                       <div className="csm-notifications-actions"><button type="button" disabled={!notificationsUnread} onClick={async () => { try { await CSM.api('notifications/read', 'PATCH', {}); setNotifications(items => items.map(item => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() }))); setNotificationsUnread(0); } catch (error) { triggerToast(error.message); } }}>Mark all as read</button><button type="button" disabled={!notifications.length} onClick={() => { if (!notifications.length) return; requestDeleteConfirmation({ title: 'Clear all notifications?', message: 'Every notification will be permanently removed from this list.', confirmLabel: 'Clear notifications', action: async () => { try { await CSM.api('notifications', 'DELETE'); setNotifications([]); setNotificationsUnread(0); triggerToast('Notifications cleared'); } catch (error) { triggerToast(error.message); } } }); }}>Clear all</button></div>
                     </div>
@@ -4454,7 +4264,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         className="csm-account-dropdown-item danger"
                         onClick={async () => {
                           setAccountMenuOpen(false);
-                          try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin'); }
+                          try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin&reason=signed_out'); }
                           catch (error) { triggerToast(error.message); }
                         }}
                       >
@@ -4469,7 +4279,7 @@ function App({ isGuest = false, sharedDeck = null }) {
           </div>
         </header>
 
-        {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={() => setActiveTab('admin')} />}
+        {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={openAdminAccess} />}
         {activeTab === 'admin' && isStaff && <AdminPanel profile={profile} />}
 
         {/* Floating Toast Notification */}
@@ -4595,7 +4405,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <div className="relative z-10">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wider bg-[#f04824]/20 text-[#ff7a58] border border-[#f04824]/40 uppercase">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#f04824] animate-pulse"></span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true" focusable="false">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M 10 8 L 16 12 L 10 16 Z" />
+                        </svg>
                         Pick up where you left off
                       </span>
                       {mostRecentDeck.subject && (
@@ -4603,8 +4416,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                       )}
                     </div>
                     <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-1.5 flex items-center gap-2.5">
-                      <span>{mostRecentDeck.code}</span>
-                      {mostRecentDeck.title && <span className="text-zinc-300 font-medium text-base sm:text-lg hidden sm:inline">· {mostRecentDeck.title}</span>}
+                      <span>{mostRecentDeck.code || mostRecentDeck.title}</span>
+                      {mostRecentDeck.title && mostRecentDeck.title !== mostRecentDeck.code && <span className="text-zinc-300 font-medium text-base sm:text-lg hidden sm:inline">· {mostRecentDeck.title}</span>}
                     </h2>
                     <p className="text-xs text-zinc-300 flex flex-wrap items-center gap-3">
                       <span className="inline-flex items-center gap-1.5"><i className="bi bi-collection text-[#ff7a58]"></i> {mostRecentDeck.cards?.length || 0} Bombcards</span>
@@ -5257,7 +5070,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                             </div>
                             <p className="csm-library-bombcard-prompt">{card.prompt}</p>
                             {isRevealed && <p className="csm-library-bombcard-answer">{card.correctAnswer || 'Answer not saved yet.'}</p>}
-                            <div className="csm-library-bombcard-footer"><small>{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : 'Identification'}</small><button type="button" className="csm-library-reveal" onClick={() => toggleLibraryCardAnswer(cardId)}>{isRevealed ? 'Hide answer' : 'Reveal answer'}</button></div>
+                            <div className="csm-library-bombcard-footer"><small>{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : card.type === 'TRUE_FALSE' ? 'True / False' : 'Identification'}</small><button type="button" className="csm-library-reveal" onClick={() => toggleLibraryCardAnswer(cardId)}>{isRevealed ? 'Hide answer' : 'Reveal answer'}</button></div>
                           </article>
                         );
                       })}
@@ -5554,6 +5367,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                     </button>
                     <button
                       type="button"
+                      onClick={() => setCreatorType('TRUE_FALSE')}
+                      className={`csm-studio-type-btn ${creatorType === 'TRUE_FALSE' ? 'active' : ''}`}
+                    >
+                      <span className="text-[11px] font-black">T/F</span>
+                      True / False
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setCreatorType('IDENTIFICATION')}
                       className={`csm-studio-type-btn ${creatorType === 'IDENTIFICATION' ? 'active' : ''}`}
                     >
@@ -5626,7 +5447,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-600">
-                            {creatorType === 'MULTIPLE_CHOICE' ? '4-Choice MCQ' : 'Identification'}
+                            {creatorType === 'MULTIPLE_CHOICE' ? '4-Choice MCQ' : creatorType === 'TRUE_FALSE' ? 'True / False' : 'Identification'}
                           </span>
                         </div>
                       </div>
@@ -5766,6 +5587,22 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     </div>
                                   );
                                 })}
+                              </div>
+                            ) : creatorType === 'TRUE_FALSE' ? (
+                              <div className="space-y-3 mb-5">
+                                <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block">Correct Answer *</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  {['True', 'False'].map(value => (
+                                    <button
+                                      key={value}
+                                      type="button"
+                                      onClick={() => setCreatorAnswer(value)}
+                                      className={`h-14 rounded-xl border-2 text-sm font-extrabold transition-all ${creatorAnswer === value ? 'border-[#f04824] bg-orange-50 text-[#f04824]' : 'border-slate-200 bg-[#f8fafc] text-slate-600 hover:border-slate-300'}`}
+                                    >
+                                      {value}
+                                    </button>
+                                  ))}
+                                </div>
                               </div>
                             ) : (
                               /* Identification Answer */
@@ -5966,7 +5803,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     #{idx + 1}
                                   </span>
                                   <span className="text-[9px] font-extrabold text-slate-400">
-                                    {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                                    {card.type === 'MULTIPLE_CHOICE' ? 'MCQ' : card.type === 'TRUE_FALSE' ? 'T/F' : 'ID'}
                                   </span>
                                 </div>
                                 <p className="font-semibold text-slate-800 truncate mt-1">{card.prompt}</p>
@@ -6500,7 +6337,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                   <aside className="csm-bombstyle-summary-card" aria-labelledby="bombstyle-summary-title">
                     <div className="csm-bombstyle-illustration">
-                      <img src="csm-mascot.png" alt="Friendly bomb mascot" />
+                      <img src="assets/images/csm-mascot.png" alt="Friendly bomb mascot" />
                     </div>
                     <h2 id="bombstyle-summary-title">Ready when you are.</h2>
                     <p className="csm-bombstyle-summary-subtitle">Here&rsquo;s your game plan.</p>
@@ -6532,7 +6369,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       className="csm-secondary-button"
                       style={{ height: '34px', width: '34px', padding: 0 }}
                       title="Exit Run to Arena Hub"
-                      onClick={async () => { try { await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(true); }}
+                      onClick={pauseBombstyleSession}
                     >
                       <IconArrowLeft />
                     </button>
@@ -6589,26 +6426,26 @@ function App({ isGuest = false, sharedDeck = null }) {
                   )}
 
                   {/* Animated SVG Bomb Mascot */}
-                  <div className={`relative transition-transform duration-150 ${isBombDanger ? 'animate-shake-danger' : ''}`}>
+                  <div className={`relative transition-transform duration-150 ${isBombExploded ? 'csm-arena-mascot-exploding' : isBombDanger ? 'csm-arena-mascot-danger' : 'csm-arena-mascot-calm'}`}>
                     {/* Glow Aura */}
-                    <div className={`absolute -inset-8 rounded-full blur-2xl transition-opacity duration-300 pointer-events-none ${isBombDanger ? 'bg-red-500/25 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
+                    <div className={`absolute inset-2 rounded-full blur-xl transition-opacity duration-300 pointer-events-none ${(isBombDanger || isBombExploded) ? 'bg-orange-500/20 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
 
-                    <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-xl">
+                    <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-lg" role="img" aria-label={bombstyleFeedback === 'defused' ? 'Happy defused bomb' : isBombExploded ? 'Friendly surprised exploding bomb' : isBombStartled ? 'Startled bomb with a sweat drop and exclamation mark' : isBombWorried ? 'Worried sweating bomb' : 'Happy bomb mascot'}>
                       <defs>
-                        <radialGradient id="bsBombBody" cx="35%" cy="35%" r="65%">
-                          <stop offset="0%" stopColor="#2e2a28" />
-                          <stop offset="45%" stopColor="#141110" />
-                          <stop offset="100%" stopColor="#050403" />
+                        <radialGradient id="bsBombBody" cx="35%" cy="30%" r="70%">
+                          <stop offset="0%" stopColor="#45464b" />
+                          <stop offset="45%" stopColor="#202126" />
+                          <stop offset="100%" stopColor="#0c0d10" />
                         </radialGradient>
-                        <radialGradient id="bsBombDangerBody" cx="35%" cy="35%" r="65%">
-                          <stop offset="0%" stopColor="#4a1515" />
-                          <stop offset="50%" stopColor="#240808" />
-                          <stop offset="100%" stopColor="#0a0202" />
+                        <radialGradient id="bsBombDangerBody" cx="35%" cy="30%" r="70%">
+                          <stop offset="0%" stopColor="#ffda95" />
+                          <stop offset="45%" stopColor="#ff9c38" />
+                          <stop offset="100%" stopColor="#e65a24" />
                         </radialGradient>
-                        <radialGradient id="bsBombDefusedBody" cx="35%" cy="35%" r="65%">
-                          <stop offset="0%" stopColor="#14532d" />
-                          <stop offset="50%" stopColor="#052e16" />
-                          <stop offset="100%" stopColor="#021a0c" />
+                        <radialGradient id="bsBombDefusedBody" cx="35%" cy="30%" r="70%">
+                          <stop offset="0%" stopColor="#dcfff0" />
+                          <stop offset="45%" stopColor="#72e6b1" />
+                          <stop offset="100%" stopColor="#16a66a" />
                         </radialGradient>
                         <radialGradient id="bsSpark" cx="50%" cy="50%" r="50%">
                           <stop offset="0%" stopColor="#ffffff" />
@@ -6620,9 +6457,9 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                       {/* Fuse */}
                       <path
-                        d="M 100 42 C 100 25, 125 32, 132 15"
+                        d="M 100 48 C 94 26, 126 36, 132 15"
                         fill="none"
-                        stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#ca8a04'}
+                        stroke={bombstyleFeedback === 'defused' ? '#059669' : (isBombDanger || isBombExploded) ? '#c2410c' : '#d97706'}
                         strokeWidth="6"
                         strokeLinecap="round"
                       />
@@ -6631,50 +6468,79 @@ function App({ isGuest = false, sharedDeck = null }) {
                       {bombstyleFeedback !== 'defused' && (
                         <g transform="translate(132, 15)">
                           <circle cx="0" cy="0" r="10" fill="url(#bsSpark)" className="animate-spark-pulse" />
-                          <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={isBombDanger ? "#f87171" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
+                          <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={(isBombDanger || isBombExploded) ? "#fb923c" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
                           <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
                         </g>
                       )}
 
-                      {/* Cap & Horns */}
-                      <rect x="86" y="38" width="28" height="12" rx="4" fill="#3f3f46" stroke="#18181b" strokeWidth="2" />
-                      <path d="M 52 75 C 38 48, 48 30, 68 46 C 60 56, 56 68, 52 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
-                      <path d="M 148 75 C 162 48, 152 30, 132 46 C 140 56, 144 68, 148 75 Z" fill="#ffffff" stroke="#262626" strokeWidth="2.5" />
+                      {/* Cap */}
+                      <rect x="87" y="40" width="26" height="17" rx="6" fill="#45464b" stroke="#25262b" strokeWidth="2" />
+                      <path d="M 93 45 H 106" stroke="#85868d" strokeWidth="3" strokeLinecap="round" />
 
                       {/* Sphere */}
-                      <circle
+                      <ellipse
                         cx="100"
                         cy="116"
-                        r="74"
-                        fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : isBombDanger ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
-                        stroke={bombstyleFeedback === 'defused' ? '#10b981' : isBombDanger ? '#ef4444' : '#2e2a28'}
-                        strokeWidth="3.5"
+                        rx="73"
+                        ry="70"
+                        fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : (isBombDanger || isBombExploded) ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
+                        stroke={bombstyleFeedback === 'defused' ? '#059669' : (isBombDanger || isBombExploded) ? '#ea580c' : '#3f3f46'}
+                        strokeWidth="2.5"
                       />
+                      {/* Soft shell sheen keeps the rounded body readable at small sizes. */}
+                      <path d="M 48 91 Q 58 65 83 61" fill="none" stroke="#ffffff" strokeWidth="7" strokeLinecap="round" opacity="0.13" />
+                      <path d="M 131 171 Q 150 162 157 147" fill="none" stroke="#000000" strokeWidth="4" strokeLinecap="round" opacity="0.08" />
 
                       {/* Eyes & Mouth Expression */}
                       {bombstyleFeedback === 'defused' ? (
-                        <g fill="#22c55e">
-                          <circle cx="82" cy="108" r="8" />
-                          <circle cx="118" cy="108" r="8" />
-                          <path d="M 82 128 Q 100 148 118 128" fill="none" stroke="#22c55e" strokeWidth="3.5" strokeLinecap="round" />
+                        <g>
+                          <path d="M 73 111 L 80 103 L 87 111 M 113 111 L 120 103 L 127 111" fill="none" stroke="#065f46" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M 82 128 Q 100 148 118 128" fill="none" stroke="#065f46" strokeWidth="4" strokeLinecap="round" />
                         </g>
-                      ) : isBombDanger ? (
-                        <g fill="#ef4444">
-                          <circle cx="82" cy="108" r="8" />
-                          <circle cx="118" cy="108" r="8" />
-                          <circle cx="82" cy="108" r="3" fill="#ffffff" />
-                          <circle cx="118" cy="108" r="3" fill="#ffffff" />
-                          <path d="M 80 136 Q 90 126 100 136 T 120 136" fill="none" stroke="#ef4444" strokeWidth="3.5" strokeLinecap="round" />
+                      ) : isBombExploded ? (
+                        <g>
+                          {/* A soft surprised expression keeps wrong-answer feedback friendly. */}
+                          <path d="M 70 111 Q 79 101 88 111 M 112 111 Q 121 101 130 111" fill="none" stroke="#71351d" strokeWidth="4.5" strokeLinecap="round" />
+                          <ellipse cx="100" cy="136" rx="5.5" ry="7" fill="none" stroke="#71351d" strokeWidth="3.5" />
+                          <circle cx="72" cy="128" r="5" fill="#fb7185" opacity="0.28" />
+                          <circle cx="128" cy="128" r="5" fill="#fb7185" opacity="0.28" />
+                        </g>
+                      ) : isBombStartled ? (
+                        <g fill="none" stroke={isBombDanger ? '#71351d' : '#fff4e6'} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M 73 104 L 83 110 L 73 116 M 127 104 L 117 110 L 127 116" strokeWidth="4.5" />
+                          <path d="M 73 94 L 85 91 M 115 91 L 127 94" strokeWidth="3" />
+                          <ellipse cx="100" cy="134" rx="5" ry="7" strokeWidth="3.5" />
+                        </g>
+                      ) : isBombWorried ? (
+                        <g>
+                          <path d="M 72 110 L 80 103 L 88 110" fill="none" stroke="#ffffff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M 112 110 L 120 103 L 128 110" fill="none" stroke="#ffffff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M 72 96 L 86 92 M 114 92 L 128 96" fill="none" stroke="#fff4e6" strokeWidth="3" strokeLinecap="round" />
+                          <path d="M 91 136 Q 100 129 109 136" fill="none" stroke="#fff4e6" strokeWidth="3.5" strokeLinecap="round" />
+                          <circle cx="72" cy="128" r="5" fill="#fb7185" opacity="0.3" />
+                          <circle cx="128" cy="128" r="5" fill="#fb7185" opacity="0.3" />
                         </g>
                       ) : (
                         <g>
-                          <circle cx="82" cy="108" r="7.5" fill="#ffffff" />
-                          <circle cx="118" cy="108" r="7.5" fill="#ffffff" />
-                          <circle cx="84" cy="107" r="2.5" fill="#0f0d0c" />
-                          <circle cx="120" cy="107" r="2.5" fill="#0f0d0c" />
-                          <rect x="85" y="130" width="30" height="10" rx="5" fill="#242220" stroke="#3d3835" strokeWidth="1.5" />
-                          <line x1="95" y1="130" x2="95" y2="140" stroke="#3d3835" strokeWidth="1.5" />
-                          <line x1="105" y1="130" x2="105" y2="140" stroke="#3d3835" strokeWidth="1.5" />
+                          <path d="M 73 110 L 80 103 L 87 110" fill="none" stroke="#ffffff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M 113 110 L 120 103 L 127 110" fill="none" stroke="#ffffff" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="76" cy="126" r="5" fill="#fb7185" opacity="0.35" />
+                          <circle cx="124" cy="126" r="5" fill="#fb7185" opacity="0.35" />
+                          <path d="M 90 130 Q 100 141 110 130" fill="none" stroke="#fff4e6" strokeWidth="3.5" strokeLinecap="round" />
+                        </g>
+                      )}
+                      {(isBombWorried || isBombStartled) && (
+                        <g>
+                          {/* One temple sweat bead, clearly above the eyes. */}
+                          <path d="M 51 65 C 48 74 41 81 41 87 C 41 99 59 99 59 87 C 59 81 54 72 51 65 Z" fill="#7dd3fc" stroke="#0284c7" strokeWidth="1.5" />
+                          <path d="M 46 84 Q 44 88 47 91" fill="none" stroke="#e0f2fe" strokeWidth="2.5" strokeLinecap="round" />
+                        </g>
+                      )}
+                      {isBombStartled && (
+                        <g transform="rotate(12 180 69)" aria-hidden="true">
+                          <rect x="169" y="47" width="22" height="40" rx="11" fill="#fff3e3" stroke="#fdba74" strokeWidth="1.5" />
+                          <path d="M 180 56 V 69" stroke="#c2410c" strokeWidth="4" strokeLinecap="round" />
+                          <circle cx="180" cy="78" r="2.2" fill="#c2410c" />
                         </g>
                       )}
                     </svg>
@@ -6707,7 +6573,8 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                   {/* Answer Box (Shown when Revealed) */}
                   {bombstyleRevealed && activeBombstyleCard && (
-                    <div className="csm-arena-answer-box">
+                    <div className={`csm-arena-answer-box ${isBombExploded ? 'incorrect' : 'correct'}`} role="status" aria-live="polite">
+                      {bombstyleAnswerDraft && <div className="csm-arena-submitted-answer">YOUR ANSWER: {bombstyleAnswerDraft}{isBombExploded ? ' — INCORRECT' : ''}</div>}
                       <div className="csm-arena-answer-label">CORRECT ANSWER</div>
                       <div className="csm-arena-answer-content">
                         {activeBombstyleCard.correctAnswer}
@@ -6723,35 +6590,43 @@ function App({ isGuest = false, sharedDeck = null }) {
                   {/* Action / Decision Zone */}
                   <div className="csm-arena-controls-zone">
                     {!bombstyleRevealed ? (
-                      <button
-                        type="button"
-                        className="csm-arena-reveal-btn"
-                        onClick={handleBombstyleReveal}
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-                        REVEAL ANSWER &nbsp;<span style={{ fontSize: '12px', opacity: 0.85 }}>(Space)</span>
-                      </button>
+                      activeBombstyleCard.type === 'MULTIPLE_CHOICE' ? (
+                        <div className="csm-arena-answer-choice-wrap">
+                          <div className="csm-arena-choice-grid">
+                          {(activeBombstyleCard.options || []).map((option, optionIndex) => (
+                            <button key={optionIndex} type="button" className="csm-arena-choice-btn" onClick={() => handleBombstyleAnswer(option)}>
+                              <span>{optionIndex + 1}</span>{option}
+                            </button>
+                          ))}
+                          </div>
+                          <div className="csm-arena-shortcut-hint">Keyboard: press 1-{Math.min(activeBombstyleCard.options?.length || 0, 8)} to answer</div>
+                        </div>
+                      ) : activeBombstyleCard.type === 'TRUE_FALSE' ? (
+                        <div className="csm-arena-answer-choice-wrap">
+                          <div className="csm-arena-choice-grid csm-arena-boolean-grid">
+                          {['True', 'False'].map(option => (
+                            <button key={option} type="button" className="csm-arena-choice-btn" onClick={() => handleBombstyleAnswer(option)}>
+                              <span>{option === 'True' ? '✓' : '×'}</span>{option}
+                            </button>
+                          ))}
+                          </div>
+                          <div className="csm-arena-shortcut-hint">Keyboard: press 1 for True or 2 for False</div>
+                        </div>
+                      ) : (
+                        <form className="csm-arena-identification-form" onSubmit={event => { event.preventDefault(); handleBombstyleAnswer(bombstyleAnswerDraft); }}>
+                          <input
+                            type="text"
+                            value={bombstyleAnswerDraft}
+                            onChange={event => setBombstyleAnswerDraft(event.target.value)}
+                            placeholder="Type your answer"
+                            autoComplete="off"
+                            aria-label="Your answer"
+                          />
+                          <button type="submit">Submit Answer</button>
+                        </form>
+                      )
                     ) : (
-                      <div className="csm-arena-decision-grid">
-                        <button
-                          type="button"
-                          className="csm-arena-defuse-btn"
-                          disabled={bombstyleFeedback !== null}
-                          onClick={() => handleBombstyleDecision(true)}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                          I KNEW IT [Defuse]
-                        </button>
-                        <button
-                          type="button"
-                          className="csm-arena-explode-btn"
-                          disabled={bombstyleFeedback !== null}
-                          onClick={() => handleBombstyleDecision(false)}
-                        >
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                          I DIDN'T KNOW [Boom]
-                        </button>
-                      </div>
+                      <div className="csm-arena-answer-status">Answer submitted — advancing automatically</div>
                     )}
                   </div>
                 </div>
@@ -6937,14 +6812,14 @@ function App({ isGuest = false, sharedDeck = null }) {
       </main>
 
       {bombstyleExitModalOpen && (
-        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(false); }}>
+        <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={resumeBombstyleSession}>
           <div className="csm-bombstyle-exit-modal" role="dialog" aria-modal="true" aria-labelledby="bombstyle-exit-title" aria-describedby="bombstyle-exit-description" onClick={(event) => event.stopPropagation()}>
             <div className="csm-bombstyle-exit-icon" aria-hidden="true"><IconArrowLeft /></div>
             <span className="csm-kicker">LEAVE SESSION?</span>
             <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
             <p id="bombstyle-exit-description">Your answers are saved. Exit this session and return to the Arena?</p>
             <div className="csm-bombstyle-exit-actions">
-              <button type="button" className="csm-secondary-button" autoFocus onClick={async () => { try { if (!isGuest) await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId }); } catch (_) { } setBombstyleExitModalOpen(false); }}>Cancel</button>
+              <button type="button" className="csm-secondary-button" autoFocus onClick={resumeBombstyleSession}>Cancel</button>
               <button
                 type="button"
                 className="csm-danger-button"
@@ -7015,6 +6890,18 @@ function App({ isGuest = false, sharedDeck = null }) {
             <p>{changeConfirmation.message}</p>
             <button type="button" className="csm-primary-button" onClick={() => setChangeConfirmation(null)}>Done</button>
           </div>
+        </div>
+      )}
+
+      {aiCardsAddedModal && (
+        <div className="csm-modal-backdrop" role="presentation">
+          <section className="csm-change-modal csm-ai-added-modal" role="dialog" aria-modal="true" aria-labelledby="ai-cards-added-title" aria-describedby="ai-cards-added-copy">
+            <div className="csm-change-icon csm-ai-added-icon" aria-hidden="true"><IconSparkles className="w-5 h-5" /></div>
+            <span className="csm-kicker">AI CARDS ADDED</span>
+            <h2 id="ai-cards-added-title">Your new Bombcards are ready</h2>
+            <p id="ai-cards-added-copy"><strong>{aiCardsAddedModal.count}</strong> AI-generated {aiCardsAddedModal.count === 1 ? 'card was' : 'cards were'} added to “{aiCardsAddedModal.deckTitle}”.</p>
+            <button type="button" className="csm-primary-button" autoFocus onClick={() => setAiCardsAddedModal(null)}>Okay</button>
+          </section>
         </div>
       )}
 
@@ -7323,7 +7210,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       AI Bombcard Maker
                     </h3>
                     <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
-                      Gemini 3.5 Flash
+                      Gemini Flash
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
@@ -7760,6 +7647,13 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </button>
                         <button
                           type="button"
+                          onClick={() => setAiFormat('TRUE_FALSE')}
+                          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiFormat === 'TRUE_FALSE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                          T/F Only
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setAiFormat('IDENTIFICATION')}
                           className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiFormat === 'IDENTIFICATION' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
                         >
@@ -7871,7 +7765,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                                  #{idx + 1} {card.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : 'Identification'}
+                                  #{idx + 1} {card.type === 'MULTIPLE_CHOICE' ? 'Multiple Choice' : card.type === 'TRUE_FALSE' ? 'True / False' : 'Identification'}
                                 </span>
                                 {card.hint && (
                                   <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded inline-flex items-center gap-1">
@@ -7900,6 +7794,15 @@ function App({ isGuest = false, sharedDeck = null }) {
                                       </div>
                                     );
                                   })}
+                                </div>
+                              )}
+
+                              {card.type === 'TRUE_FALSE' && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <span className="text-[10px] font-extrabold uppercase text-slate-400">Correct Answer:</span>
+                                  <span className="px-2.5 py-1 rounded-lg bg-orange-50 text-[#f04824] border border-orange-200 text-xs font-bold">
+                                    {card.correctAnswer}
+                                  </span>
                                 </div>
                               )}
 
@@ -8125,6 +8028,13 @@ function App({ isGuest = false, sharedDeck = null }) {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setNewQType('TRUE_FALSE')}
+                    className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${newQType === 'TRUE_FALSE' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}
+                  >
+                    True / False
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setNewQType('IDENTIFICATION')}
                     className={`h-7 px-3 rounded-md text-xs font-bold transition-colors ${newQType === 'IDENTIFICATION' ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200'
                       }`}
@@ -8178,6 +8088,22 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </div>
                       ))}
                     </div>
+                  ) : newQType === 'TRUE_FALSE' ? (
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[11px] font-medium text-slate-500 block">Choose the correct answer:</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['True', 'False'].map(value => (
+                          <button
+                            type="button"
+                            key={value}
+                            onClick={() => setNewQAnswer(value)}
+                            className={`h-9 rounded-lg text-xs font-bold border transition-colors ${newQAnswer === value ? 'border-[#f04824] bg-orange-50 text-[#f04824]' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}
+                          >
+                            {value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   ) : (
                     /* Mode B: Identification Single & Alternates */
                     <div className="space-y-2 pt-1">
@@ -8228,7 +8154,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         <div className="flex-1 pr-2">
                           <span className="font-bold text-slate-900 block">Q{idx + 1}: {c.prompt}</span>
                           <span className="text-[11px] text-slate-500 ">
-                            Ans: {c.correctAnswer} &bull; Type: {c.type === 'MULTIPLE_CHOICE' ? 'MCQ' : 'ID'}
+                            Ans: {c.correctAnswer} &bull; Type: {c.type === 'MULTIPLE_CHOICE' ? 'MCQ' : c.type === 'TRUE_FALSE' ? 'T/F' : 'ID'}
                           </span>
                         </div>
                         <button
@@ -8305,6 +8231,12 @@ function renderSharedDeckUnavailable(msg) {
   `;
 }
 
+function renderAdminAccessDenied() {
+  const root = document.getElementById('root');
+  if (!root) return;
+  root.innerHTML = '<div style="width:100%;height:100vh;background:#f6f8fb;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif"><div style="max-width:440px;width:100%;padding:32px;border:1px solid #dce5ee;border-radius:20px;background:#fff;box-shadow:0 20px 45px rgba(15,23,42,.1);text-align:center"><div style="font-size:11px;font-weight:800;letter-spacing:.12em;color:#f04824;text-transform:uppercase">Restricted area</div><h2 style="margin:8px 0 10px;color:#18233a">Administrator access required</h2><p style="margin:0 0 22px;color:#64748b;line-height:1.6">This access path is reserved for authorized administrators.</p><a href="index.html" style="display:inline-block;padding:11px 18px;border-radius:12px;background:#f04824;color:#fff;font-weight:700;text-decoration:none">Return to workspace</a></div></div>';
+}
+
 (async function bootstrap() {
   const root = document.getElementById('root');
   const shareToken = window.CSM_GUEST_SHARE_TOKEN
@@ -8343,6 +8275,7 @@ function renderSharedDeckUnavailable(msg) {
       };
 
       window.CSM.isGuest = isGuest;
+      if (session.authenticated) CSM.startIdleMonitor();
       window.CSM.guestSharedDeck = sharedDeck;
       window.CSM.initial = {
         profile,
@@ -8365,8 +8298,12 @@ function renderSharedDeckUnavailable(msg) {
   }
 
   CSM.api('auth/session').then(async session => {
-    if (!session.authenticated) { window.location.replace('login.html?mode=signin'); return; }
+    const adminPath = /\/admin\/?$/i.test(window.location.pathname);
+    if (!session.authenticated) { window.location.replace(`login.html?mode=signin${adminPath ? '&next=admin' : ''}${session.timedOut ? '&reason=idle_timeout' : ''}`); return; }
+    if (adminPath && !['admin', 'superadmin'].includes(session.profile?.role)) { renderAdminAccessDenied(); return; }
+    window.CSM.adminUrl = session.adminUrl || 'admin';
     CSM.initial = await CSM.api('workspace');
+    CSM.startIdleMonitor();
     ReactDOM.render(<App isGuest={false} sharedDeck={null} />, root);
   }).catch(error => {
     root.innerHTML = `<div style="margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:16px system-ui"><h2>Workspace unavailable</h2><p>${String(error.message || 'Could not load your account data.').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</p><button onclick="location.href='login.html'">Back to sign in</button></div>`;

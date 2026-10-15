@@ -1,8 +1,20 @@
 # Co-StudyMaxx (PHP + MySQL + React)
 
-Co-StudyMaxx is a modern active recall platform featuring flashcard reviewers ("Bombcards"), interactive PDF annotation tools, pressure-based countdown quiz games ("Bombstyle Arena"), and AI flashcard generation powered by Gemini.
+Co-StudyMaxx is a modern active recall platform featuring flashcard reviewers ("Bombcards"), interactive PDF annotation tools, pressure-based countdown quiz games ("Bombstyle Arena"), and AI flashcard generation powered by Gemini. Bombstyle supports True/False, Multiple Choice, and Identification answer modes with server-side answer validation.
 
-For a detailed breakdown of codebase design, directory structures, and data flows, see [ARCHITECTURE.md](file:///c:/Users/dough/CSM/ARCHITECTURE.md).
+For codebase design, directory structure, and data flows, see [the architecture guide](docs/ARCHITECTURE.md).
+
+## Project layout
+
+- Root HTML pages, `index.jsx`, `api.js`, and styles: browser entry points and interface.
+- `assets/images/`: shared branding images.
+- `api/`, `server/`, and `classes/`: API routes, request/session handling, and database services.
+- `database/schema.sql`: the canonical empty-database schema. Use `migrate.php` and `migrate-learning-workspace.php` for existing installations and the PDF learning workspace.
+- `mailer/`: password-recovery email service.
+- `tests/`: integration checks; `docs/`: project documentation.
+- `storage/`: ignored local backups. Keep uploaded PDFs in the configured private upload directory.
+
+See [cleanup notes](docs/CLEANUP.md) for removed legacy files and recovery information.
 
 ---
 
@@ -38,8 +50,25 @@ Copy `.env.example` to `.env` and fill in any required keys:
 APP_ENV=local
 APP_BASE_URL=http://127.0.0.1:8080
 GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
 ```
-The application automatically loads `.env` securely in [`server/bootstrap.php`](file:///c:/Users/dough/CSM/server/bootstrap.php). `.env` is ignored by Git to protect secrets.
+The application automatically loads `.env` securely in [`server/bootstrap.php`](server/bootstrap.php). `.env` is ignored by Git to protect secrets.
+
+To enable AI flashcard generation, create a local root `.env` from `.env.example`, add your Gemini API key from [Google AI Studio](https://aistudio.google.com/), and keep `GEMINI_MODEL=gemini-3.8-flash` unless you need a different model. The key remains server-side and is sent to Gemini through an API-key header; it is never placed in frontend JavaScript or request URLs. AI generation is limited to 20 requests per account per hour.
+
+## Security requirements
+
+The application applies security headers, server-side sessions, HttpOnly/SameSite cookies, CSRF and same-origin checks, per-browser tab binding, idle logout after 20 minutes, private PDF storage, upload validation, rate limits, and no-store API responses. These controls reduce risk but do not replace secure deployment practices.
+
+Before exposing the site beyond local development:
+
+1. Serve the site only over HTTPS, set `APP_ENV=production`, use an `https://` `APP_BASE_URL`, and set `secure_cookie` to `true`. The API refuses production startup when these requirements are missing.
+2. Configure `ADMIN_BASE_URL` as a separate HTTPS host such as `https://admin.example.com`. Production startup refuses to run without a distinct admin host. The admin console is entered through `/admin`, and every `admin/*` API request independently checks the configured admin host before role authorization.
+3. Set `ADMIN_IP_ALLOWLIST` to a comma-separated list of trusted administrator IPs when you have a fixed VPN, office, or Zero Trust egress address. Leave it blank only when your edge provider supplies the network restriction; do not expose the origin directly.
+4. Keep `server/config.local.php`, `.env`, and `mailer/.env` outside version control. Rotate database, mailer, and AI credentials immediately if they were ever committed, pasted into a ticket, or shared publicly.
+5. Use a dedicated MySQL account with only `SELECT, INSERT, UPDATE, DELETE` on this application database. Keep backups encrypted and restrict access to the private upload directory and database backups.
+6. Keep the mailer bound to `127.0.0.1`; do not expose port `8091` to the network. Use authenticated SMTP with TLS in production.
+7. Do not place uploaded PDFs or configuration files under a public web root. Review web-server logs and audit events without recording passwords, tokens, session IDs, or document contents.
 
 ---
 
@@ -56,7 +85,7 @@ The application automatically loads `.env` securely in [`server/bootstrap.php`](
    C:\xampp\php\php.exe database\migrate.php
    ```
 
-   `database/migrate.php` reads `server/config.local.php` by default. For a one-time migration, you can override its connection using `CSM_MIGRATION_DSN`, `CSM_MIGRATION_USER`, and `CSM_MIGRATION_PASSWORD` environment variables (`__EMPTY__` represents an intentionally empty password), or temporarily grant its configured DB user the DDL permissions needed for the additive `ALTER`/`CREATE` statements. The migration adds nullable email data and password-reset token storage, scopes existing PDF metadata to its deck owner, adds per-Bombcard study progress and PDF highlight metadata, and adds admin roles, temporary account-lock status, deck moderation, owner-only review notifications, audit-event storage, system settings, and browser-scoped active-tab bindings. Existing accounts remain `user`; no account is automatically promoted. Existing account, reviewer, card, activity, Arena, and highlight rows are preserved. Revoke temporary DDL access afterward; runtime only needs `SELECT, INSERT, UPDATE, DELETE`.
+   `database/migrate.php` reads `server/config.local.php` by default. For a one-time migration, you can override its connection using `CSM_MIGRATION_DSN`, `CSM_MIGRATION_USER`, and `CSM_MIGRATION_PASSWORD` environment variables (`__EMPTY__` represents an intentionally empty password), or temporarily grant its configured DB user the DDL permissions needed for the additive `ALTER`/`CREATE` statements. The migration adds nullable email data and password-reset token storage, scopes existing PDF metadata to its deck owner, adds True/False Bombcard support, per-Bombcard study progress and PDF highlight metadata, and adds admin roles, temporary account-lock status, deck moderation, owner-only review notifications, audit-event storage, system settings, and browser-scoped active-tab bindings. Existing accounts remain `user`; no account is automatically promoted. Existing account, reviewer, card, activity, Arena, and highlight rows are preserved. Revoke temporary DDL access afterward; runtime only needs `SELECT, INSERT, UPDATE, DELETE`.
 
    To roll back only the admin-panel schema, first export the admin tables and then apply `database/rollback-admin.sql` with a DDL-capable account. This intentionally removes admin roles/settings, moderation records and their user notifications, and audit history; the app's pre-existing study/account data is left in place. The rollback does not undo the earlier password-recovery or PDF/highlight migrations.
 6. Either put the project under XAMPP’s `htdocs` and browse to it through Apache, or from this folder start the PHP development server:
