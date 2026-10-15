@@ -91,6 +91,7 @@
       }, [authMode, authBusy]);
       const handleAuthSubmit = (event) => {
         event.preventDefault();
+<<<<<<< HEAD
         if (authBusy) return;
         const formData = new FormData(event.currentTarget);
         const username = String(formData.get('username') || '').trim();
@@ -123,6 +124,9 @@
           setAuthError('');
           onAuthenticated();
         }, 420);
+=======
+        window.location.assign(`login.html?mode=${authMode === 'register' ? 'register' : 'signin'}`);
+>>>>>>> DASHBOARD-UPDATE
       };
       useEffect(() => {
         document.body.classList.add('csm-landing-mode');
@@ -170,7 +174,11 @@
           <header className="csm-landing-header">
             <div className="csm-landing-shell csm-landing-nav">
               <a className="csm-landing-brand" href="#top" aria-label="Co-StudyMaxx home">
+<<<<<<< HEAD
                 <img src="csm-mascot.png" alt="" />
+=======
+                <img src="assets/images/csm-mascot.png" alt="" />
+>>>>>>> DASHBOARD-UPDATE
                 <span>Co-StudyMaxx</span>
               </a>
               <nav className="csm-landing-links" aria-label="Landing page navigation">
@@ -275,13 +283,21 @@
             </section>
           </main>
           <footer className="csm-landing-footer" id="workspace">
+<<<<<<< HEAD
             <div className="csm-landing-shell csm-landing-footer-inner"><a className="csm-landing-brand" href="#top"><img src="csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></a><small>Made for the next focused study session.</small><div className="csm-landing-footer-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="#top">Back to top <IconArrowUp /></a></div></div>
+=======
+            <div className="csm-landing-shell csm-landing-footer-inner"><a className="csm-landing-brand" href="#top"><img src="assets/images/csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></a><small>Made for the next focused study session.</small><div className="csm-landing-footer-links"><a href="#features">Features</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a><a href="#top">Back to top <IconArrowUp /></a></div></div>
+>>>>>>> DASHBOARD-UPDATE
           </footer>
           {authMode && (
             <div className="csm-auth-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeAuth(); }}>
               <section className="csm-auth-modal" role="dialog" aria-modal="true" aria-labelledby="csm-auth-title">
                 <button className="csm-auth-modal-close" type="button" aria-label="Close authentication dialog" onClick={closeAuth}><IconClose /></button>
+<<<<<<< HEAD
                 <div className="csm-auth-modal-brand"><img src="csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></div>
+=======
+                <div className="csm-auth-modal-brand"><img src="assets/images/csm-mascot.png" alt="" /><span>Co-StudyMaxx</span></div>
+>>>>>>> DASHBOARD-UPDATE
                 <span className="csm-auth-modal-kicker">{authMode === 'signin' ? 'WELCOME BACK' : 'START LEARNING TOGETHER'}</span>
                 <h2 id="csm-auth-title">{authMode === 'signin' ? 'Log in to your account.' : 'Create your free account.'}</h2>
                 <p>{authMode === 'signin' ? 'Pick up where your next focused study session starts.' : 'Build reviewers, play timed quizzes, and keep your study space private.'}</p>
