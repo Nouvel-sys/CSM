@@ -10,6 +10,15 @@ const getCompactPageItems = (currentPage, pageCount) => {
   return [1, { type: 'ellipsis', key: 'start' }, page - 1, page, page + 1, { type: 'ellipsis', key: 'end' }, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
 };
 const formatAdminEventLabel = (value) => String(value ?? '').split('_').filter(Boolean).map(part => part[0].toUpperCase() + part.slice(1)).join(' ');
+const adminAvatarBackgrounds = {
+  ember: 'linear-gradient(145deg, #f47c59, #ed4e2d)',
+  ocean: 'linear-gradient(145deg, #5c8fe8, #243f86)',
+  mint: 'linear-gradient(145deg, #61c7a0, #247d68)',
+  violet: 'linear-gradient(145deg, #a580e8, #5b3c9a)',
+  sunset: 'linear-gradient(145deg, #f3bd56, #c85b30)',
+  slate: 'linear-gradient(145deg, #718096, #263246)'
+};
+const getAccountInitials = (account) => String(account.display_name || account.username || '?').trim().split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0].toUpperCase()).join('') || '?';
 const commonPasswordSet = new Set(['12345678', '123456789', '1234567890', 'password', 'password1', 'password123', 'qwerty123', 'qwerty12345', '11111111', '00000000', '87654321', 'admin123', 'abc12345', 'iloveyou', 'letmein', 'welcome1', 'monkey123', 'dragon123', 'football1', 'baseball1']);
 const isCommonPassword = (value) => commonPasswordSet.has(String(value ?? '').trim().toLowerCase());
 const measurePasswordStrength = (value) => {
@@ -1785,7 +1794,7 @@ function AdminPanel({ profile }) {
     {(section === 'users' || section === 'content') && <div className="csm-admin-card">
       <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); if (section === 'content') { setDeckPage(1); load(search, 1); } else { setUserPage(1); load(search, deckPage, 1); } }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
       {section === 'content' && <div className="csm-admin-preview-launch"><div><strong>Review deck contents</strong><span>Read-only staff preview of Bombcards and answers.</span></div><label htmlFor="admin-preview-deck">Deck<select id="admin-preview-deck" value={previewDeckId} onChange={event => setPreviewDeckId(event.target.value)} disabled={!decks.length || deckPreviewLoading}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} · {deck.owner}</option>)}</select></label><button type="button" className="csm-secondary-button" disabled={!previewDeckId || busy || deckPreviewLoading} onClick={event => { const deck = decks.find(item => item.id === previewDeckId); if (!deck) return; deckPreviewTriggerRef.current = event.currentTarget; loadDeckPreview(deck); }}>{deckPreviewLoading ? 'Loading…' : 'View deck'}</button></div>}
-      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
+      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span><div><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
     </div>}
     {section === 'users' && userPagination}
 
@@ -2284,6 +2293,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const handleOpenAiGenerator = (preferredDeckId, docOrFile = null) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     const deckId = preferredDeckId || creatorTargetDeckId || (decks.length > 0 ? decks[0].id : '');
     setAiTargetDeckId(deckId);
     setAiStage('input');
@@ -2989,6 +2999,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   }, [decks, folderNameInput, targetFolderForEdit]);
 
   const handleOpenEditFolderInfo = (deck, e) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     if (e) e.stopPropagation();
     setOpenDeckMenuId(null);
     setTargetFolderForEdit(deck);
@@ -2998,6 +3009,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const handleOpenCreateFolderInfo = () => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     setOpenDeckMenuId(null);
     setTargetFolderForEdit(null);
     setFolderNameInput('');
@@ -3007,6 +3019,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   const handleSaveFolderInfo = async (e) => {
     if (e) e.preventDefault();
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     const title = canonicalDeckTitle(folderNameInput);
     if (!title) {
       triggerToast('Please enter a deck title');
@@ -3041,12 +3054,14 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   const handleDeleteFolder = (deckId, e) => {
     if (e) e.stopPropagation();
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     const target = decks.find(d => d.id === deckId);
     setOpenDeckMenuId(null);
     setDeleteDeckTarget(target || { id: deckId, code: 'this deck', title: 'this deck' });
   };
 
   const handleRemoveDocument = (deckId, docId) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     const deck = decks.find(item => item.id === deckId);
     const document = deck?.documents?.find(item => item.id === docId);
     if (!document) return;
@@ -3065,6 +3080,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const handleRemoveBombcard = (deck, cardId) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     const card = deck?.cards?.find(item => item.id === cardId);
     if (!deck || !card) return;
     setOpenMaterialMenuId(null);
@@ -3181,6 +3197,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const deleteFolderPermanently = async (deckId, name) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     try { await CSM.api('decks', 'DELETE', { id: deckId }); await refreshWorkspace(); }
     catch (error) { triggerToast(error.message); return; }
     setSelectedDeckIds(prev => prev.filter(id => id !== deckId));
@@ -3427,6 +3444,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   // Add Material Popup Actions (VAIA Hierarchy + CSM Design Premise)
   const handleOpenAddMaterialPopup = (deck, e) => {
     if (e) e.stopPropagation();
+    if (isGuest) { setGuestLockedSection('creator'); return; }
     setTargetDeckForAddMaterial(deck);
     setIsAddMaterialPopupOpen(true);
   };
@@ -3639,6 +3657,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const bombstyleTimerRef = useRef(null);
   const bombstyleDeadlineRef = useRef(null);
   const bombstyleAnswerSubmittedRef = useRef(false);
+  const bombstyleWrongFeedbackTimerRef = useRef(null);
+  const bombstyleTimeoutStartedRef = useRef(false);
 
   const bombstyleActiveDeck = useMemo(() => {
     return decks.find(d => d.id === bombstyleDeckId) || decks[0];
@@ -3656,6 +3676,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
   const selectedBombstyleDifficulty = BOMBSTYLE_DIFFICULTIES[bombstyleDifficulty] || BOMBSTYLE_DIFFICULTIES.normal;
   const isBombExploded = bombstyleFeedback === 'exploded';
+  const isBombWrong = bombstyleFeedback === 'wrong';
   const isBombDanger = bombstyleTimeRemaining <= 5.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
   const isBombStartled = bombstyleTimeRemaining <= 10.0 && bombstylePhase === 'gameplay' && !bombstyleFeedback;
   const isBombWorried = !isBombStartled && bombstyleTimeRemaining <= (selectedBombstyleDifficulty.seconds / 2) && bombstylePhase === 'gameplay' && !bombstyleFeedback;
@@ -3712,6 +3733,10 @@ function App({ isGuest = false, sharedDeck = null }) {
       triggerToast('Selected deck does not contain any Bombcards yet.');
       return;
     }
+
+    if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
+    bombstyleWrongFeedbackTimerRef.current = null;
+    bombstyleTimeoutStartedRef.current = false;
 
     if (isGuest) {
       setBombstyleSessionId('guest-session-' + Date.now());
@@ -3862,26 +3887,27 @@ function App({ isGuest = false, sharedDeck = null }) {
       setTimeout(() => advanceBombstyleCard(), 600);
     } else {
       sound.arenaWrong();
-      sound.detonation();
-      setBombstyleFeedback('exploded');
-      const nextTime = Math.max(0, serverResult.remainingMs / 1000);
+      setBombstyleFeedback('wrong');
       setBombstyleStreak(0);
       setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'did_not_know' }]);
 
-      setTimeout(() => {
-        if (nextTime <= 0) {
-          finishBombstyleSession();
-        } else {
-          advanceBombstyleCard();
-        }
-      }, 1300);
+      if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
+      bombstyleWrongFeedbackTimerRef.current = setTimeout(() => {
+        bombstyleWrongFeedbackTimerRef.current = null;
+        if (currentBombstyleRemainingMs() <= 0) return;
+        advanceBombstyleCard();
+      }, 1100);
     }
   };
 
   const handleBombstyleTimeout = async () => {
-    if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
+    const waitingAfterWrongAnswer = bombstyleFeedback === 'wrong';
+    if (bombstyleTimeoutStartedRef.current || (bombstyleFeedback && !waitingAfterWrongAnswer) || !activeBombstyleCard || (bombstyleAnswerSubmittedRef.current && !waitingAfterWrongAnswer)) return;
+    bombstyleTimeoutStartedRef.current = true;
+    if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
+    bombstyleWrongFeedbackTimerRef.current = null;
     bombstyleAnswerSubmittedRef.current = true;
-    sound.arenaWrong();
+    if (!waitingAfterWrongAnswer) sound.arenaWrong();
     sound.detonation();
     if (!isGuest && bombstyleSessionId) {
       try { await CSM.api('arena/session&id=' + bombstyleSessionId); }
@@ -3889,7 +3915,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     }
     setBombstyleFeedback('exploded'); setBombstyleRevealed(true); setBombstyleClock(0);
     setBombstyleStreak(0);
-    setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
+    if (!waitingAfterWrongAnswer) setBombstyleMissedCards(prev => [...prev, { ...activeBombstyleCard, resultReason: 'timed_out' }]);
 
     setTimeout(() => {
       finishBombstyleSession();
@@ -3897,6 +3923,9 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const advanceBombstyleCard = () => {
+    if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
+    bombstyleWrongFeedbackTimerRef.current = null;
+    bombstyleTimeoutStartedRef.current = false;
     setBombstyleFeedback(null);
     setBombstyleRevealed(false);
     setBombstyleAnswerDraft('');
@@ -3910,6 +3939,8 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   const finishBombstyleSession = () => {
     if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
+    if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
+    bombstyleWrongFeedbackTimerRef.current = null;
     const duration = bombstyleStartTime ? Math.round((Date.now() - bombstyleStartTime) / 1000) : 0;
     setBombstyleDurationSeconds(duration);
     setBombstyleFeedback(null);
@@ -3980,7 +4011,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       >
         <div className="csm-library-deck-card-top">
           <span className="csm-library-deck-icon"><IconCards /></span>
-          <DeckCardActions deck={deck} />
+          {!isGuest && <DeckCardActions deck={deck} />}
         </div>
         <div className="csm-library-deck-card-copy">
           <h3>{deck.code || deck.title}</h3>
@@ -3988,7 +4019,7 @@ function App({ isGuest = false, sharedDeck = null }) {
           <span>{totalMaterials} material{totalMaterials === 1 ? '' : 's'}</span>
         </div>
         <div className="csm-library-deck-card-footer">
-          <span><IconUser /> By you</span>
+          <span><IconUser /> {isGuest ? `By ${deck.owner || 'Shared Reviewer'}` : 'By you'}</span>
           <strong>Open deck <span>→</span></strong>
         </div>
       </article>
@@ -5165,7 +5196,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <article key={cardId} className={`csm-library-bombcard ${isRevealed ? 'revealed' : ''}`}>
                             <div className="csm-library-bombcard-top">
                               <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>
-                              <div className="csm-material-actions">
+                              {!isGuest && <div className="csm-material-actions">
                                 <button
                                   type="button"
                                   className="csm-material-menu-trigger"
@@ -5206,7 +5237,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     </button>
                                   </div>
                                 )}
-                              </div>
+                              </div>}
                             </div>
                             <p className="csm-library-bombcard-prompt">{card.prompt}</p>
                             {isRevealed && <p className="csm-library-bombcard-answer">{card.correctAnswer || 'Answer not saved yet.'}</p>}
@@ -5241,7 +5272,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         <div key={doc.id} className="csm-library-document">
                           <div className="csm-library-document-main"><span className="csm-library-document-icon">PDF</span><div className="csm-library-document-copy"><button type="button" onClick={() => handleOpenDocument(currentSelectedDeck, doc)}>{doc.title}</button><small>PDF reference · Click to open in PDF Tools</small></div></div>
                           <div className="csm-material-actions flex items-center gap-1.5">
-                            <button
+                            {!isGuest && <button
                               type="button"
                               onClick={() => handleOpenAiGenerator(currentSelectedDeck.id, doc)}
                               className="h-7 px-2.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
@@ -5249,13 +5280,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                             >
                               <IconSparkles className="w-3 h-3 text-purple-600" />
                               <span>AI Cards</span>
-                            </button>
+                            </button>}
                             <button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}>•••</button>
                             {documentMenuOpen && (
                               <div className="csm-material-menu">
                                 <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button>
-                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenAiGenerator(currentSelectedDeck.id, doc); }} className="flex items-center gap-1.5"><IconSparkles className="w-3.5 h-3.5 text-purple-600" /> Generate AI Flashcards</button>
-                                <button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button>
+                                <button type="button" onClick={() => { setOpenMaterialMenuId(null); window.location.assign(`${doc.url}&download=1`); }}>Download PDF</button>
+                                {!isGuest && <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenAiGenerator(currentSelectedDeck.id, doc); }} className="flex items-center gap-1.5"><IconSparkles className="w-3.5 h-3.5 text-purple-600" /> Generate AI Flashcards</button>}
+                                {!isGuest && <button type="button" className="danger" onClick={() => handleRemoveDocument(currentSelectedDeck.id, doc.id)}><IconTrash /> Remove PDF</button>}
                               </div>
                             )}
                           </div>
@@ -5994,10 +6026,10 @@ function App({ isGuest = false, sharedDeck = null }) {
               <div>
                 <span className="csm-kicker">DOCUMENT STUDY WORKSPACE</span>
                 <h1>Study Workspace</h1>
-                <p>Read reviewer PDFs, mark key concepts with the Magic Marker, and build active-recall flashcards & notes.</p>
+                <p>{isGuest ? 'Read shared reviewer PDFs. Sign in to add highlights, notes, or flashcards.' : 'Read reviewer PDFs, mark key concepts with the Magic Marker, and build active-recall flashcards & notes.'}</p>
               </div>
               <div className="csm-page-actions flex items-center gap-2">
-                {activeDocument && (
+                {activeDocument && !isGuest && (
                   <button
                     type="button"
                     className="csm-primary-button flex items-center gap-1.5 cursor-pointer"
@@ -6162,7 +6194,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 {/* Instructions helper banner */}
                 <div className="csm-pdf-instructions">
                   <span className="csm-pdf-instructions-icon"><IconHighlighter className="w-3.5 h-3.5 text-purple-600" /></span>
-                  <span>Highlight any text in the PDF with the Magic Marker to create flashcards, add notes, or color-code key excerpts.</span>
+                  <span>{isGuest ? 'Read-only shared PDF. Sign in to save highlights, notes, or flashcards.' : 'Highlight any text in the PDF with the Magic Marker to create flashcards, add notes, or color-code key excerpts.'}</span>
                 </div>
 
                 {/* Enhanced PDF Canvas & Text Layer Viewer */}
@@ -6171,9 +6203,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                   pageNumber={pdfPage}
                   onPageCount={setPdfPageCount}
                   highlights={highlights}
-                  onSelection={handlePdfTextSelection}
+                  onSelection={isGuest ? undefined : handlePdfTextSelection}
                   zoom={pdfZoom}
-                  onQuickAction={handleQuickAction}
+                  onQuickAction={isGuest ? undefined : handleQuickAction}
                 />
 
                 {/* Pagination Controls with Reading Position Auto-Sync */}
@@ -6213,7 +6245,14 @@ function App({ isGuest = false, sharedDeck = null }) {
               </section>
 
               {/* Right Column: PDF Learning Workspace Sidebar (Assistant, Notes, Flashcards, Highlights) */}
-              <LearningWorkspaceSidebar
+              {isGuest ? (
+                <aside className="csm-guest-pdf-tools">
+                  <span className="csm-kicker">READ-ONLY PREVIEW</span>
+                  <h2>PDF tools are locked</h2>
+                  <p>You can read and download this shared PDF. Sign in to create notes, highlights, and flashcards.</p>
+                  <a href="login.html?mode=signin">Sign in to unlock</a>
+                </aside>
+              ) : <LearningWorkspaceSidebar
                 activeTab={workspaceSidebarTab}
                 setActiveTab={setWorkspaceSidebarTab}
                 activeDocument={activeDocument}
@@ -6288,7 +6327,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 setPdfCounterpart={setPdfCounterpart}
                 onOpenAiGenerator={() => handleOpenAiGenerator(activeDocument?.deckId, activeDocument)}
                 triggerToast={triggerToast}
-              />
+              />}
             </div>
 
             {/* Flashcard Active Recall Practice Session Modal */}
@@ -6581,6 +6620,11 @@ function App({ isGuest = false, sharedDeck = null }) {
                       DEFUSED!
                     </div>
                   )}
+                  {isBombWrong && (
+                    <div className="bombstyle-feedback-pill wrong">
+                      WRONG ANSWER
+                    </div>
+                  )}
                   {bombstyleFeedback === 'exploded' && (
                     <div className="bombstyle-feedback-pill exploded">
                       <svg className="w-4 h-4 inline-block mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
@@ -6590,11 +6634,11 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                   {/* Animated SVG Bomb Mascot */}
                   <div className="csm-arena-mascot-wrap">
-                  <div className={`relative transition-transform duration-150 ${isBombExploded ? 'csm-arena-mascot-exploding' : isBombDanger ? 'csm-arena-mascot-danger' : 'csm-arena-mascot-calm'}`}>
+                  <div className={`relative transition-transform duration-150 ${isBombExploded ? 'csm-arena-mascot-exploding' : isBombWrong ? 'csm-arena-mascot-wrong' : isBombDanger ? 'csm-arena-mascot-danger' : 'csm-arena-mascot-calm'}`}>
                     {/* Glow Aura */}
-                    <div className={`absolute inset-2 rounded-full blur-xl transition-opacity duration-300 pointer-events-none ${(isBombDanger || isBombExploded) ? 'bg-orange-500/20 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
+                    <div className={`absolute inset-2 rounded-full blur-xl transition-opacity duration-300 pointer-events-none ${(isBombDanger || isBombWrong || isBombExploded) ? 'bg-orange-500/20 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
 
-                    <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-lg" role="img" aria-label={bombstyleFeedback === 'defused' ? 'Happy defused bomb' : isBombExploded ? 'Friendly surprised exploding bomb' : isBombStartled ? 'Startled bomb with a sweat drop and exclamation mark' : isBombWorried ? 'Worried sweating bomb' : 'Happy bomb mascot'}>
+                    <svg width="150" height="150" viewBox="0 0 200 200" className="relative z-10 drop-shadow-lg" role="img" aria-label={bombstyleFeedback === 'defused' ? 'Happy defused bomb' : isBombExploded ? 'Friendly surprised exploding bomb' : isBombWrong ? 'Bomb mascot reacting to an incorrect answer' : isBombStartled ? 'Startled bomb with a sweat drop and exclamation mark' : isBombWorried ? 'Worried sweating bomb' : 'Happy bomb mascot'}>
                       <defs>
                         <radialGradient id="bsBombBody" cx="35%" cy="30%" r="70%">
                           <stop offset="0%" stopColor="#45464b" />
@@ -6605,6 +6649,11 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <stop offset="0%" stopColor="#ffda95" />
                           <stop offset="45%" stopColor="#ff9c38" />
                           <stop offset="100%" stopColor="#e65a24" />
+                        </radialGradient>
+                        <radialGradient id="bsBombWrongBody" cx="35%" cy="30%" r="70%">
+                          <stop offset="0%" stopColor="#ffc19c" />
+                          <stop offset="48%" stopColor="#fb754b" />
+                          <stop offset="100%" stopColor="#d9472b" />
                         </radialGradient>
                         <radialGradient id="bsBombDefusedBody" cx="35%" cy="30%" r="70%">
                           <stop offset="0%" stopColor="#dcfff0" />
@@ -6623,7 +6672,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       <path
                         d="M 100 48 C 94 26, 126 36, 132 15"
                         fill="none"
-                        stroke={bombstyleFeedback === 'defused' ? '#059669' : (isBombDanger || isBombExploded) ? '#c2410c' : '#d97706'}
+                        stroke={bombstyleFeedback === 'defused' ? '#059669' : isBombWrong ? '#b93824' : (isBombDanger || isBombExploded) ? '#c2410c' : '#d97706'}
                         strokeWidth="6"
                         strokeLinecap="round"
                       />
@@ -6632,7 +6681,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       {bombstyleFeedback !== 'defused' && (
                         <g transform="translate(132, 15)">
                           <circle cx="0" cy="0" r="10" fill="url(#bsSpark)" className="animate-spark-pulse" />
-                          <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={(isBombDanger || isBombExploded) ? "#fb923c" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
+                          <path d="M 0 -12 L 0 -4 M 0 4 L 0 12 M -12 0 L -4 0 M 4 0 L 12 0" stroke={(isBombWrong || isBombDanger || isBombExploded) ? "#fb6542" : "#fef08a"} strokeWidth="2.5" strokeLinecap="round" />
                           <circle cx="0" cy="0" r="3.5" fill="#ffffff" />
                         </g>
                       )}
@@ -6647,8 +6696,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                         cy="116"
                         rx="73"
                         ry="70"
-                        fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : (isBombDanger || isBombExploded) ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
-                        stroke={bombstyleFeedback === 'defused' ? '#059669' : (isBombDanger || isBombExploded) ? '#ea580c' : '#3f3f46'}
+                        fill={bombstyleFeedback === 'defused' ? 'url(#bsBombDefusedBody)' : isBombWrong ? 'url(#bsBombWrongBody)' : (isBombDanger || isBombExploded) ? 'url(#bsBombDangerBody)' : 'url(#bsBombBody)'}
+                        stroke={bombstyleFeedback === 'defused' ? '#059669' : isBombWrong ? '#c2412d' : (isBombDanger || isBombExploded) ? '#ea580c' : '#3f3f46'}
                         strokeWidth="2.5"
                       />
                       {/* Soft shell sheen keeps the rounded body readable at small sizes. */}
@@ -6668,6 +6717,13 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <ellipse cx="100" cy="136" rx="5.5" ry="7" fill="none" stroke="#71351d" strokeWidth="3.5" />
                           <circle cx="72" cy="128" r="5" fill="#fb7185" opacity="0.28" />
                           <circle cx="128" cy="128" r="5" fill="#fb7185" opacity="0.28" />
+                        </g>
+                      ) : isBombWrong ? (
+                        <g>
+                          <path d="M 72 111 L 80 105 L 88 111 M 112 111 L 120 105 L 128 111" fill="none" stroke="#7f271c" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M 88 137 Q 100 125 112 137" fill="none" stroke="#7f271c" strokeWidth="4" strokeLinecap="round" />
+                          <circle cx="72" cy="128" r="5" fill="#be123c" opacity="0.48" />
+                          <circle cx="128" cy="128" r="5" fill="#be123c" opacity="0.48" />
                         </g>
                       ) : isBombStartled ? (
                         <g fill="none" stroke={isBombDanger ? '#71351d' : '#fff4e6'} strokeLinecap="round" strokeLinejoin="round">
@@ -6752,8 +6808,8 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                   {/* Answer Box (Shown when Revealed) */}
                   {bombstyleRevealed && activeBombstyleCard && (
-                    <div className={`csm-arena-answer-box ${isBombExploded ? 'incorrect' : 'correct'}`} role="status" aria-live="polite">
-                      {bombstyleAnswerDraft && <div className="csm-arena-submitted-answer">YOUR ANSWER: {bombstyleAnswerDraft}{isBombExploded ? ' — INCORRECT' : ''}</div>}
+                    <div className={`csm-arena-answer-box ${isBombExploded || isBombWrong ? 'incorrect' : 'correct'}`} role="status" aria-live="polite">
+                      {bombstyleAnswerDraft && <div className="csm-arena-submitted-answer">YOUR ANSWER: {bombstyleAnswerDraft}{isBombExploded || isBombWrong ? ' — INCORRECT' : ''}</div>}
                       <div className="csm-arena-answer-label">CORRECT ANSWER</div>
                       <div className="csm-arena-answer-content">
                         {activeBombstyleCard.correctAnswer}
@@ -7125,7 +7181,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               <button type="button" className="csm-form-modal-close" onClick={() => setShareDeckTarget(null)} aria-label="Close">×</button>
             </div>
             <p className="csm-form-modal-help">
-              Anyone with this link can view cards, study flashcards, and play countdown quiz without creating an account or logging in.
+              Anyone with this link can view the reviewer, study its cards, and read shared PDFs. Editing tools require signing in.
             </p>
 
             {shareModalLoading && !shareModalData ? (
@@ -7172,7 +7228,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </div>
 
                 <div className="csm-share-actions-row">
-                  {shareModalData.isActive ? (
+                  {!isGuest && (shareModalData.isActive ? (
                     <button
                       type="button"
                       className="csm-secondary-button danger-tint"
@@ -7190,9 +7246,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                     >
                       Enable Link
                     </button>
-                  )}
+                  ))}
 
-                  <button
+                  {!isGuest && <button
                     type="button"
                     className="csm-secondary-button"
                     disabled={shareModalLoading}
@@ -7200,7 +7256,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     title="Generate a fresh token and deactivate the previous link"
                   >
                     Regenerate Link
-                  </button>
+                  </button>}
 
                   {shareModalData.isActive && (
                     <a
@@ -7216,7 +7272,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </div>
 
                 <div className="csm-share-tip">
-                  Guests open the link directly without being redirected to login. They can study cards, flip through flashcards, and play the countdown quiz immediately.
+                  Guests can open and study this shared reviewer without signing in. Reviewer editing tools remain locked.
                 </div>
               </div>
             )}

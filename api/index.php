@@ -406,7 +406,7 @@ if (str_starts_with($route, 'admin/')) {
         $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
         $total = (int)query('SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?', [$like, $like])->fetchColumn();
         $rows = query(
-            'SELECT u.id,u.username,u.email,u.role,u.locked_until,u.created_at,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id) deck_count,(SELECT COUNT(*) FROM documents m WHERE m.user_id=u.id) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            'SELECT u.id,u.username,u.email,u.role,u.locked_until,u.created_at,COALESCE(p.display_name,u.username) display_name,COALESCE(p.avatar,\'ember\') avatar,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id) deck_count,(SELECT COUNT(*) FROM documents m WHERE m.user_id=u.id) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
             [$like, $like]
         )->fetchAll();
         respond(['users' => $rows, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);

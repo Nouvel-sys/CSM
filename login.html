@@ -782,7 +782,9 @@
       };
       const signoutNotice = signoutNotices[params.get('reason')] || null;
 
-      const setMode = (nextMode, updateUrl = true) => {
+      const formCopy = document.querySelector('.form-copy');
+      let modeAnimationTimer = 0;
+      const setMode = (nextMode, updateUrl = true, animate = true) => {
         mode = nextMode;
         const register = mode === 'register';
         const signin = mode === 'signin';
@@ -837,6 +839,13 @@
         error.classList.remove('is-success');
         document.title = `${reset ? 'Reset password' : forgot || mode === 'recovery-sent' ? 'Forgot password' : register ? 'Create account' : 'Sign in'} · Co-StudyMaxx`;
         if (updateUrl) history.replaceState({}, '', `login.html?mode=${mode === 'recovery-sent' ? 'forgot' : mode === 'reset-complete' ? 'signin' : mode}`);
+        if (animate && regular && formCopy) {
+          window.clearTimeout(modeAnimationTimer);
+          formCopy.classList.remove('is-switching');
+          void formCopy.offsetWidth;
+          formCopy.classList.add('is-switching');
+          modeAnimationTimer = window.setTimeout(() => formCopy.classList.remove('is-switching'), 520);
+        }
       };
       const showError = (message, isSuccess = false) => {
         error.textContent = message;
@@ -942,7 +951,7 @@
       });
 
       const initialMode = mode;
-      setMode(mode, false);
+      setMode(mode, false, false);
       if (signoutNotice) {
         byId('signout-title').textContent = signoutNotice[0];
         byId('signout-copy').textContent = signoutNotice[1];
