@@ -4,8 +4,8 @@ declare(strict_types=1);
 $base = getenv('CSM_TEST_URL') ?: 'http://127.0.0.1:8080/api/index.php?r=';
 $suffix = bin2hex(random_bytes(4));
 $users = [
-    ['name' => 'qa'.$suffix, 'email' => 'qa'.$suffix.'@example.invalid', 'password' => 'SmokeTest-2026!'],
-    ['name' => 'qb'.$suffix, 'email' => 'qb'.$suffix.'@example.invalid', 'password' => 'SmokeTest-2026!'],
+    ['name' => 'qa'.$suffix, 'email' => 'qa'.$suffix.'@example.invalid', 'password' => 'SmokeTest-2026!', 'firstName' => 'QA', 'middleName' => 'M', 'lastName' => 'Tester'],
+    ['name' => 'qb'.$suffix, 'email' => 'qb'.$suffix.'@example.invalid', 'password' => 'SmokeTest-2026!', 'firstName' => 'Quality', 'lastName' => 'Assurance'],
 ];
 function check(bool $ok, string $message): void { if (!$ok) throw new RuntimeException($message); }
 function client(): array { return ['cookie' => tempnam(sys_get_temp_dir(), 'csm-cookie-'), 'csrf' => '', 'tab' => bin2hex(random_bytes(16)), 'browser' => bin2hex(random_bytes(16))]; }
@@ -36,7 +36,7 @@ try {
     $initialStorageLimitSetting=$pdo->query("SELECT value_text,updated_by_user_id FROM system_settings WHERE setting_key='storage_limit_bytes'")->fetch();
     if(($initialMaintenanceSetting['value_text']??'0')==='1')throw new RuntimeException('Maintenance mode is already enabled; disable it before running the full smoke test.');
     $guard=client();expect($guard,'auth/session');$guard['csrf']='';expect($guard,'auth/logout','POST',[],403);
-    foreach($users as $u){$c=client();expect($c,'auth/session');expect($c,'auth/register','POST',['username'=>$u['name'],'email'=>$u['email'],'password'=>$u['password']],201);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>'incorrect-password'],401);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>$u['password']]);$accounts[]=$c;}
+    foreach($users as $u){$c=client();expect($c,'auth/session');$registration=['username'=>$u['name'],'email'=>$u['email'],'password'=>$u['password'],'firstName'=>$u['firstName'],'lastName'=>$u['lastName']];if(isset($u['middleName']))$registration['middleName']=$u['middleName'];expect($c,'auth/register','POST',$registration,201);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>'incorrect-password'],401);expect($c,'auth/login','POST',['username'=>$u['name'],'password'=>$u['password']]);$session=expect($c,'auth/session');check(($session['profile']['firstName']??'')===$u['firstName']&&($session['profile']['lastName']??'')===$u['lastName'],'Registration names were not saved to the account profile.');check(($session['profile']['middleName']??null)===($u['middleName']??null),'Optional middle name was not saved correctly.');$accounts[]=$c;}
     $a=$accounts[0];$b=$accounts[1];
     // Two browser tabs share one PHP cookie but keep independent sessionStorage IDs.
     $secondTab=['cookie'=>$a['cookie'],'csrf'=>'','tab'=>bin2hex(random_bytes(16)),'browser'=>$a['browser']];$extraClients[]=$secondTab;
@@ -50,9 +50,10 @@ try {
     $freshWorkspace=expect($a,'workspace');$freshStats=$freshWorkspace['stats'];
     check($freshStats['decks']===0&&$freshStats['cards']===0&&$freshStats['studyDays']===0&&$freshStats['studyBestDays']===0&&$freshStats['accuracy']===0&&$freshStats['decksTrend']===0&&$freshStats['cardsTrend']===0&&$freshStats['accuracyTrend']===0,'A newly created account did not start with zero statistics.');
     check(count($freshStats['activityChart'])===7&&array_sum(array_column($freshStats['activityChart'],'current'))===0&&array_sum(array_column($freshStats['activityChart'],'previous'))===0,'A new account received non-zero sample activity.');
-    expect($a,'auth/register','POST',['username'=>'duplicate'.$suffix,'email'=>$users[0]['email'],'password'=>$users[0]['password']],409);
+    expect($a,'auth/register','POST',['username'=>'duplicate'.$suffix,'email'=>$users[0]['email'],'password'=>$users[0]['password'],'firstName'=>'QA','lastName'=>'Tester'],409);
     $profile=expect($a,'profile','PATCH',['displayName'=>'Smoke Profile '.$suffix,'avatar'=>'mint']);check($profile['avatar']==='mint','Profile avatar was not saved.');
     $deck=expect($a,'decks','POST',['title'=>'Smoke Reviewer '.$suffix,'subject'=>'QA','category'=>'Recent'],201);$deckId=$deck['id'];$created[]=$deckId;
+    expect($a,'decks','POST',['title'=>'  smoke   reviewer '.$suffix.'  ','subject'=>'Duplicate','category'=>'Recent'],409);
     $deck=expect($a,'decks','PATCH',['id'=>$deckId,'title'=>'Smoke Reviewer Edited '.$suffix,'subject'=>'QA Edited','category'=>'Recent','cards'=>[]]);
     $card=expect($a,'cards','POST',['deckId'=>$deckId,'type'=>'IDENTIFICATION','prompt'=>'Smoke question?','correctAnswer'=>'Persistent answer','hint'=>'QA'],201);
     check(isset($card['id']),'Card was not created.');
@@ -199,7 +200,7 @@ try {
 
     expect($a,'auth/password','POST',['currentPassword'=>$users[0]['password'],'newPassword'=>'SmokeChanged-2026!']);
     expect($a,'auth/logout','POST',[]);
-    expect($a,'auth/session');expect($a,'auth/login','POST',['username'=>$users[0]['email'],'password'=>'SmokeChanged-2026!']);
+    expect($a,'auth/session');expect($a,'auth/login','POST',['username'=>$users[0]['name'],'password'=>'SmokeChanged-2026!']);
     $again=expect($a,'workspace');check(count(array_filter($again['decks'],fn($d)=>$d['id']===$deckId))===1,'Data did not survive sign-out and sign-in.');
     expect($a,'decks','DELETE',['id'=>$deckId]);$created=[];
 

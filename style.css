@@ -1358,8 +1358,6 @@
     .csm-icon-button { width: 35px; height: 35px; display: grid; place-items: center; border: 1px solid transparent; border-radius: 50%; color: #445264; background: transparent; cursor: pointer; position: relative; }
     .csm-icon-button:hover { border-color: var(--csm-line); background: #f7f9fb; }
     .csm-icon-button svg { width: 17px; height: 17px; }
-    .csm-notification::after { content: ''; position: absolute; top: 7px; right: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--csm-accent); border: 1px solid #fff; }
-    .csm-notification.is-empty::after { display: none; }
     .csm-notifications-wrap { position: relative; }
     .csm-notifications-panel { width: 280px; position: absolute; top: 45px; right: 0; z-index: 80; overflow: hidden; border: 1px solid var(--csm-line); border-radius: 14px; background: #fff; box-shadow: 0 18px 38px rgba(23,34,53,.16); }
     .csm-notifications-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px 12px; border-bottom: 1px solid #edf1f4; }

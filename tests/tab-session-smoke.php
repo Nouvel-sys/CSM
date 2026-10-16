@@ -36,7 +36,7 @@ function tab_expect(array &$client,string $route,string $method='GET',?array $da
 
 try{
     $session=tab_expect($first,'auth/session');
-    tab_expect($first,'auth/register','POST',['username'=>$username,'email'=>$email,'password'=>$password],201);
+    tab_expect($first,'auth/register','POST',['username'=>$username,'email'=>$email,'password'=>$password,'firstName'=>'Tab','lastName'=>'Tester'],201);
     tab_expect($first,'auth/login','POST',['username'=>$username,'password'=>$password]);
     if(tab_expect($first,'auth/session')['authenticated']!==true)throw new RuntimeException('The first tab was not authenticated after sign-in.');
 

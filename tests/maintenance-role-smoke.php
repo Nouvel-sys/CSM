@@ -38,7 +38,7 @@ try{
         $client=['cookie'=>tempnam(sys_get_temp_dir(),'csm-maint-cookie-'),'csrf'=>'','tab'=>bin2hex(random_bytes(16)),'browser'=>bin2hex(random_bytes(16))];
         $clients[]=$client;$index=array_key_last($clients);$cookies[]=$client['cookie'];$accounts[$role]=$name;
         maintenance_expect($clients[$index],'auth/session');
-        maintenance_expect($clients[$index],'auth/register','POST',['username'=>$name,'email'=>$name.'@example.invalid','password'=>$password],201);
+        maintenance_expect($clients[$index],'auth/register','POST',['username'=>$name,'email'=>$name.'@example.invalid','password'=>$password,'firstName'=>'Maintenance','lastName'=>'Tester'],201);
         $update=$pdo->prepare('UPDATE users SET role=? WHERE username=?');$update->execute([$role,$name]);
         maintenance_expect($clients[$index],'auth/login','POST',['username'=>$name,'password'=>$password]);
         if(maintenance_expect($clients[$index],'auth/session')['profile']['role']!==$role)throw new RuntimeException("The test account did not receive the expected $role role.");

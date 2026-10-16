@@ -156,13 +156,21 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
         if (!preg_match('/^[A-Za-z0-9_]{3,24}$/D', $username)) {
             fail(422, 'Username must contain 3–24 letters, numbers, or underscores.');
         }
+        $firstName = field($data, 'firstName', 80);
+        $middleName = field($data, 'middleName', 80, false);
+        $lastName = field($data, 'lastName', 80);
+        foreach ([$firstName, $middleName, $lastName] as $namePart) {
+            if (preg_match('/[\x00-\x1F\x7F]/', $namePart)) {
+                fail(422, 'Names cannot contain control characters.');
+            }
+        }
         $email = field($data, 'email', 254);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             fail(422, 'Enter a valid email address.');
         }
         $normalizedEmail = function_exists('mb_strtolower') ? mb_strtolower($email, 'UTF-8') : strtolower($email);
         try {
-            $users->register(uid(), $username, $normalizedEmail, password_hash($pass, PASSWORD_DEFAULT));
+            $users->register(uid(), $username, $normalizedEmail, password_hash($pass, PASSWORD_DEFAULT), $firstName, $middleName !== '' ? $middleName : null, $lastName);
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {
                 fail(409, 'That username or email is already registered.');
@@ -172,13 +180,13 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
         respond(['message' => 'Account created. Please sign in.'], 201);
     }
 
-    $row = $users->byLogin($login);
+    $row = $users->byUsername($login);
     $normalizedLogin = function_exists('mb_strtolower') ? mb_strtolower(trim($login), 'UTF-8') : strtolower(trim($login));
     $accountBucket = $row ? hash('sha256', 'account-login:user:' . $row['id']) : hash('sha256', 'account-login:identifier:' . $normalizedLogin);
 
     if ($row && $row['locked_until'] && strtotime($row['locked_until'] . ' UTC') > time()) {
         audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_locked']);
-        fail(401, 'Incorrect username/email or password, or account temporarily unavailable.');
+        fail(401, 'Incorrect username or password, or account temporarily unavailable.');
     }
 
     $hash = $row['password_hash'] ?? '$2y$10$92IXUNpkjJ0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
@@ -193,7 +201,7 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
             audit_event(null, 'account_locked', $row['id'], ['reason' => 'failed_login_threshold']);
         }
         audit_event(null, 'login_failure', $row['id'] ?? null, ['reason' => 'invalid_credentials']);
-        fail(401, 'Incorrect username/email or password, or account temporarily unavailable.');
+        fail(401, 'Incorrect username or password, or account temporarily unavailable.');
     }
 
     if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {
@@ -411,11 +419,16 @@ if (str_starts_with($route, 'admin/')) {
         }
         $like = '%' . trim($search) . '%';
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+        $offset = max(0, (int)($_GET['offset'] ?? 0));
+        $total = (int)query(
+            'SELECT COUNT(*) FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ?',
+            [$like, $like, $like]
+        )->fetchColumn();
         $rows = query(
-            'SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ? ORDER BY d.updated_at DESC LIMIT ' . $limit,
+            'SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ? ORDER BY d.updated_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
             [$like, $like, $like]
         )->fetchAll();
-        respond(['decks' => $rows]);
+        respond(['decks' => $rows, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
     }
 
     if ($route === 'admin/decks/view' && $method === 'GET') {
@@ -759,6 +772,10 @@ if (str_starts_with($route, 'admin/')) {
         [$start, $end] = $admin->dateRange($from, $to);
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
         $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
+        $total = (int)query(
+            'SELECT COUNT(*) FROM security_events WHERE created_at>=? AND created_at<?',
+            [$start, $end]
+        )->fetchColumn();
         $rows = query(
             'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<? ORDER BY e.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
             [$start, $end]
@@ -771,6 +788,7 @@ if (str_starts_with($route, 'admin/')) {
             'events' => $rows,
             'from' => substr($start, 0, 10),
             'to' => gmdate('Y-m-d', strtotime($end . ' UTC') - 86400),
+            'total' => $total,
             'limit' => $limit,
             'offset' => $offset,
         ]);
@@ -872,16 +890,21 @@ if ($route === 'decks') {
 
     if (in_array($method, ['POST', 'PATCH'], true)) {
         $data = input();
-        $title = field($data, 'title', 160);
+        $title = canonical_deck_title(field($data, 'title', 160));
         $subject = field($data, 'subject', 160, false);
         $category = field($data, 'category', 80, false) ?: 'Recent';
         $id = $method === 'PATCH' ? id_field($data) : uid();
 
         $db->beginTransaction();
+        query('SELECT id FROM users WHERE id=? FOR UPDATE', [$user]);
         if ($method === 'PATCH') {
             $old = owned_deck($id, $user);
+            if (normalized_deck_title((string)$old['title']) !== normalized_deck_title($title)) {
+                assert_unique_reviewer_title($user, $title, $id);
+            }
             $decksService->update($id, $title, $subject, $category);
         } else {
+            assert_unique_reviewer_title($user, $title);
             $decksService->create($id, $user, $title, $subject, $category);
         }
 

@@ -87,7 +87,7 @@ function parse_gemini_json(string $text): mixed {
 }
 
 function handle_learning_workspace_routes(string $route, string $method, string $user): bool {
-    global $database, $documentPagesService, $documentNotesService, $studyDecksService, $studyCardsService, $studyReviewService;
+    global $database, $db, $documentPagesService, $documentNotesService, $studyDecksService, $studyCardsService, $studyReviewService;
 
     // -------------------------------------------------------------------------
     // 1. Documents: Extract text and get pages
@@ -255,14 +255,18 @@ function handle_learning_workspace_routes(string $route, string $method, string 
 
         if ($method === 'POST') {
             $data = input();
-            $title = field($data, 'title', 255);
+            $title = canonical_deck_title(field($data, 'title', 255));
             $description = field($data, 'description', 2000, false) ?: '';
             $docId = !empty($data['documentId']) ? id_field($data, 'documentId') : null;
             if ($docId) {
                 owned_document($docId, $user);
             }
             $id = uid();
+            $db->beginTransaction();
+            query('SELECT id FROM users WHERE id=? FOR UPDATE', [$user]);
+            assert_unique_study_deck_title($user, $title);
             $studyDecksService->create($id, $user, $title, $description, $docId);
+            $db->commit();
             respond(['id' => $id, 'title' => $title, 'description' => $description, 'document_id' => $docId, 'card_count' => 0], 201);
         }
 
@@ -271,9 +275,15 @@ function handle_learning_workspace_routes(string $route, string $method, string 
             $id = id_field($data, 'id');
             $deck = $studyDecksService->owned($id, $user);
             if (!$deck) fail(404, 'Study deck not found.');
-            $title = field($data, 'title', 255, false) ?: $deck['title'];
+            $title = canonical_deck_title(field($data, 'title', 255, false) ?: $deck['title']);
             $description = field($data, 'description', 2000, false) ?: $deck['description'];
+            $db->beginTransaction();
+            query('SELECT id FROM users WHERE id=? FOR UPDATE', [$user]);
+            if (normalized_deck_title((string)$deck['title']) !== normalized_deck_title($title)) {
+                assert_unique_study_deck_title($user, $title, $id);
+            }
             $studyDecksService->update($id, $user, $title, $description);
+            $db->commit();
             respond(['ok' => true, 'id' => $id, 'title' => $title, 'description' => $description]);
         }
 

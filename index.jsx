@@ -1,5 +1,53 @@
 const { useState, useEffect, useRef, useMemo } = React;
 
+const canonicalDeckTitle = (value) => String(value ?? '').trim().replace(/\s+/g, ' ');
+const deckTitleKey = (value) => canonicalDeckTitle(value).toLocaleLowerCase();
+const getCompactPageItems = (currentPage, pageCount) => {
+  const page = Math.min(Math.max(1, currentPage), pageCount);
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => ({ type: 'page', value: index + 1 }));
+  if (page <= 3) return [1, 2, 3, { type: 'ellipsis', key: 'end' }, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
+  if (page >= pageCount - 2) return [1, { type: 'ellipsis', key: 'start' }, pageCount - 2, pageCount - 1, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
+  return [1, { type: 'ellipsis', key: 'start' }, page - 1, page, page + 1, { type: 'ellipsis', key: 'end' }, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
+};
+const formatAdminEventLabel = (value) => String(value ?? '').split('_').filter(Boolean).map(part => part[0].toUpperCase() + part.slice(1)).join(' ');
+const commonPasswordSet = new Set(['12345678', '123456789', '1234567890', 'password', 'password1', 'password123', 'qwerty123', 'qwerty12345', '11111111', '00000000', '87654321', 'admin123', 'abc12345', 'iloveyou', 'letmein', 'welcome1', 'monkey123', 'dragon123', 'football1', 'baseball1']);
+const isCommonPassword = (value) => commonPasswordSet.has(String(value ?? '').trim().toLowerCase());
+const measurePasswordStrength = (value) => {
+  const password = String(value ?? '');
+  if (!password) return { strength: '', label: '', advice: '' };
+  const common = isCommonPassword(password);
+  let score = 0;
+  if (password.length >= 8) score++;
+  if (password.length >= 12) score++;
+  if (password.length >= 16) score++;
+  if (/[a-z]/.test(password)) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/\d/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+  if (common) score = 0;
+  const strength = common || password.length < 8 || score <= 2 ? 'weak' : score <= 4 ? 'fair' : score <= 6 ? 'good' : 'strong';
+  const advice = common ? 'This password is commonly used. Choose a less predictable one.'
+    : strength === 'weak' ? 'Try 12 or more characters and mix letters, numbers, or symbols.'
+    : strength === 'fair' ? 'Add more length or another character type to strengthen it.'
+    : strength === 'good' ? 'Good. A longer, less predictable passphrase can make it stronger.'
+    : 'Strong password. Keep it unique to this account.';
+  return { strength, label: strength[0].toUpperCase() + strength.slice(1), advice };
+};
+function PasswordStrengthIndicator({ password }) {
+  const result = measurePasswordStrength(password);
+  return (
+    <div className={`csm-password-strength is-${result.strength}`} aria-live="polite">
+      <div className="csm-password-strength-top"><span>Password strength</span><strong>{result.label}</strong></div>
+      <div className="csm-password-strength-meter" aria-hidden="true"><span /><span /><span /><span /></div>
+      <p>{result.advice}</p>
+    </div>
+  );
+}
+const readSidebarLockPreference = () => {
+  try { return window.localStorage.getItem('csm-sidebar-locked') === '1'; }
+  catch (error) { return false; }
+};
+
 // ========================================================
 // 1. SOUND SYNTHESIZER (Web Audio API - Pure Client-Side)
 // ========================================================
@@ -104,18 +152,18 @@ class SoundEngine {
     if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
-      [220, 146.83].forEach((freq, idx) => {
+      [293.66, 220].forEach((freq, idx) => {
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'square';
+        osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, now + idx * 0.12);
         gain.gain.setValueAtTime(0.0001, now + idx * 0.12);
-        gain.gain.exponentialRampToValueAtTime(0.09, now + idx * 0.12 + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.16);
+        gain.gain.exponentialRampToValueAtTime(0.05, now + idx * 0.12 + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.19);
         osc.connect(gain);
         gain.connect(this.ctx.destination);
         osc.start(now + idx * 0.12);
-        osc.stop(now + idx * 0.12 + 0.18);
+        osc.stop(now + idx * 0.12 + 0.2);
       });
     } catch (e) { }
   }
@@ -124,7 +172,8 @@ class SoundEngine {
     this.init();
     if (!this.ctx) return;
     try {
-      const bufferSize = this.ctx.sampleRate * 0.45;
+      const now = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * 0.36);
       const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
@@ -132,16 +181,30 @@ class SoundEngine {
       noise.buffer = buffer;
       const filter = this.ctx.createBiquadFilter();
       filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(500, this.ctx.currentTime);
-      filter.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.45);
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(0.28, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.45);
+      filter.frequency.setValueAtTime(900, now);
+      filter.frequency.exponentialRampToValueAtTime(220, now + 0.36);
+      const noiseGain = this.ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.065, now + 0.025);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
       noise.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      filter.connect(noiseGain);
+      noiseGain.connect(this.ctx.destination);
       noise.start();
-      noise.stop(this.ctx.currentTime + 0.45);
+      noise.stop(now + 0.36);
+
+      const pop = this.ctx.createOscillator();
+      const popGain = this.ctx.createGain();
+      pop.type = 'sine';
+      pop.frequency.setValueAtTime(360, now);
+      pop.frequency.exponentialRampToValueAtTime(170, now + 0.22);
+      popGain.gain.setValueAtTime(0.0001, now);
+      popGain.gain.exponentialRampToValueAtTime(0.085, now + 0.018);
+      popGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+      pop.connect(popGain);
+      popGain.connect(this.ctx.destination);
+      pop.start(now);
+      pop.stop(now + 0.26);
     } catch (e) { }
   }
 }
@@ -931,11 +994,12 @@ function LearningWorkspaceSidebar({
                 />
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (!newDeckTitle.trim()) return;
-                    onCreateStudyDeck(newDeckTitle.trim());
-                    setNewDeckTitle('');
-                    setNewDeckOpen(false);
+                    if (await onCreateStudyDeck(newDeckTitle)) {
+                      setNewDeckTitle('');
+                      setNewDeckOpen(false);
+                    }
                   }}
                   className="px-2.5 py-1 bg-purple-600 text-white rounded-xl text-xs font-bold cursor-pointer"
                 >
@@ -1488,9 +1552,15 @@ function AdminPanel({ profile }) {
   const [range, setRange] = useState(() => ({ from: new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }));
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
+  const [userTotal, setUserTotal] = useState(0);
+  const [userPage, setUserPage] = useState(1);
   const [decks, setDecks] = useState([]);
+  const [deckTotal, setDeckTotal] = useState(0);
+  const [deckPage, setDeckPage] = useState(1);
   const [reports, setReports] = useState([]);
   const [events, setEvents] = useState([]);
+  const [eventTotal, setEventTotal] = useState(0);
+  const [eventPage, setEventPage] = useState(1);
   const [settings, setSettings] = useState(null);
   const [search, setSearch] = useState('');
   const [previewDeckId, setPreviewDeckId] = useState('');
@@ -1515,23 +1585,32 @@ function AdminPanel({ profile }) {
   const deckPreviewCloseRef = useRef(null);
   const deckPreviewRequestRef = useRef(0);
 
-  const load = async (query = search) => {
+  const load = async (query = search, requestedDeckPage = deckPage, requestedUserPage = userPage, requestedEventPage = eventPage) => {
     setError('');
     try {
       if (section === 'overview') setDashboard(await CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`));
-      if (section === 'users') setUsers((await CSM.api(`admin/users&q=${encodeURIComponent(query)}&limit=100`)).users || []);
+      if (section === 'users') {
+        const result = await CSM.api(`admin/users&q=${encodeURIComponent(query)}&limit=10&offset=${(requestedUserPage - 1) * 10}`);
+        setUsers(result.users || []);
+        setUserTotal(Number(result.total) || 0);
+      }
       if (section === 'content') {
-        const result = await CSM.api(`admin/decks&q=${encodeURIComponent(query)}&limit=100`);
+        const result = await CSM.api(`admin/decks&q=${encodeURIComponent(query)}&limit=10&offset=${(requestedDeckPage - 1) * 10}`);
         const nextDecks = result.decks || [];
         setDecks(nextDecks);
+        setDeckTotal(Number(result.total) || 0);
         setPreviewDeckId(current => nextDecks.some(deck => deck.id === current) ? current : (nextDecks[0]?.id || ''));
       }
       if (section === 'reports') setReports((await CSM.api('admin/reports&status=open')).reports || []);
-      if (section === 'audit' && isSuper) setEvents((await CSM.api(`admin/audit&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&limit=100`)).events || []);
+      if (section === 'audit' && isSuper) {
+        const result = await CSM.api(`admin/audit&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&limit=10&offset=${(requestedEventPage - 1) * 10}`);
+        setEvents(result.events || []);
+        setEventTotal(Number(result.total) || 0);
+      }
       if (section === 'system' && isSuper) setSettings(await CSM.api('admin/settings'));
     } catch (requestError) { setError(requestError.message || 'Could not load administrator data.'); }
   };
-  useEffect(() => { load(); }, [section, range.from, range.to]);
+  useEffect(() => { load(); }, [section, range.from, range.to, deckPage, userPage, eventPage]);
   useEffect(() => {
     if (section !== 'overview') return undefined;
     const interval = window.setInterval(async () => {
@@ -1662,12 +1741,32 @@ function AdminPanel({ profile }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [Boolean(deckPreview)]);
-  const dateFilters = (label = 'Activity period') => <div className="csm-admin-date-filter"><span>{label}</span><label>From<input type="date" value={range.from} onChange={event => setRange(value => ({ ...value, from: event.target.value }))} /></label><label>To<input type="date" value={range.to} onChange={event => setRange(value => ({ ...value, to: event.target.value }))} /></label></div>;
+  useEffect(() => {
+    const lastPage = Math.max(1, Math.ceil(deckTotal / 10));
+    if (deckPage > lastPage) setDeckPage(lastPage);
+  }, [deckPage, deckTotal]);
+  useEffect(() => {
+    const lastPage = Math.max(1, Math.ceil(userTotal / 10));
+    if (userPage > lastPage) setUserPage(lastPage);
+  }, [userPage, userTotal]);
+  useEffect(() => {
+    const lastPage = Math.max(1, Math.ceil(eventTotal / 10));
+    if (eventPage > lastPage) setEventPage(lastPage);
+  }, [eventPage, eventTotal]);
+  const dateFilters = (label = 'Activity period', resetEventPage = false) => <div className="csm-admin-date-filter"><span>{label}</span><label>From<input type="date" value={range.from} onChange={event => { if (resetEventPage) setEventPage(1); setRange(value => ({ ...value, from: event.target.value })); }} /></label><label>To<input type="date" value={range.to} onChange={event => { if (resetEventPage) setEventPage(1); setRange(value => ({ ...value, to: event.target.value })); }} /></label></div>;
+  const buildAdminPagination = (label, page, total, setPage) => {
+    const pageCount = Math.max(1, Math.ceil(total / 10));
+    const pageItems = getCompactPageItems(page, pageCount);
+    return total > 10 && <nav className="csm-admin-pagination" aria-label={`${label} pages`}><span className="csm-admin-pagination-summary">Showing {((page - 1) * 10) + 1}–{Math.min(page * 10, total)} of {total} {label.toLowerCase()}</span><div className="csm-admin-pagination-controls"><button type="button" className="csm-admin-page-button" onClick={() => setPage(current => Math.max(1, current - 1))} disabled={page === 1}>Previous</button>{pageItems.map(item => item.type === 'ellipsis' ? <span key={item.key} className="csm-admin-page-ellipsis" aria-hidden="true">…</span> : <button key={item.value} type="button" className={`csm-admin-page-number ${item.value === page ? 'active' : ''}`} aria-label={`Page ${item.value}`} aria-current={item.value === page ? 'page' : undefined} onClick={() => setPage(item.value)}>{item.value}</button>)}<button type="button" className="csm-admin-page-button" onClick={() => setPage(current => Math.min(pageCount, current + 1))} disabled={page === pageCount}>Next</button></div></nav>;
+  };
+  const deckPagination = buildAdminPagination('Decks', deckPage, deckTotal, setDeckPage);
+  const userPagination = buildAdminPagination('Users', userPage, userTotal, setUserPage);
+  const eventPagination = buildAdminPagination('Security events', eventPage, eventTotal, setEventPage);
   const sections = [['overview', 'Overview'], ['content', 'Content'], ['reports', 'Review queue'], ['users', 'Users'], ...(isSuper ? [['audit', 'Security log'], ['system', 'System']] : [])];
 
   return <div className="csm-screen custom-scroll csm-admin-screen">
     <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE ADMINISTRATION</span><h1>Admin console</h1><p>Review app activity and manage accounts and study content.</p></div><span className={`csm-admin-role-pill ${isSuper ? 'is-super' : ''}`}>{isSuper ? 'Superadmin' : 'Admin'}</span></div>
-    <div className="csm-admin-tabs" role="tablist" aria-label="Admin console sections">{sections.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={section === id} className={section === id ? 'active' : ''} onClick={() => { setSection(id); setNotice(null); setError(''); }}>{label}</button>)}</div>
+    <div className="csm-admin-tabs" role="tablist" aria-label="Admin console sections">{sections.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={section === id} className={section === id ? 'active' : ''} onClick={() => { if (id === 'content') setDeckPage(1); if (id === 'users') setUserPage(1); if (id === 'audit') setEventPage(1); setSection(id); setNotice(null); setError(''); }}>{label}</button>)}</div>
     {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-admin-alert is-success" role="status">{notice}</div>}
 
     {section === 'overview' && <>
@@ -1684,14 +1783,15 @@ function AdminPanel({ profile }) {
     </>}
 
     {(section === 'users' || section === 'content') && <div className="csm-admin-card">
-      <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); load(search); }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
+      <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); if (section === 'content') { setDeckPage(1); load(search, 1); } else { setUserPage(1); load(search, deckPage, 1); } }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
       {section === 'content' && <div className="csm-admin-preview-launch"><div><strong>Review deck contents</strong><span>Read-only staff preview of Bombcards and answers.</span></div><label htmlFor="admin-preview-deck">Deck<select id="admin-preview-deck" value={previewDeckId} onChange={event => setPreviewDeckId(event.target.value)} disabled={!decks.length || deckPreviewLoading}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} · {deck.owner}</option>)}</select></label><button type="button" className="csm-secondary-button" disabled={!previewDeckId || busy || deckPreviewLoading} onClick={event => { const deck = decks.find(item => item.id === previewDeckId); if (!deck) return; deckPreviewTriggerRef.current = event.currentTarget; loadDeckPreview(deck); }}>{deckPreviewLoading ? 'Loading…' : 'View deck'}</button></div>}
-      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}
+      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
     </div>}
+    {section === 'users' && userPagination}
 
     {section === 'reports' && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">STAFF REVIEW QUEUE</span><h2>Flagged decks</h2></div><span className="csm-admin-subtle">Private content is only visible to its owner and authorized staff.</span></div>{reports.length ? <div className="csm-admin-report-list">{reports.map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · flagged by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Flagged {new Date(`${report.created_at}Z`).toLocaleString()}</small></div><div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Dismiss this report?', message: `This report will be closed without hiding “${report.deckTitle}”. The deck owner will be notified of the review outcome.`, confirmLabel: 'Dismiss report', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Report dismissed.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'dismiss', reason }) })}>Dismiss</button><button type="button" className="csm-primary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Hide this deck?', message: `“${report.deckTitle}” will be hidden from its owner. They will receive a notification with your review note.`, confirmLabel: 'Hide deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Deck hidden and moderation action recorded.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'hide', reason }) })}>Hide deck</button></div></article>)}</div> : <div className="csm-admin-empty">No decks are waiting for review.</div>}</div>}
 
-    {section === 'audit' && isSuper && <>{dateFilters('Security event period')}<div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Security event log</h2></div><span className="csm-admin-subtle">IP addresses are stored as one-way hashes.</span></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Non-sensitive details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status">{event.event}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details)}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No security events were recorded in this date range.</div>}</div></>}
+    {section === 'audit' && isSuper && <>{dateFilters('Security event period', true)}<div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Security event log</h2></div><span className="csm-admin-subtle">IP addresses are stored as one-way hashes.</span></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Non-sensitive details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status csm-admin-security-event">{formatAdminEventLabel(event.event)}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details)}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No security events were recorded in this date range.</div>}</div>{eventPagination}</>}
 
     {section === 'system' && isSuper && <div className="csm-admin-system-grid">{settings && <>
       <section className="csm-admin-card"><span className="csm-kicker">SERVICE AVAILABILITY</span><h2>Maintenance mode</h2><p>When enabled, regular accounts cannot load or change workspace data. Administrators can continue working; sign-in and sign-out remain available.</p><div className="csm-admin-setting-row"><span className={`csm-admin-status ${settings.maintenanceMode ? 'is-locked' : ''}`}>{settings.maintenanceMode ? 'Enabled' : 'Disabled'}</span><button type="button" className={settings.maintenanceMode ? 'csm-secondary-button' : 'csm-primary-button'} disabled={busy} onClick={event => requestAdminAction(event, { title: `${settings.maintenanceMode ? 'Disable' : 'Enable'} maintenance mode?`, message: settings.maintenanceMode ? 'Regular users will be able to access the workspace again.' : 'Regular users will see the maintenance page. Admins and superadmins can continue working.', confirmLabel: settings.maintenanceMode ? 'Disable maintenance' : 'Enable maintenance', success: `Maintenance mode ${settings.maintenanceMode ? 'disabled' : 'enabled'}.`, action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { maintenanceMode: !settings.maintenanceMode })) })}>{settings.maintenanceMode ? 'Disable' : 'Enable'}</button></div></section>
@@ -1848,9 +1948,30 @@ function App({ isGuest = false, sharedDeck = null }) {
   const guestAllowedScreens = ['library', 'flashcards', 'arena', 'game'];
   const defaultScreen = isGuest ? (guestAllowedScreens.includes(initialScreen) ? initialScreen : 'library') : initialScreen;
   const [activeTab, setActiveTab] = useState(isStaffAccount && staffRestrictedScreens.includes(defaultScreen) ? 'home' : (!isStaffAccount && defaultScreen === 'admin' ? 'home' : defaultScreen));
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarLocked, setSidebarLocked] = useState(readSidebarLockPreference);
+  const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarLockPreference);
+  const handleSidebarMouseEnter = () => {
+    if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
+      setSidebarExpanded(true);
+    }
+  };
+  const handleSidebarMouseLeave = () => {
+    if (!sidebarLocked && window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
+      setSidebarExpanded(false);
+    }
+  };
+  const handleSidebarLockToggle = () => {
+    const next = !sidebarLocked;
+    setSidebarLocked(next);
+    if (next) setSidebarExpanded(true);
+    try { window.localStorage.setItem('csm-sidebar-locked', next ? '1' : '0'); }
+    catch (error) { }
+  };
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [signOutConfirmationOpen, setSignOutConfirmationOpen] = useState(false);
+  const [signOutBusy, setSignOutBusy] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [changeConfirmation, setChangeConfirmation] = useState(null);
@@ -1924,6 +2045,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   // --- Library Workshop State ---
   const [searchQuery, setSearchQuery] = useState('');
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState('All subjects');
+  const [libraryPage, setLibraryPage] = useState(1);
   const [selectedDeckForFolderView, setSelectedDeckForFolderView] = useState(() => (isGuest && sharedDeck) ? sharedDeck : null); // When clicking folder
   const [isDeckEditorOpen, setIsDeckEditorOpen] = useState(false);
   const [editingDeck, setEditingDeck] = useState(null);
@@ -2355,7 +2477,6 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
   const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
   const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
-  const [shareToast, setShareToast] = useState('');
   const [selectedDeckIds, setSelectedDeckIds] = useState(() => (isGuest && sharedDeck) ? [sharedDeck.id] : [window.CSM?.initial?.decks?.[0]?.id].filter(Boolean));
   const [soundMuted, setSoundMuted] = useState(false);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
@@ -2601,17 +2722,24 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   // Study Flashcards Handlers
   const handleCreateStudyDeck = async (title) => {
-    if (!title?.trim()) return;
+    const cleanTitle = canonicalDeckTitle(title);
+    if (!cleanTitle) return false;
+    if (studyDecks.some(deck => deckTitleKey(deck.title) === deckTitleKey(cleanTitle))) {
+      triggerToast('A study deck with this title already exists.');
+      return false;
+    }
     try {
       const created = await CSM.api('study-decks', 'POST', {
-        title: title.trim(),
+        title: cleanTitle,
         documentId: activeDocument?.id || null
       });
       setStudyDecks(prev => [created, ...prev]);
       setActiveStudyDeckId(created.id);
-      triggerToast(`Deck "${title}" created.`);
+      triggerToast(`Deck "${cleanTitle}" created.`);
+      return true;
     } catch (e) {
       triggerToast('Could not create deck: ' + e.message);
+      return false;
     }
   };
 
@@ -2852,6 +2980,14 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [collapseRecent, setCollapseRecent] = useState(false);
   const [collapseOlder, setCollapseOlder] = useState(false);
 
+  const folderNameDuplicate = useMemo(() => {
+    const titleKey = deckTitleKey(folderNameInput);
+    if (!titleKey) return false;
+    const originalKey = targetFolderForEdit ? deckTitleKey(targetFolderForEdit.title || targetFolderForEdit.code) : '';
+    if (targetFolderForEdit && titleKey === originalKey) return false;
+    return decks.some(deck => deck.id !== targetFolderForEdit?.id && deckTitleKey(deck.title || deck.code) === titleKey);
+  }, [decks, folderNameInput, targetFolderForEdit]);
+
   const handleOpenEditFolderInfo = (deck, e) => {
     if (e) e.stopPropagation();
     setOpenDeckMenuId(null);
@@ -2871,26 +3007,31 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   const handleSaveFolderInfo = async (e) => {
     if (e) e.preventDefault();
-    if (!folderNameInput.trim()) {
+    const title = canonicalDeckTitle(folderNameInput);
+    if (!title) {
       triggerToast('Please enter a deck title');
+      return;
+    }
+    if (folderNameDuplicate) {
+      triggerToast('A deck with this title already exists.');
       return;
     }
 
     try {
       const savedDeck = await CSM.api('decks', targetFolderForEdit ? 'PATCH' : 'POST', {
         ...(targetFolderForEdit ? { id: targetFolderForEdit.id } : {}),
-        title: folderNameInput.trim(), subject: folderDescInput.trim(), category: targetFolderForEdit?.category || 'Recent'
+        title, subject: folderDescInput.trim(), category: targetFolderForEdit?.category || 'Recent'
       });
       await refreshWorkspace();
       if (targetFolderForEdit) {
         // Edit ONLY folder name & description (NOT content)
-        triggerToast(`Updated folder "${folderNameInput.trim()}"`);
-        showChangeConfirmation('Deck updated', `Your changes to "${folderNameInput.trim()}" were saved.`);
+        triggerToast(`Updated folder "${title}"`);
+        showChangeConfirmation('Deck updated', `Your changes to "${title}" were saved.`);
       } else {
         // Create new folder
         setSelectedDeckIds(prev => [...prev, savedDeck.id]);
-        triggerToast(`Created new folder "${folderNameInput.trim()}"`);
-        showChangeConfirmation('Deck created', `"${folderNameInput.trim()}" is ready for your study materials.`);
+        triggerToast(`Created new folder "${title}"`);
+        showChangeConfirmation('Deck created', `"${title}" is ready for your study materials.`);
       }
 
       setFolderInfoModalOpen(false);
@@ -3039,10 +3180,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     setRevealedLibraryCards(prev => prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]);
   };
 
-  const confirmDeleteFolder = async () => {
-    if (!deleteDeckTarget) return;
-    const deckId = deleteDeckTarget.id;
-    const name = deleteDeckTarget.code || deleteDeckTarget.title || 'this deck';
+  const deleteFolderPermanently = async (deckId, name) => {
     try { await CSM.api('decks', 'DELETE', { id: deckId }); await refreshWorkspace(); }
     catch (error) { triggerToast(error.message); return; }
     setSelectedDeckIds(prev => prev.filter(id => id !== deckId));
@@ -3052,6 +3190,19 @@ function App({ isGuest = false, sharedDeck = null }) {
     setDeleteDeckTarget(null);
     triggerToast(`Deleted deck "${name}"`);
     showChangeConfirmation('Deck deleted', `"${name}" and its materials were removed.`);
+  };
+
+  const confirmDeleteFolder = () => {
+    if (!deleteDeckTarget) return;
+    const deckId = deleteDeckTarget.id;
+    const name = deleteDeckTarget.code || deleteDeckTarget.title || 'this deck';
+    setDeleteDeckTarget(null);
+    requestDeleteConfirmation({
+      title: `Permanently delete “${name}”?`,
+      message: `This is the final confirmation. “${name}” and its cards and study materials will be permanently deleted. This action cannot be undone.`,
+      confirmLabel: 'Delete permanently',
+      action: () => deleteFolderPermanently(deckId, name)
+    });
   };
 
   const DeckCardActions = ({ deck }) => {
@@ -3113,13 +3264,23 @@ function App({ isGuest = false, sharedDeck = null }) {
     return visibleDecks.filter(d => d.section === 'older' || (d.id !== 'deck-2' && d.section !== 'recent'));
   }, [visibleDecks]);
 
+  const orderedLibraryDecks = useMemo(() => [...recentDecks, ...olderDecks], [recentDecks, olderDecks]);
+  const libraryPageCount = Math.max(1, Math.ceil(orderedLibraryDecks.length / 9));
+  const pageDecks = useMemo(
+    () => orderedLibraryDecks.slice((libraryPage - 1) * 9, libraryPage * 9),
+    [orderedLibraryDecks, libraryPage]
+  );
+  const pageRecentDecks = pageDecks.filter(deck => deck.section === 'recent' || deck.id === 'deck-2');
+  const pageOlderDecks = pageDecks.filter(deck => deck.section === 'older' || (deck.id !== 'deck-2' && deck.section !== 'recent'));
+
+  useEffect(() => {
+    if (libraryPage > libraryPageCount) setLibraryPage(libraryPageCount);
+  }, [libraryPage, libraryPageCount]);
+
   // (Old game lobby summary helpers removed for Bombstyle)
 
-  // Notification Toast Helper
-  const triggerToast = (msg) => {
-    setShareToast(msg);
-    setTimeout(() => setShareToast(''), 3000);
-  };
+  // Keep existing action handlers compatible without showing floating status toasts.
+  const triggerToast = () => {};
 
   const showChangeConfirmation = (title, message) => {
     setChangeConfirmation({ title, message });
@@ -3299,17 +3460,6 @@ function App({ isGuest = false, sharedDeck = null }) {
     setIsAddMaterialPopupOpen(false);
     setActiveTab('creator');
   };
-  const handleOpenCreateDeck = () => {
-    setEditingDeck(null);
-    setEditorCode('ITE ' + Math.floor(100 + Math.random() * 900));
-    setEditorTitle('');
-    setEditorSubject('Information Technology');
-    setEditorCards([]);
-    resetNewQForm();
-    setIsDeckEditorOpen(true);
-  };
-
-
   const handlePdfUpload = (e) => {
     const files = Array.from(e.target.files || []).filter(f => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'));
     if (files.length === 0) return;
@@ -3459,7 +3609,13 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const handleSaveDeck = async () => {
-    const title = (editorTitle || editorCode || 'New Reviewer').trim();
+    const title = canonicalDeckTitle(editorTitle || editorCode || 'New Reviewer');
+    const originalTitleKey = editingDeck ? deckTitleKey(editingDeck.title || editingDeck.code) : '';
+    if ((!editingDeck || deckTitleKey(title) !== originalTitleKey)
+      && decks.some(deck => deck.id !== editingDeck?.id && deckTitleKey(deck.title || deck.code) === deckTitleKey(title))) {
+      triggerToast('A deck with this title already exists.');
+      return;
+    }
     try {
       const saved = await CSM.api('decks', editingDeck ? 'PATCH' : 'POST', {
         ...(editingDeck ? { id: editingDeck.id } : {}), title,
@@ -3596,13 +3752,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       setBombstylePhase('gameplay');
       setActiveTab('arena');
 
-      recordActivity({
-        material: deck?.code || deck?.title || 'Bombstyle',
-        mode: 'Bombstyle Arena',
-        deckId: deck?.id || null,
-        screen: 'arena',
-        status: 'In progress'
-      });
+      refreshWorkspace().catch(error => console.warn('Could not refresh study activity:', error));
     } catch (error) { triggerToast(error.message); }
   };
 
@@ -3724,7 +3874,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         } else {
           advanceBombstyleCard();
         }
-      }, 700);
+      }, 1300);
     }
   };
 
@@ -3743,7 +3893,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
     setTimeout(() => {
       finishBombstyleSession();
-    }, 1000);
+    }, 1300);
   };
 
   const advanceBombstyleCard = () => {
@@ -3851,7 +4001,12 @@ function App({ isGuest = false, sharedDeck = null }) {
       {/* ========================================================
               LEFT CAPSULE SIDEBAR
               ======================================================== */}
-      <nav className={`w-14 min-w-[56px] bg-[#141922] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}>
+      <nav
+        className={`w-14 min-w-[56px] bg-[#141922] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}
+        aria-label="Primary navigation"
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
+      >
         {/* Top Logo */}
         <div className="flex flex-col items-center gap-4">
           <div
@@ -3878,7 +4033,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
           {/* Navigation Tabs (MAIN Category) */}
           <div className="flex flex-col items-center gap-2 mt-2 w-full">
-            <span className="csm-sidebar-category">MAIN</span>
+            <span className="csm-sidebar-category">Dashboard</span>
             <span className="csm-sidebar-divider" />
 
             {/* 1. Home Dashboard (Locked for Guest) */}
@@ -4079,24 +4234,25 @@ function App({ isGuest = false, sharedDeck = null }) {
           </div>
         </div>
 
-        {/* Sidebar Collapse/Expand Toggle — bottom of nav */}
+        {/* Sidebar lock — hover still controls the sidebar while unlocked */}
         <div className="flex flex-col items-center gap-2 w-full">
           <button
             type="button"
-            className="w-10 h-10 rounded-xl flex items-center justify-center text-zinc-500 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
-            title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            data-tooltip={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            aria-label={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            onClick={() => setSidebarExpanded(v => !v)}
+            className={`csm-sidebar-toggle h-10 flex items-center justify-center transition-colors cursor-pointer ${sidebarLocked ? 'is-locked' : 'text-zinc-500 hover:text-white'}`}
+            title={sidebarLocked ? 'Collapse sidebar' : 'Expand sidebar'}
+            data-tooltip={sidebarLocked ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-label={sidebarLocked ? 'Collapse sidebar' : 'Expand sidebar'}
+            aria-pressed={sidebarLocked}
+            onClick={handleSidebarLockToggle}
           >
-            <svg className={`w-4 h-4 transition-transform duration-200 ${sidebarExpanded ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <path d="M9 3v18" />
-              <path d="m15 9-3 3 3 3" />
-            </svg>
-            <span className="csm-sidebar-label">
-              {sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            <span className="csm-sidebar-toggle-icon" aria-hidden="true">
+              <svg className={`w-4 h-4 transition-transform duration-200 ${sidebarLocked ? '' : 'rotate-180'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <path d="M9 3v18" />
+                <path d="m15 9-3 3 3 3" />
+              </svg>
             </span>
+            <span className="csm-sidebar-label">{sidebarLocked ? 'Collapse sidebar' : 'Expand sidebar'}</span>
           </button>
         </div>
       </nav>
@@ -4211,9 +4367,9 @@ function App({ isGuest = false, sharedDeck = null }) {
             ) : (
               <>
                 <div className="csm-notifications-wrap">
-                  <button className={`csm-icon-button csm-notification ${notificationsUnread ? 'has-unread' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
+                  <button className={`csm-icon-button csm-notification ${notificationsUnread ? '' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
-                    {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 9 ? '9+' : notificationsUnread}</span>}
+                    {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 99 ? '99+' : notificationsUnread}</span>}
                   </button>
                   {notificationsOpen && (
                     <div className="csm-notifications-panel" role="dialog" aria-label="Notifications panel">
@@ -4262,10 +4418,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                       <button
                         type="button"
                         className="csm-account-dropdown-item danger"
-                        onClick={async () => {
+                        onClick={() => {
                           setAccountMenuOpen(false);
-                          try { await CSM.api('auth/logout', 'POST', {}); window.location.replace('login.html?mode=signin&reason=signed_out'); }
-                          catch (error) { triggerToast(error.message); }
+                          setSignOutError('');
+                          setSignOutConfirmationOpen(true);
                         }}
                       >
                         <IconLogout />
@@ -4281,14 +4437,6 @@ function App({ isGuest = false, sharedDeck = null }) {
 
         {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={openAdminAccess} />}
         {activeTab === 'admin' && isStaff && <AdminPanel profile={profile} />}
-
-        {/* Floating Toast Notification */}
-        {shareToast && (
-          <div className="absolute top-4 right-4 z-50 bg-[#181818] text-white text-xs font-semibold px-4 py-2.5 rounded-xl shadow-2xl flex items-center gap-2 csm-toast-animate">
-            <span className="w-2 h-2 rounded-full bg-[#f04824]"></span>
-            {shareToast}
-          </div>
-        )}
 
         {/* ========================================================
                 VIEW A: HOME DASHBOARD
@@ -4471,24 +4619,16 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <div>
                     <span className="text-[11px] font-bold text-orange-700 tracking-wider uppercase mb-1 block">Getting Started</span>
                     <h2 className="text-xl font-extrabold text-zinc-900 mb-1 flex items-center gap-2">Welcome to Co-StudyMaxx! <i className="bi bi-stars text-orange-500"></i></h2>
-                    <p className="text-xs text-zinc-600 max-w-md">Create your first reviewer deck, upload PDF notes, or generate high-retention Bombcards with AI.</p>
+                    <p className="text-xs text-zinc-600 max-w-md">Create your first reviewer deck, then add PDF notes or build Bombcards with AI.</p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
-                      onClick={handleOpenCreateDeck}
+                      onClick={handleOpenCreateFolderInfo}
                       className="px-4 py-2.5 rounded-xl font-bold text-xs bg-[#f04824] hover:bg-[#d83c1b] text-white shadow-sm flex items-center gap-2 transition-all"
                     >
                       <IconPlus className="w-3.5 h-3.5" />
                       <span>Create First Deck</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleOpenAiGenerator}
-                      className="px-4 py-2.5 rounded-xl font-bold text-xs bg-white hover:bg-zinc-50 text-zinc-800 border border-zinc-200 shadow-2xs flex items-center gap-2 transition-all"
-                    >
-                      <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
-                      <span>AI Flashcards</span>
                     </button>
                   </div>
                 </section>
@@ -4823,7 +4963,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       title={`Jump into ${activity.material}`}
                     >
                       <span className={`csm-live-activity-icon ${activity.mode === 'PDF Tools' ? 'bg-red-50 text-red-600 border border-red-200' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'bg-orange-50 text-orange-600 border border-orange-200' : 'bg-blue-50 text-blue-600 border border-blue-200'}`}>
-                        {activity.mode === 'PDF Tools' ? 'PDF' : activity.mode === 'Profile' ? 'ME' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'BS' : 'FC'}
+                        {activity.mode === 'PDF Tools' ? 'PDF' : activity.mode === 'Profile' ? 'ME' : activity.mode === 'BombStyle quiz' || activity.mode === 'BombStyle lobby' ? 'BS' : <IconCards className="w-4 h-4" />}
                       </span>
                       <span className="csm-live-activity-copy">
                         <strong>{activity.material}</strong>
@@ -5128,19 +5268,41 @@ function App({ isGuest = false, sharedDeck = null }) {
             ) : (
               <div className="csm-library-main animate-fadeIn">
                 <div className="csm-library-toolbar">
-                  <label className="csm-library-search"><IconSearch /><input type="search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search decks by title or subject" aria-label="Search decks by title or subject" /></label>
-                  <label className="csm-library-filter"><span>Filter</span><select value={librarySubjectFilter} onChange={(e) => setLibrarySubjectFilter(e.target.value)} aria-label="Filter decks by subject">{librarySubjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label>
+                  <label className="csm-library-search"><IconSearch /><input type="search" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setLibraryPage(1); }} placeholder="Search decks by title or subject" aria-label="Search decks by title or subject" /></label>
+                  <label className="csm-library-filter"><span>Filter</span><select value={librarySubjectFilter} onChange={(e) => { setLibrarySubjectFilter(e.target.value); setLibraryPage(1); }} aria-label="Filter decks by subject">{librarySubjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select></label>
                 </div>
 
-                <section className="csm-library-list-section">
+                {(pageRecentDecks.length > 0 || (libraryPage === 1 && recentDecks.length === 0)) && <section className="csm-library-list-section">
                   <div className="csm-library-section-heading"><div><h2>Recently updated</h2><span>{recentDecks.length} deck{recentDecks.length === 1 ? '' : 's'} · last 7 days</span></div><button type="button" onClick={() => setCollapseRecent(prev => !prev)}>{collapseRecent ? 'Show section' : 'Collapse section'}</button></div>
-                  {!collapseRecent && (recentDecks.length ? <div className="csm-library-deck-grid">{recentDecks.map(renderLibraryDeckCard)}</div> : <div className="csm-library-empty"><strong>{olderDecks.length ? 'No recently updated decks' : 'No decks match your search'}</strong><p>{olderDecks.length ? 'Your matching reviewers are listed below.' : 'Try another title or subject, or create a fresh reviewer.'}</p><button type="button" className="csm-primary-button" onClick={handleOpenCreateFolderInfo}><IconPlus /> Add a deck</button></div>)}
-                </section>
-
-                {olderDecks.length > 0 && <section className="csm-library-list-section mt-6">
-                  <div className="csm-library-section-heading"><div><h2>More reviewers</h2><span>{olderDecks.length} deck{olderDecks.length === 1 ? '' : 's'} · older than a week</span></div><button type="button" onClick={() => setCollapseOlder(prev => !prev)}>{collapseOlder ? 'Show section' : 'Collapse section'}</button></div>
-                  {!collapseOlder && <div className="csm-library-deck-grid">{olderDecks.map(renderLibraryDeckCard)}</div>}
+                  {!collapseRecent && (pageRecentDecks.length ? <div className="csm-library-deck-grid">{pageRecentDecks.map(renderLibraryDeckCard)}</div> : <div className="csm-library-empty"><strong>{olderDecks.length ? 'No recently updated decks' : 'No decks match your search'}</strong><p>{olderDecks.length ? 'Your matching reviewers are listed below.' : 'Try another title or subject, or create a fresh reviewer.'}</p><button type="button" className="csm-primary-button" onClick={handleOpenCreateFolderInfo}><IconPlus /> Add a deck</button></div>)}
                 </section>}
+
+                {pageOlderDecks.length > 0 && <section className="csm-library-list-section mt-6">
+                  <div className="csm-library-section-heading"><div><h2>More reviewers</h2><span>{olderDecks.length} deck{olderDecks.length === 1 ? '' : 's'} · older than a week</span></div><button type="button" onClick={() => setCollapseOlder(prev => !prev)}>{collapseOlder ? 'Show section' : 'Collapse section'}</button></div>
+                  {!collapseOlder && <div className="csm-library-deck-grid">{pageOlderDecks.map(renderLibraryDeckCard)}</div>}
+                </section>}
+
+                {orderedLibraryDecks.length > 0 && <nav className="csm-library-pagination" aria-label="Deck pages">
+                  <span className="csm-library-page-summary">Showing {(libraryPage - 1) * 9 + 1} to {Math.min(libraryPage * 9, orderedLibraryDecks.length)} of {orderedLibraryDecks.length} decks</span>
+                  {libraryPageCount > 1 && <div className="csm-library-pagination-controls">
+                    <button type="button" className="csm-secondary-button" onClick={() => setLibraryPage(page => Math.max(1, page - 1))} disabled={libraryPage === 1}>Previous</button>
+                    <div className="csm-library-page-numbers" aria-label="Select a page">
+                      {getCompactPageItems(libraryPage, libraryPageCount).map(item => item.type === 'ellipsis' ? (
+                        <span key={item.key} className="csm-library-page-ellipsis" aria-hidden="true">…</span>
+                      ) : (
+                        <button
+                          key={item.value}
+                          type="button"
+                          className={`csm-library-page-number ${libraryPage === item.value ? 'is-current' : ''}`}
+                          aria-label={`Page ${item.value}`}
+                          aria-current={libraryPage === item.value ? 'page' : undefined}
+                          onClick={() => setLibraryPage(item.value)}
+                        >{item.value}</button>
+                      ))}
+                    </div>
+                    <button type="button" className="csm-secondary-button" onClick={() => setLibraryPage(page => Math.min(libraryPageCount, page + 1))} disabled={libraryPage === libraryPageCount}>Next</button>
+                  </div>}
+                </nav>}
               </div>
             )}
           </div>
@@ -6136,6 +6298,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                 cards={studyCards}
                 onClose={() => setReviewingDeck(null)}
                 onFinish={() => {
+                  recordActivity({ material: reviewingDeck?.title || 'Flashcard Review', mode: 'Flashcard Review', screen: 'flashcards', status: 'Completed' });
                   if (activeStudyDeckId) {
                     CSM.api('study-cards&deckId=' + encodeURIComponent(activeStudyDeckId)).then(r => setStudyCards(r?.cards || [])).catch(() => { });
                   }
@@ -6426,6 +6589,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                   )}
 
                   {/* Animated SVG Bomb Mascot */}
+                  <div className="csm-arena-mascot-wrap">
                   <div className={`relative transition-transform duration-150 ${isBombExploded ? 'csm-arena-mascot-exploding' : isBombDanger ? 'csm-arena-mascot-danger' : 'csm-arena-mascot-calm'}`}>
                     {/* Glow Aura */}
                     <div className={`absolute inset-2 rounded-full blur-xl transition-opacity duration-300 pointer-events-none ${(isBombDanger || isBombExploded) ? 'bg-orange-500/20 opacity-100' : 'bg-[#f04824]/10 opacity-50'}`} />
@@ -6544,6 +6708,21 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </g>
                       )}
                     </svg>
+                  </div>
+                  {isBombExploded && (
+                    <div className="csm-arena-cartoon-explosion" aria-hidden="true">
+                      <span className="csm-arena-smoke puff-1" /><span className="csm-arena-smoke puff-2 is-dark" />
+                      <span className="csm-arena-smoke puff-3" /><span className="csm-arena-smoke puff-4 is-dark" />
+                      <span className="csm-arena-smoke puff-5 is-dark" /><span className="csm-arena-smoke puff-6" />
+                      <span className="csm-arena-smoke puff-7" /><span className="csm-arena-smoke puff-8 is-dark" />
+                      <span className="csm-arena-smoke puff-9 is-dark" /><span className="csm-arena-smoke puff-10" />
+                      <span className="csm-arena-smoke puff-11" /><span className="csm-arena-smoke puff-12 is-dark" />
+                      <i className="csm-arena-debris debris-1" /><i className="csm-arena-debris debris-2" />
+                      <i className="csm-arena-debris debris-3" /><i className="csm-arena-debris debris-4" />
+                      <i className="csm-arena-debris debris-5" /><i className="csm-arena-debris debris-6" />
+                      <i className="csm-arena-debris debris-7" /><i className="csm-arena-debris debris-8" />
+                    </div>
+                  )}
                   </div>
 
                   {/* Session Timer Progress Bar */}
@@ -6847,9 +7026,9 @@ function App({ isGuest = false, sharedDeck = null }) {
               <button type="button" className="csm-form-modal-close" onClick={() => setFolderInfoModalOpen(false)} aria-label="Close">×</button>
             </div>
             <p className="csm-form-modal-help">Keep your study materials organized by title and subject.</p>
-            <label className="csm-modal-field">Deck title<input autoFocus type="text" value={folderNameInput} onChange={(e) => setFolderNameInput(e.target.value)} placeholder="e.g. ITE 292 B1" required /></label>
+            <label className="csm-modal-field">Deck title<input autoFocus type="text" value={folderNameInput} onChange={(e) => setFolderNameInput(e.target.value)} placeholder="e.g. ITE 292 B1" maxLength="160" aria-invalid={folderNameDuplicate} aria-describedby={folderNameDuplicate ? 'deck-title-error' : undefined} required />{folderNameDuplicate && <span id="deck-title-error" className="text-[11px] font-semibold text-red-600">You already have a deck with this title.</span>}</label>
             <label className="csm-modal-field">Subject<input type="text" value={folderDescInput} onChange={(e) => setFolderDescInput(e.target.value)} placeholder="e.g. Information Technology" /></label>
-            <div className="csm-delete-actions"><button type="button" className="csm-secondary-button" onClick={() => setFolderInfoModalOpen(false)}>Cancel</button><button type="submit" className="csm-primary-button">{targetFolderForEdit ? 'Save changes' : 'Add deck'}</button></div>
+            <div className="csm-delete-actions"><button type="button" className="csm-secondary-button" onClick={() => setFolderInfoModalOpen(false)}>Cancel</button><button type="submit" className="csm-primary-button" disabled={!canonicalDeckTitle(folderNameInput) || folderNameDuplicate}>{targetFolderForEdit ? 'Save changes' : 'Add deck'}</button></div>
           </form>
         </div>
       )}
@@ -6864,6 +7043,36 @@ function App({ isGuest = false, sharedDeck = null }) {
             <div className="csm-delete-actions">
               <button type="button" className="csm-secondary-button" onClick={() => setDeleteDeckTarget(null)}>Cancel</button>
               <button type="button" className="csm-danger-button" onClick={confirmDeleteFolder}>Delete deck</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {signOutConfirmationOpen && (
+        <div className="csm-modal-backdrop" role="presentation" onClick={() => { if (!signOutBusy) setSignOutConfirmationOpen(false); }}>
+          <div className="csm-signout-modal" role="dialog" aria-modal="true" aria-labelledby="signout-confirmation-title" aria-describedby="signout-confirmation-copy" onClick={event => event.stopPropagation()}>
+            <button type="button" className="csm-signout-close" aria-label="Close sign-out confirmation" disabled={signOutBusy} onClick={() => setSignOutConfirmationOpen(false)}>×</button>
+            <div className="csm-signout-warning" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"/></svg></div>
+            <h2 id="signout-confirmation-title">Are you sure you want to sign out?</h2>
+            <p id="signout-confirmation-copy">You’ll need to sign in again to access your workspace.</p>
+            {signOutError && <p className="csm-signout-error" role="alert">{signOutError}</p>}
+            <div className="csm-signout-actions">
+              <button type="button" className="csm-secondary-button" disabled={signOutBusy} onClick={() => setSignOutConfirmationOpen(false)}>No, cancel</button>
+              <button type="button" className="csm-signout-danger-button" disabled={signOutBusy} onClick={async () => {
+                setSignOutBusy(true);
+                setSignOutError('');
+                const controller = new AbortController();
+                const timeoutId = window.setTimeout(() => controller.abort(), 12000);
+                try {
+                  await CSM.api('auth/logout', 'POST', {}, { signal: controller.signal });
+                  window.location.replace('login.html?mode=signin&reason=signed_out');
+                } catch (error) {
+                  setSignOutBusy(false);
+                  setSignOutError(controller.signal.aborted ? 'Sign out is taking longer than expected. Check your connection and try again.' : `Couldn’t sign you out: ${error.message}`);
+                } finally {
+                  window.clearTimeout(timeoutId);
+                }
+              }}>{signOutBusy ? 'Signing out…' : 'Yes, sign out'}</button>
             </div>
           </div>
         </div>
@@ -7028,6 +7237,7 @@ function App({ isGuest = false, sharedDeck = null }) {
             <p>Confirm your current password, then choose a new one.</p>
             <input className="csm-password-input" type="password" autoComplete="current-password" aria-label="Current password" required minLength={8} maxLength={72} placeholder="Current password" value={currentPasswordDraft} onChange={event => setCurrentPasswordDraft(event.target.value)} />
             <input className="csm-password-input" type="password" autoComplete="new-password" aria-label="New password (8–72 characters)" required minLength={8} maxLength={72} placeholder="New password (8–72 characters)" value={newPasswordDraft} onChange={event => setNewPasswordDraft(event.target.value)} />
+            {newPasswordDraft && <PasswordStrengthIndicator password={newPasswordDraft} />}
             <input className="csm-password-input" type="password" autoComplete="new-password" aria-label="Confirm new password" required minLength={8} maxLength={72} placeholder="Confirm new password" value={confirmPasswordDraft} onChange={event => setConfirmPasswordDraft(event.target.value)} />
             <div className="csm-password-actions">
               <button type="submit" className="csm-primary-button">Update password</button>

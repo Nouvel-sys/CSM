@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign in · Co-StudyMaxx</title>
+  <link rel="icon" type="image/png" href="assets/images/csm-mascot.png?v=1">
   <style>
     :root {
       --ink: #11100f;
@@ -54,8 +55,21 @@
     .field input { width: 100%; min-height: 38px; padding: 0 12px; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; outline: 0; color: #fff; background: rgba(0,0,0,.13); font-size: 11px; transition: border-color .2s ease, box-shadow .2s ease; }
     .field input::placeholder { color: rgba(255,255,255,.3); }
     .field input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(255,79,34,.14); }
+    .email-status { color: rgba(255,255,255,.54); font-size: 9px; line-height: 1.35; }
+    .email-status.is-invalid { color: #ffb2a2; }
+    .email-status.is-valid { color: #86efac; }
     .password-wrap { position: relative; }
     .password-wrap input { padding-right: 52px; }
+    .password-strength { display: grid; gap: 6px; margin-top: 1px; }
+    .password-strength-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: rgba(255,255,255,.54); font-size: 9px; }
+    .password-strength-top strong { color: #fff; font-size: 9px; }
+    .password-strength-meter { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+    .password-strength-meter span { height: 4px; border-radius: 99px; background: rgba(255,255,255,.14); transition: background .18s ease; }
+    .password-strength[data-strength="weak"] .password-strength-meter span:nth-child(-n+1) { background: #ff625b; }
+    .password-strength[data-strength="fair"] .password-strength-meter span:nth-child(-n+2) { background: #ffad42; }
+    .password-strength[data-strength="good"] .password-strength-meter span:nth-child(-n+3) { background: #f6c344; }
+    .password-strength[data-strength="strong"] .password-strength-meter span { background: #2fc987; }
+    .password-strength-advice { margin: 0; color: rgba(255,255,255,.5); font-size: 9px; line-height: 1.35; }
     .password-toggle { position: absolute; top: 50%; right: 9px; transform: translateY(-50%); padding: 2px; border: 0; color: rgba(255,255,255,.52); background: transparent; font-size: 9px; cursor: pointer; }
     .password-toggle:hover { color: #fff; }
     .auth-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 1px; color: rgba(255,255,255,.48); font-size: 9px; }
@@ -252,7 +266,7 @@
 
     /* Keep the brand illustration inside the clipped split-panel at every desktop size. */
     @media (min-width: 761px) {
-      .brand-mascot { left: auto; right: 12px; bottom: 10px; width: clamp(145px, 18vw, 220px); max-height: 34%; object-fit: contain; }
+      .brand-mascot { left: auto; right: 12px; bottom: -12px; width: clamp(140px, 16vw, 195px); max-height: 31%; object-fit: contain; }
     }
     .brand-mascot { display: block; }
     .brand-mascot[hidden] { display: none; }
@@ -302,6 +316,12 @@
       .form-copy { min-height: 0; }
     }
     .form-footer { width: 100%; margin: 18px 0 12px; padding-top: 0; text-align: center; }
+    .auth-form.is-register { gap: 11px; }
+    .name-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+    .name-fields[hidden] { display: none; }
+    .name-fields .field { min-width: 0; }
+    .name-fields .field:nth-child(3) { grid-column: 1 / -1; }
+    .optional-label { margin-left: 4px; color: rgba(255,255,255,.48); font-size: .88em; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -337,19 +357,39 @@
           <p class="form-description" id="form-description">Pick up where your next focused study session starts.</p>
 
           <form class="auth-form" id="auth-form" novalidate>
+            <div class="name-fields" id="name-fields" hidden>
+              <div class="field">
+                <label for="first-name">First name</label>
+                <input id="first-name" name="firstName" type="text" autocomplete="given-name" placeholder="First name" maxlength="80">
+              </div>
+              <div class="field">
+                <label for="last-name">Last name</label>
+                <input id="last-name" name="lastName" type="text" autocomplete="family-name" placeholder="Last name" maxlength="80">
+              </div>
+              <div class="field">
+                <label for="middle-name">Middle name <span class="optional-label">Optional</span></label>
+                <input id="middle-name" name="middleName" type="text" autocomplete="additional-name" placeholder="Middle name" maxlength="80">
+              </div>
+            </div>
             <div class="field" id="username-field">
-              <label for="username" id="username-label">Username or email</label>
-              <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username or email" required>
+              <label for="username" id="username-label">Username</label>
+              <input id="username" name="username" type="text" autocomplete="username" placeholder="Enter your username" required>
             </div>
             <div class="field" id="email-field" hidden>
               <label for="email">Email address</label>
-              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com">
+              <input id="email" name="email" type="email" autocomplete="email" placeholder="you@example.com" aria-describedby="email-status">
+              <span class="email-status" id="email-status" role="status" aria-live="polite" hidden></span>
             </div>
             <div class="field" id="password-field">
               <label for="password" id="password-label">Password</label>
               <div class="password-wrap">
                 <input id="password" name="password" type="password" autocomplete="current-password" placeholder="At least 8 characters" required>
                 <button class="password-toggle" type="button" data-toggle-password="password">Show</button>
+              </div>
+              <div class="password-strength" id="password-strength" data-strength="weak" hidden aria-live="polite">
+                <div class="password-strength-top"><span>Password strength</span><strong id="password-strength-label">Weak</strong></div>
+                <div class="password-strength-meter" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+                <p class="password-strength-advice" id="password-strength-advice"></p>
               </div>
             </div>
             <div class="field" id="confirm-field" hidden>
@@ -407,7 +447,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=1.30"></script>
+  <script src="api.js?v=1.31"></script>
   <script>
     // Retained only as migration history; the following browser-only demo auth is intentionally disabled.
     if (false) {
@@ -607,7 +647,7 @@
         const register = mode === 'register';
         byId('form-title').textContent = register ? 'Create Your Account' : 'Log in to your account';
         byId('form-description').textContent = register ? 'Build reviewers, play timed quizzes, and keep your study space private.' : 'Pick up where your next focused study session starts.';
-        byId('username-label').textContent = register ? 'Username' : 'Username or email';
+        byId('username-label').textContent = 'Username';
         byId('confirm-field').hidden = !register;
         byId('confirm-password').required = register;
         byId('email-field').hidden = !register;
@@ -636,7 +676,7 @@
         event.preventDefault(); if (submit.disabled) return;
         const data = new FormData(form), username = String(data.get('username') || '').trim();
         const password = String(data.get('password') || ''), email = String(data.get('email') || '').trim();
-        if (!username) return showError('Enter your username or email.');
+        if (!username) return showError('Enter your username.');
         if (password.length < 8) return showError('Your password needs at least 8 characters.');
         if (mode === 'register' && password !== String(data.get('confirmPassword') || '')) return showError('Your passwords do not match yet.');
         if (mode === 'register' && !email) return showError('Enter a valid email address.');
@@ -675,6 +715,59 @@
       const fragment = new URLSearchParams(location.hash.slice(1));
       let resetToken = params.get('mode') === 'reset' ? (fragment.get('token') || '') : '';
       let mode = ['register', 'forgot', 'reset'].includes(params.get('mode')) ? params.get('mode') : 'signin';
+      const commonPasswords = new Set(['12345678', '123456789', '1234567890', 'password', 'password1', 'password123', 'qwerty123', 'qwerty12345', '11111111', '00000000', '87654321', 'admin123', 'abc12345', 'iloveyou', 'letmein', 'welcome1', 'monkey123', 'dragon123', 'football1', 'baseball1']);
+      const measurePassword = value => {
+        const password = String(value || '');
+        if (!password) return { strength: '', label: '', advice: '' };
+        const common = commonPasswords.has(password.trim().toLowerCase());
+        let score = 0;
+        if (password.length >= 8) score++;
+        if (password.length >= 12) score++;
+        if (password.length >= 16) score++;
+        if (/[a-z]/.test(password)) score++;
+        if (/[A-Z]/.test(password)) score++;
+        if (/\d/.test(password)) score++;
+        if (/[^A-Za-z0-9]/.test(password)) score++;
+        if (common) score = 0;
+        const strength = common || password.length < 8 || score <= 2 ? 'weak' : score <= 4 ? 'fair' : score <= 6 ? 'good' : 'strong';
+        const advice = common ? 'This password is commonly used. Choose a less predictable one.'
+          : strength === 'weak' ? 'Try 12 or more characters and mix letters, numbers, or symbols.'
+          : strength === 'fair' ? 'Add more length or another character type to strengthen it.'
+          : strength === 'good' ? 'Good. A longer, less predictable passphrase can make it stronger.'
+          : 'Strong password. Keep it unique to this account.';
+        return { strength, label: strength[0].toUpperCase() + strength.slice(1), advice };
+      };
+      const updatePasswordStrength = () => {
+        const value = byId('password').value;
+        const strength = byId('password-strength');
+        const result = measurePassword(value);
+        const showStrength = ['register', 'reset'].includes(mode) && Boolean(value);
+        strength.hidden = !showStrength;
+        if (showStrength) {
+          strength.dataset.strength = result.strength;
+          byId('password-strength-label').textContent = result.label;
+          byId('password-strength-advice').textContent = result.advice;
+        }
+      };
+      const updateEmailStatus = () => {
+        const input = byId('email');
+        const status = byId('email-status');
+        const value = input.value.trim();
+        const relevant = mode === 'register' || mode === 'forgot';
+        if (!relevant || !value) {
+          status.hidden = true;
+          status.textContent = '';
+          input.removeAttribute('aria-invalid');
+          status.classList.remove('is-invalid', 'is-valid');
+          return;
+        }
+        const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        status.hidden = false;
+        status.textContent = valid ? 'Email format looks valid.' : 'Enter a valid email address.';
+        status.classList.toggle('is-valid', valid);
+        status.classList.toggle('is-invalid', !valid);
+        input.setAttribute('aria-invalid', String(!valid));
+      };
       const error = byId('form-error');
       const submit = byId('submit-button');
       const loading = byId('auth-loading');
@@ -697,18 +790,24 @@
         const reset = mode === 'reset';
         const regular = signin || register;
         const finished = mode === 'recovery-sent' || mode === 'reset-complete';
+        byId('name-fields').hidden = !register;
+        byId('first-name').required = register;
+        byId('last-name').required = register;
+        form.classList.toggle('is-register', register);
         byId('form-title').textContent = register ? 'Create Your Account' : signin ? 'Log in to your account' : forgot ? 'Reset your password' : reset ? 'Choose a new password' : mode === 'recovery-sent' ? 'Check your email' : 'Password updated';
         byId('form-description').textContent = register ? 'Build reviewers, play timed quizzes, and keep your study space private.' : signin ? 'Pick up where your next focused study session starts.' : forgot ? 'Enter the email address linked to your account.' : reset ? 'Choose a new password for your Co-StudyMaxx account.' : '';
         byId('panel-top').hidden = !regular;
         byId('username-field').hidden = !(signin || register);
         byId('username').required = signin || register;
-        byId('username-label').textContent = register ? 'Username' : 'Username or email';
+        byId('username-label').textContent = 'Username';
         byId('email-field').hidden = !(register || forgot);
         byId('email').required = register || forgot;
+        updateEmailStatus();
         byId('password-field').hidden = !(signin || register || reset);
         byId('password').required = signin || register || reset;
         byId('password').autocomplete = register || reset ? 'new-password' : 'current-password';
         byId('password-label').textContent = reset ? 'New password' : 'Password';
+        updatePasswordStrength();
         byId('password').placeholder = reset ? 'Choose a secure password (8–72 characters)' : 'At least 8 characters';
         byId('confirm-field').hidden = !(register || reset);
         byId('confirm-password').required = register || reset;
@@ -771,6 +870,8 @@
         button.textContent = visible ? 'Show' : 'Hide';
       }));
       form.addEventListener('input', () => {
+        updatePasswordStrength();
+        updateEmailStatus();
         if (!error.hidden) {
           error.hidden = true;
           error.textContent = '';
@@ -782,10 +883,15 @@
         if (submit.disabled) return;
         const data = new FormData(form);
         const username = String(data.get('username') || '').trim();
+        const firstName = String(data.get('firstName') || '').trim();
+        const middleName = String(data.get('middleName') || '').trim();
+        const lastName = String(data.get('lastName') || '').trim();
         const email = String(data.get('email') || '').trim();
         const password = String(data.get('password') || '');
         const confirmation = String(data.get('confirmPassword') || '');
-        if ((mode === 'signin' || mode === 'register') && !username) return showError('Enter your username or email.');
+        if ((mode === 'signin' || mode === 'register') && !username) return showError('Enter your username.');
+        if (mode === 'register' && !firstName) return showError('Enter your first name.');
+        if (mode === 'register' && !lastName) return showError('Enter your last name.');
         if ((mode === 'register' || mode === 'forgot') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Enter a valid email address.');
         if ((mode === 'signin' || mode === 'register' || mode === 'reset') && password.length < 8) return showError('Your password needs at least 8 characters.');
         if ((mode === 'register' || mode === 'reset') && password !== confirmation) return showError('Your passwords do not match yet.');
@@ -800,7 +906,7 @@
           // This anonymous session GET supplies the CSRF token used by public write endpoints.
           await CSM.api('auth/session');
           if (mode === 'register') {
-            await CSM.api('auth/register', 'POST', { username, email, password });
+            await CSM.api('auth/register', 'POST', { username, email, password, firstName, middleName, lastName });
             loading.hidden = true;
             form.reset();
             setMode('signin');

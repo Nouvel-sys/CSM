@@ -72,7 +72,7 @@ function expect(array &$client, string $route, string $method = 'GET', ?array $d
 echo "1. Registering test user...\n";
 $c = client();
 expect($c, 'auth/session');
-expect($c, 'auth/register', 'POST', ['username' => $user['name'], 'email' => $user['email'], 'password' => $user['password']], 201);
+expect($c, 'auth/register', 'POST', ['username' => $user['name'], 'email' => $user['email'], 'password' => $user['password'], 'firstName' => 'Learning', 'lastName' => 'Tester'], 201);
 expect($c, 'auth/login', 'POST', ['username' => $user['name'], 'password' => $user['password']]);
 
 echo "2. Creating reviewer deck and uploading test PDF...\n";
@@ -140,6 +140,11 @@ $studyDeck = expect($c, 'study-decks', 'POST', [
 ], 201);
 $studyDeckId = $studyDeck['id'];
 check(!empty($studyDeckId), 'Failed to create study deck.');
+expect($c, 'study-decks', 'POST', [
+    'title' => '  cell   biology flashcards  ',
+    'description' => 'Duplicate title',
+    'documentId' => $docId
+], 409);
 
 $studyDecksList = expect($c, 'study-decks&documentId=' . $docId, 'GET');
 check(count($studyDecksList['decks'] ?? []) >= 1, 'Study decks list empty.');

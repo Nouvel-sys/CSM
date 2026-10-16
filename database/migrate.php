@@ -9,6 +9,11 @@ try{$db=new PDO($dsn,$dbUser,$dbPassword,[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPT
 catch(Throwable $error){fwrite(STDERR,"Could not connect to MySQL with the configured migration credentials.\n");exit(1);}
 $tables=$db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
 foreach(['users','decks','cards','documents'] as $required) if(!in_array($required,$tables,true)){fwrite(STDERR,"Expected existing table '$required'; use schema.sql only for a new empty database.\n");exit(1);}
+if(!in_array('profiles',$tables,true)){fwrite(STDERR,"Expected existing table 'profiles'; use schema.sql only for a new empty database.\n");exit(1);}
+$profileColumns=array_column($db->query('SHOW COLUMNS FROM profiles')->fetchAll(),'Field');
+if(!in_array('first_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN first_name VARCHAR(80) NOT NULL DEFAULT '' AFTER display_name");echo "Added first names to profiles; existing accounts were preserved.\n";}
+if(!in_array('middle_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN middle_name VARCHAR(80) NULL AFTER first_name");echo "Added optional middle names to profiles.\n";}
+if(!in_array('last_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN last_name VARCHAR(80) NOT NULL DEFAULT '' AFTER middle_name");echo "Added last names to profiles; existing accounts were preserved.\n";}
 if(!in_array('password_reset_tokens',$tables,true)){
     $db->exec("CREATE TABLE password_reset_tokens (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,token_hash CHAR(64) NOT NULL UNIQUE,expires_at DATETIME(3) NOT NULL,used_at DATETIME(3) NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),INDEX(user_id,used_at,created_at),INDEX(expires_at,used_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "Created password reset token storage.\n";
