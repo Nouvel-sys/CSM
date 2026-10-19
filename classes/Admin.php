@@ -15,16 +15,17 @@ final class Admin {
         $this->db->query('INSERT INTO security_events(actor_user_id,target_user_id,target_type,target_id,event_code,ip_hash,details_json) VALUES(?,?,?,?,?,?,?)',[$actor,$targetUser,$targetType,$target,$event,$ipHash,$json]);
     }
 
-    public function dateRange(string $from, string $to): array {
+    public function dateRange(string $from, string $to, int $maxDays=366): array {
         $start=DateTimeImmutable::createFromFormat('!Y-m-d',$from,new DateTimeZone('UTC'));
         $end=DateTimeImmutable::createFromFormat('!Y-m-d',$to,new DateTimeZone('UTC'));
         $errors=DateTimeImmutable::getLastErrors();
-        if(!$start||!$end||($errors!==false&&($errors['warning_count']||$errors['error_count']))||$end<$start||$start->diff($end)->days>365)fail(422,'Choose a valid date range of no more than 366 days.');
+        if(!$start||!$end||($errors!==false&&($errors['warning_count']||$errors['error_count']))||$end<$start||$start->diff($end)->days>=$maxDays)fail(422,'Choose a valid date range within the allowed period.');
         return [$start->format('Y-m-d 00:00:00'),$end->modify('+1 day')->format('Y-m-d 00:00:00')];
     }
 
     public function dashboard(string $from, string $to): array {
-        [$start,$end]=$this->dateRange($from,$to);
+        $websiteStartDate=(string)($this->db->query('SELECT DATE(MIN(created_at)) FROM users')->fetchColumn()?:gmdate('Y-m-d'));
+        [$start,$end]=$this->dateRange($from,$to,36500);
         $totals=$this->db->query('SELECT
           (SELECT COUNT(*) FROM users) users,
           (SELECT COUNT(DISTINCT user_id) FROM user_active_tabs WHERE updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE) activeNow,
@@ -32,6 +33,10 @@ final class Admin {
           (SELECT COUNT(*) FROM documents) documents,
           (SELECT COALESCE(SUM(size_bytes),0) FROM documents) storageBytes,
           (SELECT COUNT(*) FROM arena_sessions) arenaSessions')->fetch();
+        if($end<=$websiteStartDate.' 00:00:00'){
+            $period=array_fill_keys(['newUsers','activeUsers','newDecks','uploads','sessions','completedSessions'],0);
+            return ['from'=>substr($start,0,10),'to'=>gmdate('Y-m-d',strtotime($end.' UTC')-86400),'startDate'=>$websiteStartDate,'beforeLaunch'=>true,'totals'=>array_map('intval',$totals),'period'=>$period,'days'=>[]];
+        }
         $period=$this->db->query('SELECT
           (SELECT COUNT(*) FROM users WHERE created_at>=? AND created_at<?) newUsers,
           (SELECT COUNT(DISTINCT user_id) FROM study_activity WHERE created_at>=? AND created_at<?) activeUsers,
@@ -50,6 +55,6 @@ final class Admin {
             foreach($rows as $row){$day=(string)$row['day'];$series[$day]??=['date'=>$day,'activeUsers'=>0,'decks'=>0,'uploads'=>0,'arenaSessions'=>0];$series[$day][$key]=(int)$row['amount'];}
         }
         ksort($series);
-        return ['from'=>substr($start,0,10),'to'=>gmdate('Y-m-d',strtotime($end.' UTC')-86400),'totals'=>array_map('intval',$totals),'period'=>array_map('intval',$period),'days'=>array_values($series)];
+        return ['from'=>substr($start,0,10),'to'=>gmdate('Y-m-d',strtotime($end.' UTC')-86400),'startDate'=>$websiteStartDate,'beforeLaunch'=>false,'totals'=>array_map('intval',$totals),'period'=>array_map('intval',$period),'days'=>array_values($series)];
     }
 }

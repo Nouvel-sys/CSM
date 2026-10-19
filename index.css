@@ -15,9 +15,10 @@
       --font-helvetica-rounded: var(--font-display);
     }
 
-    /* Match the browser's 125% presentation consistently across every tab. */
+    /* Uniform app-wide readability scale; layout reflows at the scaled viewport. */
     html {
       font-size: 100%;
+      zoom: 1.08;
     }
 
     body {
@@ -6959,6 +6960,7 @@
 
 .csm-arena-identification-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -6979,6 +6981,21 @@
 .csm-arena-identification-form input:focus {
   border-color: #f04824;
   box-shadow: 0 0 0 3px rgba(240, 72, 36, 0.12);
+}
+
+.csm-arena-identification-form input[aria-invalid="true"] {
+  border-color: #dc3f32;
+  box-shadow: 0 0 0 3px rgba(220, 63, 50, .12);
+}
+
+.csm-arena-answer-error {
+  flex: 0 0 100%;
+  margin-top: 1px;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: left;
 }
 
 .csm-arena-identification-form button {
@@ -8180,6 +8197,9 @@
 .csm-admin-date-filter label, .csm-admin-storage-form label { display: grid; gap: 5px; color: #71839b; font-size: 11px; font-weight: 700; }
 .csm-admin-date-filter input, .csm-admin-search input, .csm-admin-storage-form input, .csm-admin-table select { min-height: 38px; border: 1px solid #d8e2ed; border-radius: 9px; background: #fff; padding: 0 10px; color: #17243a; font-size: 12px; outline: none; }
 .csm-admin-date-filter input:focus, .csm-admin-search input:focus, .csm-admin-storage-form input:focus, .csm-admin-table select:focus { border-color: #f04824; box-shadow: 0 0 0 3px #f048241c; }
+.csm-admin-date-filter input[aria-invalid="true"] { border-color: #e34b32; }
+.csm-admin-date-filter .csm-admin-date-error { flex-basis: 100%; margin: 0; padding: 7px 10px; border: 1px solid #ffd5cc; border-radius: 8px; color: #a43120; background: #fff5f2; font-size: 12px; font-weight: 600; }
+.csm-admin-date-before-launch { padding: 10px 13px; border: 1px solid #dce5ee; border-radius: 10px; color: #647894; background: #f7f9fc; font-size: 12px; line-height: 1.5; }
 .csm-admin-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .csm-admin-metric, .csm-admin-card { border: 1px solid #dce5ee; border-radius: 16px; background: #fff; box-shadow: 0 8px 24px #1b2b4210; }
 .csm-admin-metric { display: grid; gap: 9px; padding: 17px 19px; }
@@ -8233,17 +8253,36 @@
 .csm-admin-search { display: flex; gap: 8px; }
 .csm-admin-search input { min-width: min(280px, 55vw); }
 .csm-admin-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 7px; }
+.csm-admin-user-status-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.csm-admin-user-status-actions .csm-admin-row-actions { margin-top: 0; }
+.csm-admin-account-action { min-height: 32px; padding: 0 10px; border: 1px solid #d8e2ed; border-radius: 9px; color: #40536d; background: #fff; font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.csm-admin-account-action:hover:not(:disabled) { border-color: #f2b6a7; color: #d93618; background: #fff8f5; }
+.csm-admin-account-action:focus-visible { outline: 3px solid #f0482433; outline-offset: 2px; }
+.csm-admin-row-actions .csm-admin-deck-action { min-height: 34px; padding: 0 12px; border: 1px solid #d8e2ed; border-radius: 9px; color: #40536d; background: #fff; font-size: 12px; font-weight: 700; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.csm-admin-row-actions .csm-admin-deck-action:hover { border-color: #b9c8d9; background: #f6f8fb; }
+.csm-admin-row-actions .csm-admin-deck-action.is-danger { border-color: #f04824; color: #fff; background: #f04824; }
+.csm-admin-row-actions .csm-admin-deck-action.is-danger:hover { border-color: #d93618; background: #d93618; }
+.csm-admin-row-actions .csm-admin-deck-action:focus-visible { outline: 3px solid #f0482433; outline-offset: 2px; }
 .csm-admin-text-button { padding: 4px 2px; color: #e34523; font-size: 11px; font-weight: 700; }
 .csm-admin-text-button:hover { text-decoration: underline; }
 .csm-admin-text-button:disabled, .csm-admin-row-actions button:disabled { opacity: .48; cursor: not-allowed; }
+.csm-admin-status.is-active { color: #13724f; background: #effbf5; border-color: #c4ead7; }
+.csm-admin-status.is-inactive { color: #68798e; background: #f5f7fa; border-color: #dce5ee; }
 .csm-admin-status.is-locked { color: #ad482e; background: #fff2ed; border-color: #ffd9cd; white-space: normal; }
 .csm-admin-empty { display: grid; place-items: center; min-height: 130px; padding: 24px; border: 1px dashed #d9e3ee; border-radius: 12px; color: #8292a8; text-align: center; font-size: 13px; }
-.csm-admin-report-list { display: grid; gap: 10px; }
-.csm-admin-report { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 16px; border: 1px solid #e3eaf2; border-radius: 13px; background: #fbfcfe; }
-.csm-admin-report h3 { margin: 9px 0 4px; color: #17243a; font-size: 16px; font-weight: 700; }
-.csm-admin-report p, .csm-admin-report small { color: #7688a0; font-size: 11px; }
-.csm-admin-report blockquote { margin: 11px 0 7px; padding-left: 11px; border-left: 2px solid #f04824; color: #41556f; font-size: 13px; }
-.csm-admin-report > .csm-admin-row-actions { flex: 0 0 auto; }
+.csm-admin-report-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.csm-admin-review-preview-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.csm-admin-review-preview-empty { display: grid; min-height: 90px; place-items: center; border: 1px dashed #d9e3ee; border-radius: 12px; color: #8292a8; font-size: 13px; }
+.csm-admin-review-preview-more { display: block; margin: 14px 0 0 auto; padding: 5px 2px; color: #e34523; font-size: 12px; font-weight: 700; cursor: pointer; }
+.csm-admin-review-preview-more:hover { text-decoration: underline; }
+.csm-admin-report { min-width: 0; min-height: 230px; display: flex; flex-direction: column; justify-content: flex-start; gap: 14px; padding: 17px; border: 1px solid #d8e2ed; border-radius: 15px; background: #fff; box-shadow: 0 8px 22px rgba(23, 34, 53, .04); transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.csm-admin-report:hover { transform: translateY(-2px); border-color: #f2b6a7; box-shadow: 0 14px 28px rgba(23, 34, 53, .08); }
+.csm-admin-report > div:first-child { min-width: 0; flex: 1; display: flex; flex-direction: column; align-items: flex-start; }
+.csm-admin-report h3 { max-width: 100%; margin: 12px 0 4px; overflow-wrap: anywhere; color: #17243a; font-size: 16px; font-weight: 700; }
+.csm-admin-report p, .csm-admin-report small { color: #7688a0; font-size: 11px; line-height: 1.55; }
+.csm-admin-report p { margin: 0; overflow-wrap: anywhere; }
+.csm-admin-report blockquote { width: 100%; margin: 12px 0 8px; padding: 2px 0 2px 11px; border-left: 2px solid #f04824; color: #41556f; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.csm-admin-report > .csm-admin-row-actions { flex: 0 0 auto; justify-content: flex-end; margin-top: auto; padding-top: 12px; border-top: 1px solid #edf1f4; }
 .csm-admin-system-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .csm-admin-system-grid > .csm-admin-card > p { margin: 9px 0 16px; color: #71839b; font-size: 12px; line-height: 1.65; }
 .csm-admin-setting-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
@@ -8333,6 +8372,7 @@
   .csm-admin-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .csm-admin-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .csm-admin-system-grid { grid-template-columns: 1fr; }
+  .csm-admin-report-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 560px) {
   .csm-admin-screen { padding: 18px 13px 28px; gap: 13px; }
@@ -8348,9 +8388,11 @@
   .csm-admin-date-filter label { flex: 1; min-width: 125px; }
   .csm-admin-date-filter input { width: 100%; }
   .csm-admin-card-head { align-items: flex-start; }
+  .csm-admin-review-preview-actions { justify-content: space-between; width: 100%; }
   .csm-admin-search { width: 100%; }
   .csm-admin-search input { flex: 1; min-width: 0; }
-  .csm-admin-report { align-items: stretch; flex-direction: column; }
+  .csm-admin-report-list { grid-template-columns: 1fr; }
+  .csm-admin-report { min-height: 0; }
   .csm-admin-report > .csm-admin-row-actions { margin-top: 0; }
   .csm-admin-report > .csm-admin-row-actions button { flex: 1; }
   .csm-admin-period-grid { gap: 7px; }

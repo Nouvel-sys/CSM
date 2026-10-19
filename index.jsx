@@ -1559,6 +1559,7 @@ function AdminPanel({ profile }) {
   const isSuper = profile?.role === 'superadmin';
   const [section, setSection] = useState('overview');
   const [range, setRange] = useState(() => ({ from: new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }));
+  const [dateFilterError, setDateFilterError] = useState('');
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
   const [userTotal, setUserTotal] = useState(0);
@@ -1593,11 +1594,26 @@ function AdminPanel({ profile }) {
   const deckPreviewTriggerRef = useRef(null);
   const deckPreviewCloseRef = useRef(null);
   const deckPreviewRequestRef = useRef(0);
+  const rangeInitializedRef = useRef(false);
+  const rangeTouchedRef = useRef(false);
+  const applyWebsiteStartDate = summary => {
+    if (rangeInitializedRef.current || rangeTouchedRef.current || !summary.startDate) return;
+    rangeInitializedRef.current = true;
+    setRange(current => ({ ...current, from: summary.startDate }));
+  };
 
   const load = async (query = search, requestedDeckPage = deckPage, requestedUserPage = userPage, requestedEventPage = eventPage) => {
     setError('');
     try {
-      if (section === 'overview') setDashboard(await CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`));
+      if (section === 'overview') {
+        const [summary, reviewData] = await Promise.all([
+          CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`),
+          CSM.api('admin/reports&status=open')
+        ]);
+        setDashboard(summary);
+        applyWebsiteStartDate(summary);
+        setReports(reviewData.reports || []);
+      }
       if (section === 'users') {
         const result = await CSM.api(`admin/users&q=${encodeURIComponent(query)}&limit=10&offset=${(requestedUserPage - 1) * 10}`);
         setUsers(result.users || []);
@@ -1623,11 +1639,30 @@ function AdminPanel({ profile }) {
   useEffect(() => {
     if (section !== 'overview') return undefined;
     const interval = window.setInterval(async () => {
-      try { setDashboard(await CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`)); }
+      try {
+        const [summary, reviewData] = await Promise.all([
+          CSM.api(`admin/dashboard&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`),
+          CSM.api('admin/reports&status=open')
+        ]);
+        setDashboard(summary);
+        applyWebsiteStartDate(summary);
+        setReports(reviewData.reports || []);
+      }
       catch { /* The current dashboard remains visible; the next refresh can recover. */ }
     }, 60000);
     return () => window.clearInterval(interval);
   }, [section, range.from, range.to]);
+  useEffect(() => {
+    if (section !== 'users') return undefined;
+    const interval = window.setInterval(async () => {
+      try {
+        const result = await CSM.api(`admin/users&q=${encodeURIComponent(search)}&limit=10&offset=${(userPage - 1) * 10}`);
+        setUsers(result.users || []);
+        setUserTotal(Number(result.total) || 0);
+      } catch { /* Keep the last known status visible until the next refresh. */ }
+    }, 60000);
+    return () => window.clearInterval(interval);
+  }, [section, search, userPage]);
 
   const runAction = async (action, success) => {
     setBusy(true); setError(''); setNotice(null);
@@ -1762,7 +1797,32 @@ function AdminPanel({ profile }) {
     const lastPage = Math.max(1, Math.ceil(eventTotal / 10));
     if (eventPage > lastPage) setEventPage(lastPage);
   }, [eventPage, eventTotal]);
-  const dateFilters = (label = 'Activity period', resetEventPage = false) => <div className="csm-admin-date-filter"><span>{label}</span><label>From<input type="date" value={range.from} onChange={event => { if (resetEventPage) setEventPage(1); setRange(value => ({ ...value, from: event.target.value })); }} /></label><label>To<input type="date" value={range.to} onChange={event => { if (resetEventPage) setEventPage(1); setRange(value => ({ ...value, to: event.target.value })); }} /></label></div>;
+  const today = new Date();
+  const maxAvailableDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const updateDateFilter = (field, value, resetEventPage) => {
+    if (!value) {
+      setDateFilterError('Choose a date to view the activity period.');
+      return;
+    }
+    if (value > maxAvailableDate) {
+      setDateFilterError('Future dates are not available yet. Choose today or an earlier date.');
+      return;
+    }
+    if (field === 'from' && range.to && value > range.to) {
+      setDateFilterError('The start date must be on or before the end date.');
+      return;
+    }
+    if (field === 'to' && range.from && value < range.from) {
+      setDateFilterError('The end date must be on or after the start date.');
+      return;
+    }
+    setDateFilterError('');
+    rangeTouchedRef.current = true;
+    rangeInitializedRef.current = true;
+    if (resetEventPage) setEventPage(1);
+    setRange(current => ({ ...current, [field]: value }));
+  };
+  const dateFilters = (label = 'Activity period', resetEventPage = false) => <div className="csm-admin-date-filter"><span>{label}</span><label>From<input type="date" max={range.to && range.to < maxAvailableDate ? range.to : maxAvailableDate} value={range.from} aria-invalid={dateFilterError ? 'true' : undefined} aria-describedby={dateFilterError ? 'admin-date-filter-error' : undefined} onChange={event => updateDateFilter('from', event.target.value, resetEventPage)} /></label><label>To<input type="date" min={range.from || undefined} max={maxAvailableDate} value={range.to} aria-invalid={dateFilterError ? 'true' : undefined} aria-describedby={dateFilterError ? 'admin-date-filter-error' : undefined} onChange={event => updateDateFilter('to', event.target.value, resetEventPage)} /></label>{dateFilterError && <span id="admin-date-filter-error" className="csm-admin-date-error" role="alert">{dateFilterError}</span>}</div>;
   const buildAdminPagination = (label, page, total, setPage) => {
     const pageCount = Math.max(1, Math.ceil(total / 10));
     const pageItems = getCompactPageItems(page, pageCount);
@@ -1780,6 +1840,7 @@ function AdminPanel({ profile }) {
 
     {section === 'overview' && <>
       {dateFilters()}
+      {dashboard?.beforeLaunch && <div className="csm-admin-date-before-launch" role="status">No activity is available before the first account was registered on {dashboard.startDate}. Period metrics are shown as zero.</div>}
       {!dashboard && !error ? <div className="csm-admin-empty">Loading activity…</div> : dashboard && <>
         <div className="csm-admin-metrics">
           {[['Total users', dashboard.totals.users], ['Active now', dashboard.totals.activeNow], ['Active users (period)', dashboard.period.activeUsers], ['Total decks', dashboard.totals.decks], ['PDF uploads (period)', dashboard.period.uploads], ['Arena sessions (period)', dashboard.period.sessions], ['PDF storage', `${(dashboard.totals.storageBytes / 1048576).toFixed(1)} MB`]].map(([label, value]) => <article className={`csm-admin-metric ${label === 'Active now' ? 'is-live' : ''}`} key={label}><span>{label}</span><strong>{value}</strong>{label === 'Active now' && <small>Seen in the last 5 minutes</small>}</article>)}
@@ -1788,13 +1849,17 @@ function AdminPanel({ profile }) {
           <div className="csm-admin-period-grid">{[['Active users', dashboard.period.activeUsers], ['New users', dashboard.period.newUsers], ['New decks', dashboard.period.newDecks], ['Documents uploaded', dashboard.period.uploads], ['Arena sessions', dashboard.period.sessions], ['Sessions completed', dashboard.period.completedSessions]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
           {dashboard.days.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Date</th><th>Active users</th><th>Decks</th><th>Uploads</th><th>Arena sessions</th></tr></thead><tbody>{dashboard.days.map(day => <tr key={day.date}><td>{day.date}</td><td>{day.activeUsers}</td><td>{day.decks}</td><td>{day.uploads}</td><td>{day.arenaSessions}</td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No activity was recorded in this date range.</div>}
         </div>
+        <div className="csm-admin-card csm-admin-review-preview"><div className="csm-admin-card-head"><div><span className="csm-kicker">NEEDS ATTENTION</span><h2>Flagged review preview</h2></div><div className="csm-admin-review-preview-actions"><span className="csm-admin-subtle">{reports.length} open</span><button type="button" className="csm-secondary-button" onClick={() => setSection('reports')}>Open review queue</button></div></div>
+          {reports.length ? <div className="csm-admin-report-list">{reports.slice(0, 3).map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · flagged by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Flagged {new Date(`${report.created_at}Z`).toLocaleString()}</small></div></article>)}</div> : <div className="csm-admin-review-preview-empty">No open flagged reviews.</div>}
+          {reports.length > 3 && <button type="button" className="csm-admin-review-preview-more" onClick={() => setSection('reports')}>View all {reports.length} reviews</button>}
+        </div>
       </>}
     </>}
 
     {(section === 'users' || section === 'content') && <div className="csm-admin-card">
       <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); if (section === 'content') { setDeckPage(1); load(search, 1); } else { setUserPage(1); load(search, deckPage, 1); } }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
       {section === 'content' && <div className="csm-admin-preview-launch"><div><strong>Review deck contents</strong><span>Read-only staff preview of Bombcards and answers.</span></div><label htmlFor="admin-preview-deck">Deck<select id="admin-preview-deck" value={previewDeckId} onChange={event => setPreviewDeckId(event.target.value)} disabled={!decks.length || deckPreviewLoading}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} · {deck.owner}</option>)}</select></label><button type="button" className="csm-secondary-button" disabled={!previewDeckId || busy || deckPreviewLoading} onClick={event => { const deck = decks.find(item => item.id === previewDeckId); if (!deck) return; deckPreviewTriggerRef.current = event.currentTarget; loadDeckPreview(deck); }}>{deckPreviewLoading ? 'Loading…' : 'View deck'}</button></div>}
-      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span><div><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : ''}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : 'Active'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-text-button" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className="csm-admin-text-button" disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
+      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span><div><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><div className="csm-admin-user-status-actions"><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : account.is_active_now ? 'is-active' : 'is-inactive'}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : account.is_active_now ? 'Active now' : 'Inactive'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-account-action" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-account-action" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-deck-action" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className={`csm-admin-deck-action ${deck.moderation_status === 'hidden' ? 'is-restore' : 'is-danger'}`} disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
     </div>}
     {section === 'users' && userPagination}
 
@@ -2476,6 +2541,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [bombstyleIndex, setBombstyleIndex] = useState(0);
   const [bombstyleRevealed, setBombstyleRevealed] = useState(false);
   const [bombstyleAnswerDraft, setBombstyleAnswerDraft] = useState('');
+  const [bombstyleAnswerError, setBombstyleAnswerError] = useState('');
+  const bombstyleAnswerInputRef = useRef(null);
   const [bombstyleTimeRemaining, setBombstyleTimeRemaining] = useState(45);
   const [bombstyleStreak, setBombstyleStreak] = useState(0);
   const [bombstyleMaxStreak, setBombstyleMaxStreak] = useState(0);
@@ -3737,6 +3804,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
     bombstyleWrongFeedbackTimerRef.current = null;
     bombstyleTimeoutStartedRef.current = false;
+    setBombstyleAnswerError('');
 
     if (isGuest) {
       setBombstyleSessionId('guest-session-' + Date.now());
@@ -3857,7 +3925,12 @@ function App({ isGuest = false, sharedDeck = null }) {
   const handleBombstyleAnswer = async (answer) => {
     if (bombstyleFeedback || !activeBombstyleCard || bombstyleAnswerSubmittedRef.current) return;
     const submittedAnswer = String(answer ?? '').trim();
-    if (!submittedAnswer) { triggerToast('Enter or choose an answer first.'); return; }
+    if (!submittedAnswer) {
+      setBombstyleAnswerError('Please enter an answer before submitting.');
+      requestAnimationFrame(() => bombstyleAnswerInputRef.current?.focus());
+      return;
+    }
+    setBombstyleAnswerError('');
     bombstyleAnswerSubmittedRef.current = true;
     let serverResult = { status: 'active', remainingMs: 0 };
     let isCorrect = false;
@@ -3929,6 +4002,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     setBombstyleFeedback(null);
     setBombstyleRevealed(false);
     setBombstyleAnswerDraft('');
+    setBombstyleAnswerError('');
     bombstyleAnswerSubmittedRef.current = false;
     if (bombstyleIndex + 1 < bombstyleQueue.length) {
       setBombstyleIndex(i => i + 1);
@@ -6850,14 +6924,22 @@ function App({ isGuest = false, sharedDeck = null }) {
                       ) : (
                         <form className="csm-arena-identification-form" onSubmit={event => { event.preventDefault(); handleBombstyleAnswer(bombstyleAnswerDraft); }}>
                           <input
+                            ref={bombstyleAnswerInputRef}
                             type="text"
                             value={bombstyleAnswerDraft}
-                            onChange={event => setBombstyleAnswerDraft(event.target.value)}
+                            onChange={event => {
+                              const value = event.target.value;
+                              setBombstyleAnswerDraft(value);
+                              if (value.trim()) setBombstyleAnswerError('');
+                            }}
                             placeholder="Type your answer"
                             autoComplete="off"
                             aria-label="Your answer"
+                            aria-invalid={!!bombstyleAnswerError}
+                            aria-describedby={bombstyleAnswerError ? 'bombstyle-answer-error' : undefined}
                           />
                           <button type="submit">Submit Answer</button>
+                          {bombstyleAnswerError && <span id="bombstyle-answer-error" className="csm-arena-answer-error" role="alert">{bombstyleAnswerError}</span>}
                         </form>
                       )
                     ) : (
