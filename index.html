@@ -81,15 +81,70 @@
     }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
   </script>
 
-  <link rel="stylesheet" href="index.css?v=1.49">
+  <link rel="stylesheet" href="index.css?v=1.124">
+  <style>
+    .csm-startup-shell{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;box-sizing:border-box;padding:20px;background:#f3f6fa;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .csm-startup-card{display:flex;align-items:center;gap:16px;width:min(100%,380px);box-sizing:border-box;padding:22px 24px;color:#18233a;background:#fff;border:1px solid #dce5ef;border-radius:16px;box-shadow:0 12px 36px rgba(26,43,68,.09)}
+    .csm-startup-spinner{flex:0 0 28px;width:28px;height:28px;border:3px solid #f9c9bd;border-top-color:#f04824;border-radius:50%;animation:csm-startup-spin .8s linear infinite}
+    .csm-startup-copy{min-width:0}
+    .csm-startup-title{margin:0;color:#18233a;font:650 16px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif}
+    .csm-startup-caption{margin:4px 0 0;color:#71819a;font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+    @keyframes csm-startup-spin{to{transform:rotate(360deg)}}
+    @media(prefers-reduced-motion:reduce){.csm-startup-spinner{animation-duration:2s}}
+  </style>
 </head>
 
 <body>
   <div class="outer-glow-backdrop"></div>
-  <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden"></div>
+  <div id="root" class="relative z-10 w-full h-screen flex items-stretch overflow-hidden csm-startup-root" aria-busy="true">
+    <div class="csm-startup-shell">
+      <main class="csm-startup-card" role="status" aria-live="polite" aria-label="Loading your workspace">
+        <span class="csm-startup-spinner" aria-hidden="true"></span>
+        <div class="csm-startup-copy">
+          <p class="csm-startup-title">Loading your workspace</p>
+          <p class="csm-startup-caption">Getting things ready…</p>
+        </div>
+      </main>
+    </div>
+  </div>
 
-  <script src="api.js?v=1.31"></script>
-  <script type="text/babel" src="index.jsx?v=1.64"></script>
+  <script>
+    (() => {
+      const root = document.getElementById('root');
+      const showStartupError = message => {
+        if (window.__CSM_APP_READY__ || !root) return;
+        const panel = document.createElement('div');
+        panel.style.cssText = 'margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:14px system-ui;box-shadow:0 12px 32px #17243a12';
+        const title = document.createElement('h2');
+        title.style.cssText = 'margin:0 0 8px;font-size:20px';
+        title.textContent = 'The workspace could not start';
+        const detail = document.createElement('p');
+        detail.style.cssText = 'margin:0 0 18px;color:#64748b;line-height:1.55;overflow-wrap:anywhere';
+        detail.textContent = message || 'A required app script failed to load. Check that the local server is running, then reload.';
+        const retry = document.createElement('button');
+        retry.type = 'button';
+        retry.textContent = 'Reload workspace';
+        retry.style.cssText = 'padding:10px 14px;border:0;border-radius:9px;background:#f04824;color:white;font-weight:700;cursor:pointer';
+        retry.addEventListener('click', () => location.reload());
+        panel.append(title, detail, retry);
+        root.replaceChildren(panel);
+      };
+      window.addEventListener('error', event => {
+        if (event.target instanceof HTMLScriptElement) showStartupError(`A required script could not load: ${event.target.src || 'unknown script'}`);
+        else if (event.message) showStartupError(`App error: ${event.message}`);
+      }, true);
+      window.addEventListener('unhandledrejection', event => {
+        const reason = event.reason;
+        showStartupError(`App startup error: ${reason?.message || String(reason || 'Unknown error')}`);
+      });
+      window.setTimeout(() => {
+        if (!window.__CSM_APP_READY__) showStartupError('The workspace is taking too long to start. Check the browser Console and Network tabs for a failed script or API request.');
+      }, 15000);
+    })();
+  </script>
+
+  <script src="api.js?v=1.36"></script>
+  <script type="text/babel" src="index.jsx?v=1.144"></script>
 </body>
 
 </html>

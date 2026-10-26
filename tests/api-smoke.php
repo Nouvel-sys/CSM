@@ -120,6 +120,9 @@ try {
     expect($a,'arena/start','POST',['deckId'=>$deckId,'difficulty'=>'normal'],403);
     $adminUsers=expect($a,'admin/users&q='.rawurlencode($users[0]['name']));
     check(count($adminUsers['users'])===1&&!isset($adminUsers['users'][0]['password_hash']),'Admin account search leaked a password hash or failed to find the account.');
+    $regularUsers=expect($a,'admin/users&role=user');check(count($regularUsers['users'])>0&&count(array_filter($regularUsers['users'],fn($account)=>$account['role']!=='user'))===0,'The users role filter returned accounts with another role.');
+    $adminAccounts=expect($a,'admin/users&role=admin');check(count($adminAccounts['users'])===1&&$adminAccounts['users'][0]['id']===$adminId,'The admin role filter failed to return only the administrator.');
+    expect($a,'admin/users&role=invalid','GET',null,422);
     expect($a,'admin/audit','GET',null,403);expect($a,'admin/settings','GET',null,403);
     expect($a,'admin/users/role','POST',['userId'=>$superId,'role'=>'admin'],403);
     if(!$skipRecovery){
@@ -139,7 +142,7 @@ try {
     $modDeck=expect($foreign,'decks','POST',['title'=>'Moderation smoke '.$suffix,'subject'=>'QA','category'=>'Recent'],201);$created[]=$modDeck['id'];
     expect($foreign,'cards','POST',['deckId'=>$modDeck['id'],'type'=>'IDENTIFICATION','prompt'=>'Moderation test question','correctAnswer'=>'Moderation test answer'],201);
     $modDoc=expect($foreign,'documents','POST',['deckId'=>$modDeck['id']],201,$tmpPdf);
-    $adminPreview=expect($a,'admin/decks/view&id='.$modDeck['id']);check(($adminPreview['deck']['owner']??'')===$users[1]['name']&&count($adminPreview['cards'])===1&&$adminPreview['cards'][0]['prompt']==='Moderation test question'&&$adminPreview['cards'][0]['correctAnswer']==='Moderation test answer','Admin deck preview did not include another user’s Bombcard content.');
+    $adminPreview=expect($a,'admin/decks/view&id='.$modDeck['id']);check(($adminPreview['deck']['owner']??'')===$users[1]['name']&&!array_key_exists('cards',$adminPreview),'Staff PDF preview exposed Bombcard data or returned the wrong deck owner.');
     check(count($adminPreview['documents']??[])===1&&$adminPreview['documents'][0]['id']===$modDoc['id']&&str_contains($adminPreview['documents'][0]['url'],'tabId='.$a['tab']),'Admin deck preview did not list the deck owner PDF with a tab-bound URL.');
     $adminPdfRoute=substr((string)parse_url($adminPreview['documents'][0]['url'],PHP_URL_QUERY),2);$adminPdf=call_api($a,$adminPdfRoute,'GET',null,null,false);check($adminPdf[0]===200&&str_starts_with($adminPdf[2],'%PDF-'),'Admin could not stream another user\'s PDF through the staff-only route.');
     expect($foreign,'admin/documents/file&id='.$modDoc['id'],'GET',null,403);
@@ -182,8 +185,15 @@ try {
     expect($a,'admin/audit','GET',null,403);expect($a,'admin/settings','GET',null,403);expect($a,'admin/sessions/clear','POST',['confirm'=>true],403);
     $system=expect($foreign,'admin/settings');$unchangedSettings=expect($foreign,'admin/settings','PATCH',['storageLimitBytes'=>(int)$system['storageLimitBytes']]);
     check($unchangedSettings['storageLimitBytes']===$system['storageLimitBytes'],'Superadmin storage-limit setting did not persist.');
-    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'superadmin']);
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'superadmin'],422);
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'superadmin','password'=>'wrong-password'],403);
+    $notPromoted=expect($foreign,'admin/users&q='.rawurlencode($users[0]['name']))['users'][0];check($notPromoted['role']==='admin','An invalid password confirmation changed the target role.');
+    expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'superadmin','password'=>$users[1]['password']]);
     $promoted=expect($foreign,'admin/users&q='.rawurlencode($users[0]['name']))['users'][0];check($promoted['role']==='superadmin','Superadmin could not promote an account.');
+    $superAccounts=expect($foreign,'admin/users&role=superadmin');check(count($superAccounts['users'])>=1&&count(array_filter($superAccounts['users'],fn($account)=>$account['role']!=='superadmin'))===0,'The superadmin role filter returned an account with another role.');
+    expect($foreign,'admin/users/role','POST',['userId'=>$superId,'role'=>'admin'],409);
+    expect($foreign,'admin/users/role','POST',['userId'=>$superId,'role'=>'user'],409);
+    check(expect($foreign,'auth/session')['profile']['role']==='superadmin','A superadmin self-demotion attempt changed its own role.');
     expect($foreign,'admin/users/role','POST',['userId'=>$adminId,'role'=>'admin']);
     $superCount=(int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='superadmin'")->fetchColumn();
     if($superCount===1)expect($foreign,'admin/users/role','POST',['userId'=>$superId,'role'=>'user'],409);

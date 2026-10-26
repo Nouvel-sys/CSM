@@ -8,7 +8,7 @@ final class DeckShare {
         return $this->db->query(
             "SELECT s.* FROM deck_shares s
              JOIN decks d ON d.id=s.deck_id
-             WHERE s.deck_id=? AND d.user_id=? AND d.moderation_status='visible'",
+             WHERE s.deck_id=? AND d.user_id=? AND d.moderation_status='visible' AND d.deleted_at IS NULL",
             [$deckId, $userId]
         )->fetch() ?: null;
     }
@@ -16,7 +16,7 @@ final class DeckShare {
     public function createOrGet(string $deckId, string $userId): array {
         // Verify deck ownership and visibility
         $deck = $this->db->query(
-            "SELECT id FROM decks WHERE id=? AND user_id=? AND moderation_status='visible'",
+            "SELECT id FROM decks WHERE id=? AND user_id=? AND moderation_status='visible' AND deleted_at IS NULL",
             [$deckId, $userId]
         )->fetch();
         if (!$deck) {
@@ -60,7 +60,7 @@ final class DeckShare {
 
     public function regenerate(string $deckId, string $userId): array {
         $deck = $this->db->query(
-            "SELECT id FROM decks WHERE id=? AND user_id=? AND moderation_status='visible'",
+            "SELECT id FROM decks WHERE id=? AND user_id=? AND moderation_status='visible' AND deleted_at IS NULL",
             [$deckId, $userId]
         )->fetch();
         if (!$deck) {
@@ -105,7 +105,7 @@ final class DeckShare {
              FROM deck_shares s
              JOIN decks d ON d.id=s.deck_id
              JOIN users u ON u.id=d.user_id
-             WHERE s.share_token=?",
+             WHERE s.share_token=? AND d.deleted_at IS NULL",
             [$token]
         )->fetch();
         if ($row) {
@@ -122,7 +122,7 @@ final class DeckShare {
                     u.username AS owner_name
              FROM decks d
              JOIN users u ON u.id=d.user_id
-             WHERE d.moderation_status='visible'
+             WHERE d.moderation_status='visible' AND d.deleted_at IS NULL
                AND (
                  REPLACE(REPLACE(REPLACE(LOWER(d.title), ' ', ''), '-', ''), '_', '') IN (?, ?)
                  OR LOWER(d.id) = ?

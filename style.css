@@ -1779,9 +1779,9 @@
     .csm-landing-feature-icon svg { width: 19px; height: 19px; }
     .csm-landing-feature-card h3 { margin-top: 32px; font-size: 17px; line-height: 1.05; letter-spacing: -.045em; }
     .csm-landing-feature-card p { margin-top: 11px; color: var(--landing-muted); font-size: 11px; line-height: 1.55; }
-    .csm-landing-pricing-card { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 31px 35px; border: 1px solid var(--landing-line); border-radius: 17px; background: rgba(255,255,255,.55); }
-    .csm-landing-pricing-card h2 { margin-top: 11px; font-size: clamp(28px, 4vw, 46px); line-height: .96; letter-spacing: -.07em; }
-    .csm-landing-pricing-card p { max-width: 420px; margin-top: 10px; color: var(--landing-muted); font-size: 11px; line-height: 1.5; }
+    .csm-landing-start-card { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 31px 35px; border: 1px solid var(--landing-line); border-radius: 17px; background: rgba(255,255,255,.55); }
+    .csm-landing-start-card h2 { margin-top: 11px; font-size: clamp(28px, 4vw, 46px); line-height: .96; letter-spacing: -.07em; }
+    .csm-landing-start-card p { max-width: 420px; margin-top: 10px; color: var(--landing-muted); font-size: 11px; line-height: 1.5; }
     .csm-landing-split { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 70px; }
     .csm-landing-split.is-reverse { grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); }
     .csm-landing-split.is-reverse .csm-landing-split-copy { order: 2; }
@@ -1842,7 +1842,7 @@
       .csm-landing-feature-grid, .csm-landing-split, .csm-landing-split.is-reverse, .csm-landing-faq { grid-template-columns: 1fr; gap: 30px; }
       .csm-landing-split.is-reverse .csm-landing-split-copy { order: 0; }
       .csm-landing-feature-card { min-height: 190px; }
-      .csm-landing-pricing-card { align-items: flex-start; flex-direction: column; padding: 25px 20px; }
+      .csm-landing-start-card { align-items: flex-start; flex-direction: column; padding: 25px 20px; }
       .csm-landing-visual { min-height: 265px; }
       .csm-landing-visual-nav, .csm-landing-visual-content { min-height: 190px; }
       .csm-landing-footer-inner { align-items: flex-start; flex-direction: column; }
@@ -1882,25 +1882,10 @@
     .csm-landing-hero-note { display: none; }
     .csm-landing-proof { display: block; width: 100%; max-width: none; padding: 20px 0 21px; border: 0; background: #f1ebe5; }
     .csm-landing-proof-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; gap: 0; }
-    .csm-landing-proof::before { content: 'EMPOWERING LEARNERS AT EMPOWERING LEARNERS AT PHINMA-UNIVERSITY OF PANGASINAN'; grid-column: 1 / -1; display: block; margin-bottom: 13px; color: #948b84; font-size: 7px; font-weight: 700; letter-spacing: .08em; text-align: center; }
-    .csm-landing-proof-card { min-height: 0; padding: 0 15px; display: flex; align-items: center; justify-content: center; gap: 6px; border-right: 0; }
-    .csm-landing-proof-card strong { color: #746c65; font-size: 10px; font-weight: 600; letter-spacing: -.035em; white-space: nowrap; }
-    .csm-landing-proof-card strong::before { content: none; margin-right: 6px; color: #8c837b; font-size: 16px; line-height: 1; }
-    .csm-landing-proof-card span { display: none; }
-    .csm-landing-proof-card:nth-child(1) strong { font-size: 0; }
-    .csm-landing-proof-card:nth-child(1) strong::after { content: 'College of Education'; font-size: 10px; }
-    .csm-landing-proof-card:nth-child(2) strong { font-size: 0; }
-    .csm-landing-proof-card:nth-child(2) strong::after { content: 'College of Engineering'; font-size: 10px; }
-    .csm-landing-proof-card:nth-child(3) strong { font-size: 0; }
-    .csm-landing-proof-card:nth-child(3) strong::after { content: 'College of Nursing'; font-size: 10px; }
-    .csm-landing-proof-card:nth-child(4) strong { font-size: 0; }
-    .csm-landing-proof-card:nth-child(4) strong::after { content: 'College of Business'; font-size: 10px; }
-    .csm-landing-proof-card:nth-child(5) strong { font-size: 0; }
-    .csm-landing-proof-card:nth-child(5) strong::after { content: 'College of Information Technology'; font-size: 10px; }
-    .csm-landing-proof-card strong { display: inline-flex; align-items: center; gap: 8px; color: #625b55; font-size: 12px !important; font-weight: 650; letter-spacing: -.035em; }
-    .csm-landing-proof-card strong::before,
-    .csm-landing-proof-card strong::after { content: none !important; }
-    .csm-college-icon { width: 22px; height: 22px; flex: 0 0 22px; color: #756c64; stroke-width: 1.8; }
+    .csm-landing-proof-card { min-height: 0; padding: 0 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-right: 0; }
+    .csm-landing-proof-card strong { display: inline-flex; align-items: center; gap: 8px; color: #625b55; font-size: 12px; font-weight: 650; letter-spacing: -.035em; white-space: nowrap; }
+    .csm-landing-proof-card strong svg { width: 20px; height: 20px; flex: 0 0 20px; color: #756c64; }
+    .csm-landing-proof-card span { display: block; margin-top: 6px; color: var(--landing-muted); font-size: 10px; line-height: 1.25; text-align: center; }
     @media (max-width: 760px) {
       .csm-landing-nav { height: 58px; }
       .csm-landing-links { display: none; }
@@ -1909,10 +1894,9 @@
       .csm-landing-hero h1 { font-size: clamp(40px, 12vw, 62px); }
       .csm-landing-proof { grid-template-columns: repeat(2, 1fr); gap: 13px 0; padding: 20px 12px; }
       .csm-landing-proof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px 0; }
-      .csm-landing-proof::before { grid-column: 1 / -1; line-height: 1.4; }
       .csm-landing-proof-card:nth-child(5) { grid-column: 1 / -1; }
       .csm-landing-proof-card strong { font-size: 11px !important; }
-      .csm-college-icon { width: 21px; height: 21px; flex-basis: 21px; }
+      .csm-landing-proof-card span { font-size: 9px; }
     }
 
     /* Desktop scale-up: give the landing page a more confident, presentation-sized rhythm. */
@@ -1971,9 +1955,9 @@
       .csm-landing-visual-content p { max-width: 360px; margin-top: 12px; font-size: 10px; }
       .csm-landing-visual-rows { gap: 9px; margin-top: 30px; }
       .csm-landing-visual-row { min-height: 43px; padding: 0 12px; font-size: 10px; }
-      .csm-landing-pricing-card { padding: 34px 39px; border-radius: 19px; }
-      .csm-landing-pricing-card h2 { font-size: clamp(33px, 3.7vw, 50px); }
-      .csm-landing-pricing-card p { max-width: 520px; font-size: 12px; line-height: 1.55; }
+      .csm-landing-start-card { padding: 34px 39px; border-radius: 19px; }
+      .csm-landing-start-card h2 { font-size: clamp(33px, 3.7vw, 50px); }
+      .csm-landing-start-card p { max-width: 520px; font-size: 12px; line-height: 1.55; }
       .csm-landing-quote { padding: 135px 0; }
       .csm-landing-quote h2 { max-width: 760px; font-size: clamp(41px, 5.5vw, 72px); }
       .csm-landing-quote .csm-landing-button { margin-top: 26px; }
@@ -1991,7 +1975,7 @@
     }
     .csm-landing-login { border: 0; padding: 5px 0; background: transparent; cursor: pointer; font: inherit; }
     body.csm-auth-open { overflow: hidden !important; }
-    .csm-auth-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(14,14,14,.6); backdrop-filter: blur(10px); animation: csmAuthFade .2s ease both; }
+    .csm-auth-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; box-sizing: border-box; width: 100%; height: 100%; min-height: 100dvh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); background: rgba(14,14,14,.6); backdrop-filter: blur(10px); animation: csmAuthFade .2s ease both; }
     .csm-auth-modal { position: relative; width: min(100%, 455px); max-height: calc(100vh - 40px); overflow: auto; padding: 31px; border: 1px solid rgba(23,21,19,.1); border-radius: 24px; color: var(--landing-ink); background: #fffaf5; box-shadow: 0 28px 80px rgba(23,21,19,.28); animation: csmAuthRise .28s cubic-bezier(.2,.8,.2,1) both; }
     .csm-auth-modal-close { position: absolute; top: 15px; right: 17px; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid rgba(23,21,19,.11); border-radius: 50%; color: #6c625b; background: rgba(255,255,255,.55); font-size: 21px; line-height: 1; cursor: pointer; }
     .csm-auth-modal-close svg { width: 15px; height: 15px; }
@@ -2017,8 +2001,8 @@
     @keyframes csmAuthFade { from { opacity: 0; } to { opacity: 1; } }
     @keyframes csmAuthRise { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
     @media (max-width: 560px) {
-      .csm-auth-modal-backdrop { align-items: end; padding: 10px; }
-      .csm-auth-modal { max-height: calc(100vh - 20px); padding: 25px 20px 21px; border-radius: 20px; }
+      .csm-auth-modal-backdrop { padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+      .csm-auth-modal { max-height: calc(100dvh - 20px); padding: 25px 20px 21px; border-radius: 20px; }
       .csm-auth-modal-kicker { margin-top: 22px; }
       .csm-auth-modal h2 { font-size: 35px; }
     }
@@ -3620,17 +3604,19 @@ body.logged-out .floating-add-container {
 .cream-modal-backdrop {
   position: fixed;
   inset: 0;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: rgba(19, 51, 38, 0.45);
   backdrop-filter: blur(6px);
   z-index: 100;
   display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .cream-modal-backdrop.active {
-  display: flex;
+  display: grid;
 }
 
 .cream-modal-box {

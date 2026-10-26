@@ -1,5 +1,5 @@
 Options -Indexes
-DirectoryIndex index.html
+DirectoryIndex landing.html
 RewriteEngine On
 RewriteRule (^|/)\. - [F,L]
 RewriteRule ^(?:server|classes|database|tests|docs|test-results|storage)(?:/|$) - [F,L,NC]

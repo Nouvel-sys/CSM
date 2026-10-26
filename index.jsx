@@ -9,6 +9,150 @@ const getCompactPageItems = (currentPage, pageCount) => {
   if (page >= pageCount - 2) return [1, { type: 'ellipsis', key: 'start' }, pageCount - 2, pageCount - 1, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
   return [1, { type: 'ellipsis', key: 'start' }, page - 1, page, page + 1, { type: 'ellipsis', key: 'end' }, pageCount].map(value => typeof value === 'number' ? { type: 'page', value } : value);
 };
+
+const createAiReviewerPdf = (reviewer, deckTitle) => {
+  const pageWidth = 595;
+  const pageHeight = 842;
+  const margin = 42;
+  const gutter = 24;
+  const columnWidth = (pageWidth - margin * 2 - gutter) / 2;
+  const leftX = margin;
+  const rightX = margin + columnWidth + gutter;
+  const dividerX = margin + columnWidth + gutter / 2;
+  const topLimit = 96;
+  const bottomLimit = 795;
+  const cp1252 = { '€': 0x80, '‚': 0x82, 'ƒ': 0x83, '„': 0x84, '…': 0x85, '†': 0x86, '‡': 0x87, 'ˆ': 0x88, '‰': 0x89, 'Š': 0x8a, '‹': 0x8b, 'Œ': 0x8c, 'Ž': 0x8e, '‘': 0x91, '’': 0x92, '“': 0x93, '”': 0x94, '•': 0x95, '–': 0x96, '—': 0x97, '˜': 0x98, '™': 0x99, 'š': 0x9a, '›': 0x9b, 'œ': 0x9c, 'ž': 0x9e, 'Ÿ': 0x9f };
+  const normalizeText = value => String(value ?? '').replace(/[\u2192]/g, '->').replace(/[\u2190]/g, '<-').replace(/[\u00d7]/g, 'x').replace(/[\u2264]/g, '<=').replace(/[\u2265]/g, '>=').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7e\u00a0-\u00ff\u20ac\u201a\u0192\u201e\u2026\u2020\u2021\u02c6\u2030\u0160\u2039\u0152\u017d\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161\u203a\u0153\u017e\u0178]/g, ' ');
+  const pdfHex = value => `<${Array.from(normalizeText(value), character => {
+    const code = cp1252[character] ?? character.charCodeAt(0);
+    return code.toString(16).padStart(2, '0').toUpperCase();
+  }).join('')}>`;
+  const estimateWidth = (value, size, bold = false) => Array.from(normalizeText(value)).reduce((sum, character) => {
+    const factor = ' il.,:;!\'|'.includes(character) ? .25 : 'MW@%&'.includes(character) ? .82 : 'frt()[]'.includes(character) ? .36 : character === ' ' ? .28 : .52;
+    return sum + factor * size * (bold ? 1.035 : 1);
+  }, 0);
+  const wrapText = (value, size, width, bold = false) => {
+    const words = normalizeText(value).trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return [''];
+    const lines = [];
+    let line = '';
+    words.forEach(word => {
+      if (estimateWidth(word, size, bold) > width) {
+        if (line) { lines.push(line); line = ''; }
+        let piece = '';
+        Array.from(word).forEach(character => {
+          if (piece && estimateWidth(piece + character, size, bold) > width) { lines.push(piece); piece = character; }
+          else piece += character;
+        });
+        line = piece;
+        return;
+      }
+      const nextLine = line ? `${line} ${word}` : word;
+      if (line && estimateWidth(nextLine, size, bold) > width) { lines.push(line); line = word; }
+      else line = nextLine;
+    });
+    if (line) lines.push(line);
+    return lines;
+  };
+  const pages = [];
+  let commands;
+  let column = 0;
+  let cursorY = topLimit;
+  const drawText = (text, x, yFromTop, size, bold = false, color = '0.12 0.17 0.25') => {
+    commands.push(`BT /${bold ? 'F2' : 'F1'} ${size} Tf ${color} rg 1 0 0 1 ${x.toFixed(2)} ${(pageHeight - yFromTop).toFixed(2)} Tm ${pdfHex(text)} Tj ET`);
+  };
+  const drawRule = (x1, y1, x2, y2, color = '0.86 0.89 0.93', width = .6) => {
+    commands.push(`q ${color} RG ${width} w ${x1.toFixed(2)} ${(pageHeight - y1).toFixed(2)} m ${x2.toFixed(2)} ${(pageHeight - y2).toFixed(2)} l S Q`);
+  };
+  const startPage = () => {
+    commands = [];
+    pages.push(commands);
+    drawText(reviewer.title || 'Study Reviewer', margin, 37, 17, true, '0.08 0.13 0.22');
+    const titleLines = wrapText(deckTitle || 'Generated reviewer', margin, pageWidth - margin * 2 - 115, false);
+    titleLines.slice(0, 2).forEach((line, index) => drawText(line, margin, 54 + index * 12, 9, false, '0.34 0.41 0.51'));
+    drawText('AI-GENERATED', pageWidth - margin - 93, 38, 8, true, '0.42 0.31 0.62');
+    drawText(new Date().toLocaleDateString(), pageWidth - margin - 93, 53, 8, false, '0.42 0.49 0.59');
+    drawRule(margin, 72, pageWidth - margin, 72, '0.82 0.86 0.91', .8);
+    drawRule(dividerX, 87, dividerX, 807, '0.86 0.89 0.93', .6);
+    column = 0;
+    cursorY = topLimit;
+  };
+  const advanceColumn = () => {
+    if (column === 0) { column = 1; cursorY = topLimit; }
+    else startPage();
+  };
+  const sectionsToRender = Array.isArray(reviewer.sections) ? reviewer.sections : [];
+  startPage();
+  sectionsToRender.forEach(section => {
+    const textWidth = columnWidth - 2;
+    const blocks = [{ text: section.heading, size: 10.2, bold: true, color: '0.42 0.31 0.62', gap: 0, leading: 14, kind: 'heading' }];
+    (Array.isArray(section.blocks) ? section.blocks : []).forEach(block => {
+      if (block.type === 'definition') {
+        blocks.push({ text: block.term, size: 9.2, bold: true, color: '0.10 0.13 0.19', gap: 5, leading: 12 });
+        blocks.push({ text: block.explanation, size: 9, bold: false, color: '0.12 0.15 0.20', gap: 1, leading: 12 });
+      } else if (block.text) {
+        const isBullet = block.type === 'bullet';
+        const isTakeaway = block.type === 'key_takeaway';
+        blocks.push({ text: `${isBullet ? '-  ' : ''}${block.text}`, size: 9, bold: isTakeaway, color: isTakeaway ? '0.10 0.13 0.19' : '0.12 0.15 0.20', gap: 4, leading: 12 });
+      }
+    });
+    const prepared = blocks.map(block => ({ ...block, lines: wrapText(block.text, block.size, textWidth, block.bold) }));
+    const blockHeight = prepared.reduce((height, block) => height + block.gap + block.lines.length * block.leading, 0) + 10;
+    if (blockHeight <= bottomLimit - topLimit && cursorY + blockHeight > bottomLimit) advanceColumn();
+    prepared.forEach(block => {
+      cursorY += block.gap;
+      block.lines.forEach(line => {
+        if (cursorY + block.leading > bottomLimit) advanceColumn();
+        const lineX = (column === 0 ? leftX : rightX) + (block.kind === 'heading' ? 0 : 4);
+        drawText(line, lineX, cursorY + block.leading - 2, block.size, block.bold, block.color);
+        cursorY += block.leading;
+      });
+    });
+    cursorY += 7;
+    drawRule(column === 0 ? leftX : rightX, cursorY, (column === 0 ? leftX : rightX) + columnWidth, cursorY, '0.91 0.93 0.96', .45);
+    cursorY += 11;
+  });
+  pages.forEach((pageCommands, index) => {
+    pageCommands.push(`BT /F1 8 Tf 0.48 0.54 0.62 rg 1 0 0 1 ${(pageWidth - margin - 42).toFixed(2)} 20 Tm ${pdfHex(`Page ${index + 1} of ${pages.length}`)} Tj ET`);
+  });
+  const objects = [];
+  objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objects[2] = `<< /Type /Pages /Kids [${pages.map((_, index) => `${5 + index * 2} 0 R`).join(' ')}] /Count ${pages.length} >>`;
+  objects[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objects[4] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  pages.forEach((pageCommands, index) => {
+    const pageObject = 5 + index * 2;
+    const contentObject = pageObject + 1;
+    const stream = `${pageCommands.join('\n')}\n`;
+    objects[pageObject] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentObject} 0 R >>`;
+    objects[contentObject] = `<< /Length ${stream.length} >>\nstream\n${stream}endstream`;
+  });
+  let pdf = '%PDF-1.4\n%CSM-PDF\n';
+  const offsets = [0];
+  for (let objectNumber = 1; objectNumber < objects.length; objectNumber++) {
+    offsets[objectNumber] = pdf.length;
+    pdf += `${objectNumber} 0 obj\n${objects[objectNumber]}\nendobj\n`;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let objectNumber = 1; objectNumber < objects.length; objectNumber++) pdf += `${String(offsets[objectNumber]).padStart(10, '0')} 00000 n \n`;
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const safeTitle = String(deckTitle || 'generated-reviewer').normalize('NFKD').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'generated-reviewer';
+  return { blob, filename: `AI-generated-${safeTitle}-reviewer.pdf` };
+};
+
+const downloadAiReviewerPdf = (artifact) => {
+  const url = URL.createObjectURL(artifact.blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = artifact.filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 const formatAdminEventLabel = (value) => String(value ?? '').split('_').filter(Boolean).map(part => part[0].toUpperCase() + part.slice(1)).join(' ');
 const adminAvatarBackgrounds = {
   ember: 'linear-gradient(145deg, #f47c59, #ed4e2d)',
@@ -94,6 +238,61 @@ class SoundEngine {
       gain.connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + 0.05);
+    } catch (e) { }
+  }
+  whistle() {
+    if (this.muted) return;
+    this.init();
+    if (!this.ctx) return;
+    try {
+      const now = this.ctx.currentTime;
+      const duration = 0.62;
+      const fundamental = this.ctx.createOscillator();
+      const overtone = this.ctx.createOscillator();
+      const fundamentalGain = this.ctx.createGain();
+      const overtoneGain = this.ctx.createGain();
+      fundamental.type = 'sine';
+      overtone.type = 'sine';
+      fundamental.frequency.setValueAtTime(1780, now);
+      fundamental.frequency.exponentialRampToValueAtTime(1420, now + duration);
+      overtone.frequency.setValueAtTime(3560, now);
+      overtone.frequency.exponentialRampToValueAtTime(2840, now + duration);
+      fundamentalGain.gain.setValueAtTime(0.0001, now);
+      fundamentalGain.gain.linearRampToValueAtTime(0.042, now + 0.035);
+      fundamentalGain.gain.setValueAtTime(0.042, now + 0.3);
+      fundamentalGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      overtoneGain.gain.setValueAtTime(0.0001, now);
+      overtoneGain.gain.linearRampToValueAtTime(0.008, now + 0.04);
+      overtoneGain.gain.setValueAtTime(0.008, now + 0.28);
+      overtoneGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      fundamental.connect(fundamentalGain);
+      overtone.connect(overtoneGain);
+      fundamentalGain.connect(this.ctx.destination);
+      overtoneGain.connect(this.ctx.destination);
+      fundamental.start(now);
+      overtone.start(now);
+      fundamental.stop(now + duration);
+      overtone.stop(now + duration);
+
+      const bufferLength = Math.floor(this.ctx.sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferLength, this.ctx.sampleRate);
+      const samples = buffer.getChannelData(0);
+      for (let i = 0; i < bufferLength; i++) samples[i] = Math.random() * 2 - 1;
+      const breath = this.ctx.createBufferSource();
+      const breathFilter = this.ctx.createBiquadFilter();
+      const breathGain = this.ctx.createGain();
+      breath.buffer = buffer;
+      breathFilter.type = 'bandpass';
+      breathFilter.frequency.setValueAtTime(3400, now);
+      breathFilter.Q.setValueAtTime(1.1, now);
+      breathGain.gain.setValueAtTime(0.0001, now);
+      breathGain.gain.linearRampToValueAtTime(0.002, now + 0.04);
+      breathGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+      breath.connect(breathFilter);
+      breathFilter.connect(breathGain);
+      breathGain.connect(this.ctx.destination);
+      breath.start(now);
+      breath.stop(now + duration);
     } catch (e) { }
   }
   correct() {
@@ -254,8 +453,8 @@ const IconLogout = () => (
   </svg>
 );
 
-const IconSearch = () => (
-  <svg className="w-4 h-4 text-zinc-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+const IconSearch = ({ className = "w-4 h-4 text-zinc-400" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" />
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
@@ -283,6 +482,14 @@ const IconShare = () => (
   </svg>
 );
 
+const IconDownload = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <path d="m7 10 5 5 5-5" />
+    <path d="M12 15V3" />
+  </svg>
+);
+
 const IconTrash = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="3 6 5 6 21 6" />
@@ -290,10 +497,26 @@ const IconTrash = () => (
   </svg>
 );
 
+const IconRestore = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M3 12a9 9 0 0 1 15.4-6.4L21 8" />
+    <path d="M21 3v5h-5" />
+    <path d="M21 12a9 9 0 0 1-15.4 6.4L3 16" />
+    <path d="M3 21v-5h5" />
+  </svg>
+);
+
 const IconArrowLeft = ({ className = "w-5 h-5" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <line x1="19" y1="12" x2="5" y2="12" />
     <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const IconArrowRight = ({ className = "w-4 h-4 shrink-0" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+    <path d="M5 12h14" />
+    <path d="m12 5 7 7-7 7" />
   </svg>
 );
 
@@ -366,6 +589,14 @@ const IconCards = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+
+const IconNotebook = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="6.5" y="2.5" width="15" height="19" rx="2.5" />
+    <path d="M10.5 8h7M10.5 12h7M10.5 16h5" />
+    <path d="M3 6h5M3 10h5M3 14h5M3 18h5" />
+  </svg>
+);
 
 const IconFileText = ({ className = "w-4 h-4" }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1522,14 +1753,47 @@ function FlashcardReviewModal({ deck, cards, onClose, onFinish, onJumpToPage, tr
 }
 
 
+function AdminReportArrivalNotice() {
+  const [reportedDeckCount, setReportedDeckCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const result = await CSM.api('notifications');
+        const count = Number(result.unreadReportDeckCount) || 0;
+        if (cancelled || count < 1) return;
+        setReportedDeckCount(count);
+        await CSM.api('notifications/read', 'PATCH', { type: 'deck_report_received' });
+        window.dispatchEvent(new Event('csm:notifications-refresh'));
+      } catch { /* The review queue still shows reports if notifications are unavailable. */ }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+  if (!reportedDeckCount) return null;
+  return ReactDOM.createPortal(<div className="csm-modal-backdrop csm-admin-report-backdrop" role="presentation">
+    <section className="csm-admin-report-modal" role="dialog" aria-modal="true" aria-labelledby="csm-admin-report-title" aria-describedby="csm-admin-report-message">
+      <span className="csm-admin-report-modal-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/><path d="M8 7h8M8 11h8"/></svg></span>
+      <span className="csm-kicker">REVIEW QUEUE</span>
+      <h2 id="csm-admin-report-title">While you were away</h2>
+      <p id="csm-admin-report-message">{reportedDeckCount} {reportedDeckCount === 1 ? 'deck was' : 'decks were'} reported.</p>
+      <button type="button" className="csm-primary-button" onClick={() => setReportedDeckCount(0)}>Got it!</button>
+    </section>
+  </div>, document.body);
+}
+
 function AdminHome({ profile, onOpenAdmin }) {
   const [dashboard, setDashboard] = useState(null);
   const [error, setError] = useState('');
+  const [reports, setReports] = useState(null);
+  const [reviewError, setReviewError] = useState('');
   const load = async () => {
     const to = new Date().toISOString().slice(0, 10);
     const from = new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10);
     try { setDashboard(await CSM.api(`admin/dashboard&from=${from}&to=${to}`)); setError(''); }
     catch (requestError) { setError(requestError.message || 'Could not load workspace activity.'); }
+    try { setReports((await CSM.api('admin/reports&status=open')).reports || []); setReviewError(''); }
+    catch (requestError) { setReviewError(requestError.message || 'Could not load flagged reviews.'); }
   };
   useEffect(() => {
     load();
@@ -1537,33 +1801,238 @@ function AdminHome({ profile, onOpenAdmin }) {
     return () => window.clearInterval(interval);
   }, []);
   return <div className="csm-screen custom-scroll csm-admin-screen csm-admin-home">
-    <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE OVERVIEW</span><h1>Good to see you, {profile?.displayName || profile?.username || 'Admin'}</h1><p>Monitor who is using Co-StudyMaxx and review activity across the workspace.</p></div><button type="button" className="csm-primary-button" onClick={onOpenAdmin}>Open admin console <span aria-hidden="true">→</span></button></div>
+    <AdminReportArrivalNotice />
+    <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE OVERVIEW</span><h1>Good to see you, {profile?.displayName || profile?.username || 'Admin'}</h1><p>Monitor who is using Co-StudyMaxx and review activity across the workspace.</p></div><button type="button" className="csm-primary-button" onClick={onOpenAdmin}>Open admin console <IconArrowRight /></button></div>
     {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}
     {dashboard ? <>
       <div className="csm-admin-metrics">
         {[
-          ['Total users', dashboard.totals.users, 'All registered accounts'],
-          ['Active now', dashboard.totals.activeNow, 'Seen in the last 5 minutes'],
-          ['Active last 30 days', dashboard.period.activeUsers, 'Distinct users with study activity'],
-          ['Total decks', dashboard.totals.decks, 'Across all accounts'],
-          ['PDF uploads', dashboard.period.uploads, 'Selected 30-day period'],
-          ['Arena sessions', dashboard.period.sessions, 'Selected 30-day period']
-        ].map(([label, value, description]) => <article className={`csm-admin-metric ${label === 'Active now' ? 'is-live' : ''}`} key={label}><span>{label}</span><strong>{value}</strong><small>{description}</small></article>)}
+          ['Total users', dashboard.totals.users, 'All registered accounts', 'users'],
+          ['Active now', dashboard.totals.activeNow, 'Seen in the last 5 minutes', 'users'],
+          ['Active last 30 days', dashboard.period.activeUsers, 'Distinct users with study activity', 'users'],
+          ['Total decks', dashboard.totals.decks, 'Across all accounts', 'content'],
+          ['PDF uploads', dashboard.period.uploads, 'Selected 30-day period', 'content'],
+          ['Arena sessions', dashboard.period.sessions, 'Selected 30-day period', 'overview']
+        ].map(([label, value, description, section]) => <button type="button" className={`csm-admin-metric csm-admin-metric-button ${label === 'Active now' ? 'is-live' : ''}`} key={label} onClick={() => onOpenAdmin(section)} aria-label={`${label}: ${value}. ${description}. Open ${section === 'users' ? 'user management' : section === 'content' ? 'deck moderation' : 'activity overview'}.`} title={`Open ${section === 'users' ? 'user management' : section === 'content' ? 'deck moderation' : 'activity overview'}`}><span>{label}</span><strong>{value}</strong><small>{description}</small></button>)}
       </div>
       <section className="csm-admin-card csm-admin-home-note"><span className="csm-kicker">LIVE ACCOUNT ACTIVITY</span><p>“Active now” counts accounts with a signed-in tab that contacted the server within five minutes. Period activity counts distinct users who generated study activity during the selected dates.</p></section>
     </> : !error && <div className="csm-admin-empty">Loading workspace totals…</div>}
+    <section className="csm-admin-card csm-admin-home-reviews">
+      <div className="csm-admin-card-head">
+        <div><span className="csm-kicker">NEEDS ATTENTION</span><h2>Flagged reviews</h2></div>
+        <div className="csm-admin-review-preview-actions"><span className="csm-admin-subtle">{reports ? `${reports.length} open` : 'Loading…'}</span><button type="button" className="csm-secondary-button" onClick={() => onOpenAdmin('reports')}>Open review queue <IconArrowRight /></button></div>
+      </div>
+      {reviewError ? <div className="csm-admin-alert is-error" role="alert">{reviewError}</div> : reports === null ? <div className="csm-admin-empty">Loading flagged reviews…</div> : reports.length ? <div className="csm-admin-report-list">{reports.slice(0, 3).map(report => <article className="csm-admin-report" key={report.id}>
+        <div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · reported by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Reported {new Date(`${report.created_at}Z`).toLocaleString()}</small></div>
+        <div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" onClick={() => onOpenAdmin('reports')}>Review in queue <IconArrowRight /></button></div>
+      </article>)}</div> : <div className="csm-admin-review-preview-empty">No open flagged reviews.</div>}
+      {reports?.length > 3 && <button type="button" className="csm-admin-review-preview-more" onClick={() => onOpenAdmin('reports')}>View all {reports.length} reviews</button>}
+    </section>
+  </div>;
+}
+
+function UserArchiveScreen({ onWorkspaceRefresh }) {
+  const [decks, setDecks] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
+  const pageSize = 10;
+  const load = async () => {
+    setError('');
+    try {
+      const result = await CSM.api(`archive/decks&limit=${pageSize}&offset=${(page - 1) * pageSize}`);
+      setDecks(result.decks || []);
+      setTotal(Number(result.total) || 0);
+    } catch (requestError) { setError(requestError.message || 'Could not load archived decks.'); }
+  };
+  useEffect(() => { load(); }, [page]);
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timeoutId = window.setTimeout(() => setNotice(''), 4600);
+    return () => window.clearTimeout(timeoutId);
+  }, [notice]);
+  const act = async (deck, action) => {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      await CSM.api(action === 'restore' ? 'archive/decks/restore' : 'archive/decks/permanent', action === 'restore' ? 'POST' : 'DELETE', { id: deck.id });
+      setNotice(action === 'restore' ? 'Deck restored to your library.' : 'Deck permanently deleted.');
+      if (action === 'delete') setDeleteTarget(null);
+      if (action === 'restore') await onWorkspaceRefresh?.();
+      if (decks.length === 1 && page > 1) setPage(current => current - 1); else await load();
+    } catch (actionError) {
+      const message = actionError.message || 'Could not update this archived deck.';
+      if (action === 'delete') setDeleteError(message); else setError(message);
+    }
+    finally { setBusy(false); }
+  };
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const pages = getCompactPageItems(page, pageCount);
+  return <div className="csm-screen custom-scroll csm-user-archive">
+    <div className="csm-page-head"><div><span className="csm-kicker">YOUR LIBRARY</span><h1>Recently deleted</h1><p>Decks stay here until you restore or permanently delete them.</p></div><span className="csm-archive-count">{total} {total === 1 ? 'deck' : 'decks'}</span></div>
+    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-archive-notice-toast" role="status" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="m8 12 2.6 2.6L16.5 9" /></svg><span>{notice}</span></div>}
+    <section className="csm-admin-card csm-archive-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">ARCHIVE</span><h2>Archived decks</h2></div></div>
+      {decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Bombcards</th><th>PDFs</th><th>Deleted</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'}</small></td><td>{deck.card_count}</td><td>{deck.document_count}</td><td>{deck.deleted_at ? new Date(`${deck.deleted_at}Z`).toLocaleString() : '—'}</td><td><div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" disabled={busy} onClick={() => act(deck, 'restore')}><IconRestore />Restore</button><button type="button" className="csm-admin-deck-action is-danger csm-archive-delete" disabled={busy} onClick={() => { setDeleteError(''); setDeleteTarget(deck); }}><IconTrash />Delete</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">{error ? 'Archive could not be loaded.' : 'No recently deleted decks.'}</div>}
+      {total > pageSize && <nav className="csm-admin-pagination" aria-label="Archived deck pages"><span className="csm-admin-pagination-summary">Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total} decks</span><div className="csm-admin-pagination-controls"><button type="button" className="csm-admin-page-button" disabled={page === 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button>{pages.map(item => item.type === 'ellipsis' ? <span key={item.key} className="csm-admin-page-ellipsis">…</span> : <button type="button" key={item.value} className={`csm-admin-page-number ${item.value === page ? 'active' : ''}`} aria-current={item.value === page ? 'page' : undefined} onClick={() => setPage(item.value)}>{item.value}</button>)}<button type="button" className="csm-admin-page-button" disabled={page >= pageCount} onClick={() => setPage(current => Math.min(pageCount, current + 1))}>Next</button></div></nav>}
+    </section>
+    {deleteTarget && ReactDOM.createPortal(<div className="csm-modal-backdrop csm-admin-action-backdrop" role="presentation" onClick={() => !busy && setDeleteTarget(null)}>
+      <section className="csm-admin-action-modal csm-archive-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="user-archive-delete-title" aria-describedby="user-archive-delete-description" onClick={event => event.stopPropagation()}>
+        <div className="csm-admin-action-icon is-danger" aria-hidden="true"><IconTrash /></div>
+        <span className="csm-kicker">PERMANENT DELETION</span>
+        <h2 id="user-archive-delete-title">Delete “{deleteTarget.title}” permanently?</h2>
+        <p id="user-archive-delete-description">This permanently deletes the deck and its attached PDFs. This action cannot be undone.</p>
+        {deleteError && <div className="csm-admin-alert is-error" role="alert">{deleteError}</div>}
+        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" autoFocus disabled={busy} onClick={() => setDeleteTarget(null)}>Cancel</button><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={() => act(deleteTarget, 'delete')}>{busy ? 'Deleting…' : 'Delete permanently'}</button></div>
+      </section>
+    </div>, document.body)}
+  </div>;
+}
+
+function AdminArchiveScreen({ profile }) {
+  const isSuper = profile?.role === 'superadmin';
+  const [section, setSection] = useState('inactive-users');
+  const [inactiveUsers, setInactiveUsers] = useState([]);
+  const [inactiveTotal, setInactiveTotal] = useState(0);
+  const [inactivePage, setInactivePage] = useState(1);
+  const [events, setEvents] = useState([]);
+  const [eventTotal, setEventTotal] = useState(0);
+  const [eventPage, setEventPage] = useState(1);
+  const [hiddenDecks, setHiddenDecks] = useState([]);
+  const [hiddenTotal, setHiddenTotal] = useState(0);
+  const [hiddenPage, setHiddenPage] = useState(1);
+  const [restoringDeckId, setRestoringDeckId] = useState(null);
+  const [deletingHiddenDecks, setDeletingHiddenDecks] = useState(false);
+  const [hiddenDeckDeleteTarget, setHiddenDeckDeleteTarget] = useState(null);
+  const [hiddenDeckDeleteError, setHiddenDeckDeleteError] = useState('');
+  const [selectedHiddenDeckIds, setSelectedHiddenDeckIds] = useState([]);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const pageSize = 10;
+  const downloadArchiveCsv = async (route, filename, label) => {
+    setExporting(true); setError(''); setNotice('');
+    try {
+      await CSM.downloadFile(route, filename);
+      setNotice(`${label} downloaded as CSV.`);
+    } catch (downloadError) {
+      setError(downloadError.message || 'The CSV export could not be downloaded.');
+    } finally { setExporting(false); }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setError('');
+      try {
+        if (section === 'inactive-users') {
+          const result = await CSM.api(`admin/archive/inactive-users&limit=${pageSize}&offset=${(inactivePage - 1) * pageSize}`);
+          if (!cancelled) { setInactiveUsers(result.users || []); setInactiveTotal(Number(result.total) || 0); }
+        } else if (section === 'hidden-decks') {
+          const result = await CSM.api(`admin/archive/hidden-decks&limit=${pageSize}&offset=${(hiddenPage - 1) * pageSize}`);
+          if (!cancelled) { setHiddenDecks(result.decks || []); setHiddenTotal(Number(result.total) || 0); }
+        } else if (section === 'security-events' && isSuper) {
+          const result = await CSM.api(`admin/archive/security-events&limit=${pageSize}&offset=${(eventPage - 1) * pageSize}`);
+          if (!cancelled) { setEvents(result.events || []); setEventTotal(Number(result.total) || 0); }
+        }
+      } catch (requestError) { if (!cancelled) setError(requestError.message || 'Could not load archive data.'); }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [section, inactivePage, hiddenPage, eventPage, isSuper]);
+  const requestHiddenDeckDeletion = ids => {
+    const selectedIds = [...new Set(ids.map(String))];
+    if (selectedIds.length) { setHiddenDeckDeleteError(''); setHiddenDeckDeleteTarget(selectedIds); }
+  };
+  const confirmHiddenDeckDeletion = async () => {
+    const selectedIds = hiddenDeckDeleteTarget || [];
+    if (!selectedIds.length || deletingHiddenDecks) return;
+    setDeletingHiddenDecks(true); setError(''); setHiddenDeckDeleteError(''); setNotice('');
+    try {
+      const result = await CSM.api('admin/archive/hidden-decks/delete', 'DELETE', { ids: selectedIds });
+      const deletedIds = new Set(selectedIds);
+      setHiddenDecks(current => current.filter(deck => !deletedIds.has(String(deck.id))));
+      setHiddenTotal(current => Math.max(0, current - (Number(result.deleted) || selectedIds.length)));
+      setSelectedHiddenDeckIds(current => current.filter(id => !deletedIds.has(String(id))));
+      setNotice(`${Number(result.deleted) || selectedIds.length} hidden ${selectedIds.length === 1 ? 'deck' : 'decks'} permanently deleted.`);
+      if (selectedIds.length >= hiddenDecks.length && hiddenPage > 1) setHiddenPage(current => current - 1);
+      setHiddenDeckDeleteTarget(null);
+    } catch (deleteError) { setHiddenDeckDeleteError(deleteError.message || 'Could not permanently delete the selected decks.'); }
+    finally { setDeletingHiddenDecks(false); }
+  };
+  const restoreHiddenDeck = async deck => {
+    setRestoringDeckId(deck.id); setError(''); setNotice('');
+    try {
+      await CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action: 'restore', reason: 'Restored from the hidden deck archive.' });
+      setHiddenDecks(current => current.filter(item => String(item.id) !== String(deck.id)));
+      setSelectedHiddenDeckIds(current => current.filter(id => String(id) !== String(deck.id)));
+      setHiddenTotal(current => Math.max(0, current - 1));
+      setNotice(`"${deck.title}" restored and returned to deck moderation.`);
+      if (hiddenDecks.length === 1 && hiddenPage > 1) setHiddenPage(current => current - 1);
+    } catch (restoreError) { setError(restoreError.message || 'Could not restore this deck.'); }
+    finally { setRestoringDeckId(null); }
+  };
+  const pagination = (label, page, total, setPage) => {
+    const pageCount = Math.max(1, Math.ceil(total / pageSize));
+    if (total <= pageSize) return null;
+    return <nav className="csm-admin-pagination" aria-label={`${label} pages`}><span className="csm-admin-pagination-summary">Showing {((page - 1) * pageSize) + 1}–{Math.min(page * pageSize, total)} of {total} {label.toLowerCase()}</span><div className="csm-admin-pagination-controls"><button type="button" className="csm-admin-page-button" disabled={page === 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button>{getCompactPageItems(page, pageCount).map(item => item.type === 'ellipsis' ? <span key={item.key} className="csm-admin-page-ellipsis">…</span> : <button type="button" key={item.value} className={`csm-admin-page-number ${item.value === page ? 'active' : ''}`} aria-current={item.value === page ? 'page' : undefined} onClick={() => setPage(item.value)}>{item.value}</button>)}<button type="button" className="csm-admin-page-button" disabled={page >= pageCount} onClick={() => setPage(current => Math.min(pageCount, current + 1))}>Next</button></div></nav>;
+  };
+  return <div className="csm-screen custom-scroll csm-admin-screen csm-standalone-archive">
+    <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE ADMINISTRATION</span><h1>Archive</h1><p>Review hidden decks, inactive accounts, and older security events.</p></div><span className={`csm-admin-role-pill ${isSuper ? 'is-super' : ''}`}>{isSuper ? 'Superadmin' : 'Admin'}</span></div>
+    <div className="csm-admin-tabs csm-admin-archive-tabs" role="tablist" aria-label="Archive sections"><button type="button" role="tab" aria-selected={section === 'inactive-users'} className={section === 'inactive-users' ? 'active' : ''} onClick={() => { setSection('inactive-users'); setInactivePage(1); }}>Inactive users</button><button type="button" role="tab" aria-selected={section === 'hidden-decks'} className={section === 'hidden-decks' ? 'active' : ''} onClick={() => { setSection('hidden-decks'); setHiddenPage(1); }}>Hidden decks</button>{isSuper && <button type="button" role="tab" aria-selected={section === 'security-events'} className={section === 'security-events' ? 'active' : ''} onClick={() => { setSection('security-events'); setEventPage(1); }}>Security event log</button>}</div>
+    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-admin-alert is-success" role="status">{notice}</div>}
+    {section === 'inactive-users' && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">ACCOUNT ARCHIVE</span><h2>Inactive users</h2><small className="csm-admin-subtle">Accounts appear here after seven days without activity. They are excluded from the user directory and search, but can still sign in.</small></div><div className="csm-admin-content-tools"><span className="csm-archive-count">{inactiveTotal} accounts</span><button type="button" className="csm-secondary-button" disabled={exporting} onClick={() => downloadArchiveCsv('admin/archive/inactive-users/export', 'co-studymaxx-inactive-users.csv', 'Inactive users')}><IconDownload />{exporting ? 'Preparing CSV…' : 'Export CSV'}</button></div></div>{inactiveUsers.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Last active</th><th>Inactive for</th><th>Joined</th></tr></thead><tbody>{inactiveUsers.map(account => <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar-wrap"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span></span><div><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td><span className="csm-admin-status">{account.role}</span></td><td>{account.last_seen_at ? new Date(`${account.last_seen_at}Z`).toLocaleString() : '—'}</td><td>{account.inactive_days} days</td><td>{account.created_at ? new Date(`${account.created_at}Z`).toLocaleDateString() : '—'}</td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">{error ? 'Archive could not be loaded.' : 'No accounts have been inactive for seven days.'}</div>}{pagination('Inactive users', inactivePage, inactiveTotal, setInactivePage)}</div>}
+    {section === 'hidden-decks' && <div className="csm-admin-card">
+      <div className="csm-admin-card-head">
+        <div><span className="csm-kicker">MODERATION ARCHIVE</span><h2>Hidden decks</h2><small className="csm-admin-subtle">Decks hidden by staff are kept here so they can be restored if needed.</small></div>
+        <div className="csm-admin-content-tools">
+          <span className="csm-archive-count">{hiddenTotal} decks</span>
+          {selectedHiddenDeckIds.length > 0 && <button type="button" className="csm-admin-danger-button csm-archive-bulk-delete" disabled={deletingHiddenDecks || restoringDeckId !== null} onClick={() => requestHiddenDeckDeletion(selectedHiddenDeckIds)}><IconTrash />Delete selected ({selectedHiddenDeckIds.length})</button>}
+        </div>
+      </div>
+      {hiddenDecks.length ? <div className="csm-admin-table-wrap csm-admin-hidden-decks-table-wrap"><table className="csm-admin-table csm-admin-hidden-decks-table"><thead><tr><th><label className="csm-admin-select-all"><input type="checkbox" aria-label="Select all hidden decks on this page" checked={hiddenDecks.length > 0 && hiddenDecks.every(deck => selectedHiddenDeckIds.includes(String(deck.id)))} onChange={event => setSelectedHiddenDeckIds(current => event.target.checked ? [...new Set([...current, ...hiddenDecks.map(deck => String(deck.id))])] : current.filter(id => !hiddenDecks.some(deck => String(deck.id) === String(id))))} />Deck</label></th><th>Owner</th><th>Cards / PDFs</th><th>Hidden</th><th>Actions</th></tr></thead><tbody>{hiddenDecks.map(deck => <tr key={deck.id}>
+        <td><div className="csm-admin-hidden-deck-account"><input type="checkbox" aria-label={`Select ${deck.title}`} checked={selectedHiddenDeckIds.includes(String(deck.id))} onChange={event => setSelectedHiddenDeckIds(current => event.target.checked ? [...new Set([...current, String(deck.id)])] : current.filter(id => String(id) !== String(deck.id)))} /><div><strong>{deck.title}</strong><small>{deck.subject || 'No subject'}</small></div></div></td>
+        <td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td>{deck.hidden_at ? new Date(`${deck.hidden_at}Z`).toLocaleString() : 'Not recorded'}</td>
+        <td><div className="csm-admin-deck-menu"><details><summary className="csm-admin-deck-menu-trigger" aria-label={`Actions for ${deck.title}`} title="Deck actions"><svg className="csm-admin-user-more-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary><div className="csm-admin-deck-menu-popover"><button type="button" disabled={restoringDeckId !== null || deletingHiddenDecks} onClick={event => { event.currentTarget.closest('details').open = false; restoreHiddenDeck(deck); }}><svg className="csm-admin-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/></svg>{restoringDeckId === deck.id ? 'Restoring...' : 'Restore deck'}</button><button type="button" className="is-danger" disabled={deletingHiddenDecks || restoringDeckId !== null} onClick={event => { event.currentTarget.closest('details').open = false; requestHiddenDeckDeletion([deck.id]); }}><IconTrash />Delete permanently</button></div></details></div></td>
+      </tr>)}</tbody></table></div> : <div className="csm-admin-empty">{error ? 'Archive could not be loaded.' : 'No hidden decks.'}</div>}
+      {pagination('Hidden decks', hiddenPage, hiddenTotal, setHiddenPage)}
+    </div>}
+    {section === 'security-events' && isSuper && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Archived security events</h2><small className="csm-admin-subtle">The newest 100 events remain in Security log. Older events appear here.</small></div><div className="csm-admin-content-tools"><span className="csm-admin-subtle">IP addresses are one-way hashes.</span><button type="button" className="csm-secondary-button" disabled={exporting} onClick={() => downloadArchiveCsv('admin/archive/security-events/export', 'co-studymaxx-archived-security-events.csv', 'Archived security events')}><IconDownload />{exporting ? 'Preparing CSV…' : 'Export CSV'}</button></div></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status csm-admin-security-event">{formatAdminEventLabel(event.event)}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details || {})}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">{error ? 'Archive could not be loaded.' : 'The event log has not exceeded ten pages yet.'}</div>}{pagination('Archived security events', eventPage, eventTotal, setEventPage)}</div>}
+    {hiddenDeckDeleteTarget && <div className="csm-modal-backdrop csm-admin-action-backdrop" role="presentation" onClick={() => !deletingHiddenDecks && setHiddenDeckDeleteTarget(null)}>
+      <section className="csm-admin-action-modal csm-archive-delete-modal" role="alertdialog" aria-modal="true" aria-labelledby="archive-delete-title" aria-describedby="archive-delete-description" onClick={event => event.stopPropagation()}>
+        <div className="csm-admin-action-icon is-danger" aria-hidden="true"><IconTrash /></div>
+        <span className="csm-kicker">PERMANENT DELETION</span>
+        <h2 id="archive-delete-title">Delete {hiddenDeckDeleteTarget.length} hidden {hiddenDeckDeleteTarget.length === 1 ? 'deck' : 'decks'}?</h2>
+        <p id="archive-delete-description">This permanently removes {hiddenDeckDeleteTarget.length === 1 ? 'this deck' : 'these decks'} and all attached PDFs from the workspace. This action cannot be undone.</p>
+        {hiddenDeckDeleteError && <div className="csm-admin-alert is-error" role="alert">{hiddenDeckDeleteError}</div>}
+        <div className="csm-admin-flag-actions"><button type="button" className="csm-secondary-button" autoFocus disabled={deletingHiddenDecks} onClick={() => setHiddenDeckDeleteTarget(null)}>Cancel</button><button type="button" className="csm-admin-danger-button" disabled={deletingHiddenDecks} onClick={confirmHiddenDeckDeletion}>{deletingHiddenDecks ? 'Deleting…' : 'Delete permanently'}</button></div>
+      </section>
+    </div>}
   </div>;
 }
 
 function AdminPanel({ profile }) {
   const isSuper = profile?.role === 'superadmin';
-  const [section, setSection] = useState('overview');
+  const [section, setSection] = useState(() => {
+    const requestedSection = new URLSearchParams(window.location.search).get('section');
+    return ['overview', 'content', 'reports', 'users'].includes(requestedSection) ? requestedSection : 'overview';
+  });
   const [range, setRange] = useState(() => ({ from: new Date(Date.now() - 29 * 86400000).toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) }));
+  const [activitySummaryPage, setActivitySummaryPage] = useState(1);
   const [dateFilterError, setDateFilterError] = useState('');
   const [dashboard, setDashboard] = useState(null);
   const [users, setUsers] = useState([]);
   const [userTotal, setUserTotal] = useState(0);
   const [userPage, setUserPage] = useState(1);
+  const [userRoleFilter, setUserRoleFilter] = useState('all');
+  const [userProfileModal, setUserProfileModal] = useState(null);
+  const [userProfileTab, setUserProfileTab] = useState('activity');
+  const [userProfileLoading, setUserProfileLoading] = useState(false);
+  const [userProfileError, setUserProfileError] = useState('');
+  const [userProfileNotice, setUserProfileNotice] = useState('');
+  const userProfileTriggerRef = useRef(null);
+  const userProfileCloseRef = useRef(null);
   const [decks, setDecks] = useState([]);
   const [deckTotal, setDeckTotal] = useState(0);
   const [deckPage, setDeckPage] = useState(1);
@@ -1573,14 +2042,15 @@ function AdminPanel({ profile }) {
   const [eventPage, setEventPage] = useState(1);
   const [settings, setSettings] = useState(null);
   const [search, setSearch] = useState('');
-  const [previewDeckId, setPreviewDeckId] = useState('');
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [adminActionModal, setAdminActionModal] = useState(null);
   const [adminActionReason, setAdminActionReason] = useState('');
+  const [adminActionPassword, setAdminActionPassword] = useState('');
   const [adminActionError, setAdminActionError] = useState('');
   const adminActionReasonRef = useRef(null);
+  const adminActionPasswordRef = useRef(null);
   const adminActionConfirmRef = useRef(null);
   const adminActionTriggerRef = useRef(null);
   const [flagDeckTarget, setFlagDeckTarget] = useState(null);
@@ -1596,6 +2066,11 @@ function AdminPanel({ profile }) {
   const deckPreviewRequestRef = useRef(0);
   const rangeInitializedRef = useRef(false);
   const rangeTouchedRef = useRef(false);
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), 3600);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   const applyWebsiteStartDate = summary => {
     if (rangeInitializedRef.current || rangeTouchedRef.current || !summary.startDate) return;
     rangeInitializedRef.current = true;
@@ -1615,7 +2090,7 @@ function AdminPanel({ profile }) {
         setReports(reviewData.reports || []);
       }
       if (section === 'users') {
-        const result = await CSM.api(`admin/users&q=${encodeURIComponent(query)}&limit=10&offset=${(requestedUserPage - 1) * 10}`);
+        const result = await CSM.api(`admin/users&q=${encodeURIComponent(query)}&role=${encodeURIComponent(userRoleFilter)}&limit=10&offset=${(requestedUserPage - 1) * 10}`);
         setUsers(result.users || []);
         setUserTotal(Number(result.total) || 0);
       }
@@ -1624,7 +2099,6 @@ function AdminPanel({ profile }) {
         const nextDecks = result.decks || [];
         setDecks(nextDecks);
         setDeckTotal(Number(result.total) || 0);
-        setPreviewDeckId(current => nextDecks.some(deck => deck.id === current) ? current : (nextDecks[0]?.id || ''));
       }
       if (section === 'reports') setReports((await CSM.api('admin/reports&status=open')).reports || []);
       if (section === 'audit' && isSuper) {
@@ -1635,7 +2109,7 @@ function AdminPanel({ profile }) {
       if (section === 'system' && isSuper) setSettings(await CSM.api('admin/settings'));
     } catch (requestError) { setError(requestError.message || 'Could not load administrator data.'); }
   };
-  useEffect(() => { load(); }, [section, range.from, range.to, deckPage, userPage, eventPage]);
+  useEffect(() => { load(); }, [section, range.from, range.to, deckPage, userPage, userRoleFilter, eventPage]);
   useEffect(() => {
     if (section !== 'overview') return undefined;
     const interval = window.setInterval(async () => {
@@ -1656,13 +2130,13 @@ function AdminPanel({ profile }) {
     if (section !== 'users') return undefined;
     const interval = window.setInterval(async () => {
       try {
-        const result = await CSM.api(`admin/users&q=${encodeURIComponent(search)}&limit=10&offset=${(userPage - 1) * 10}`);
+        const result = await CSM.api(`admin/users&q=${encodeURIComponent(search)}&role=${encodeURIComponent(userRoleFilter)}&limit=10&offset=${(userPage - 1) * 10}`);
         setUsers(result.users || []);
         setUserTotal(Number(result.total) || 0);
       } catch { /* Keep the last known status visible until the next refresh. */ }
     }, 60000);
     return () => window.clearInterval(interval);
-  }, [section, search, userPage]);
+  }, [section, search, userPage, userRoleFilter]);
 
   const runAction = async (action, success) => {
     setBusy(true); setError(''); setNotice(null);
@@ -1670,19 +2144,50 @@ function AdminPanel({ profile }) {
     catch (actionError) { setError(actionError.message || 'The action could not be completed.'); }
     finally { setBusy(false); }
   };
+  const downloadAdminCsv = async (route, filename, successMessage) => {
+    setBusy(true); setError(''); setNotice(null);
+    try {
+      await CSM.downloadFile(route, filename);
+      setNotice(successMessage);
+    } catch (downloadError) {
+      setError(downloadError.message || 'The CSV export could not be downloaded.');
+    } finally { setBusy(false); }
+  };
   const requestAdminAction = (event, options) => {
     adminActionTriggerRef.current = event.currentTarget?.tagName === 'FORM' ? event.nativeEvent?.submitter : event.currentTarget;
     setAdminActionReason('');
+    setAdminActionPassword('');
     setAdminActionError('');
     setAdminActionModal(options);
+  };
+  const viewAccountProfile = async (event, account) => {
+    const menuDetails = event.currentTarget.closest('details');
+    userProfileTriggerRef.current = menuDetails?.querySelector('summary') || event.currentTarget;
+    if (menuDetails) menuDetails.open = false;
+    setUserProfileTab('activity');
+    setUserProfileError('');
+    setUserProfileNotice('');
+    setUserProfileLoading(true);
+    setUserProfileModal({ account, data: null });
+    try {
+      const result = await CSM.api(`admin/users/profile&id=${encodeURIComponent(account.id)}`);
+      setUserProfileModal({ account, data: result });
+    } catch (profileError) { setUserProfileError(profileError.message || 'Could not load this account profile.'); }
+    finally { setUserProfileLoading(false); }
+  };
+  const closeUserProfile = () => {
+    if (busy) return;
+    setUserProfileModal(null);
+    setUserProfileError('');
   };
   const closeAdminActionModal = () => {
     if (busy) return;
     setAdminActionModal(null);
     setAdminActionReason('');
+    setAdminActionPassword('');
     setAdminActionError('');
   };
-  const submitAdminAction = event => {
+  const submitAdminAction = async event => {
     event.preventDefault();
     if (!adminActionModal || busy) return;
     const reason = adminActionReason.trim();
@@ -1691,7 +2196,28 @@ function AdminPanel({ profile }) {
       adminActionReasonRef.current?.focus();
       return;
     }
+    if (adminActionModal.requiresPassword && !adminActionPassword) {
+      setAdminActionError('Enter your password to confirm this promotion.');
+      adminActionPasswordRef.current?.focus();
+      return;
+    }
     const { action, success } = adminActionModal;
+    if (adminActionModal.requiresPassword) {
+      const password = adminActionPassword;
+      setBusy(true); setError(''); setNotice(null); setAdminActionError('');
+      try {
+        await action(reason.slice(0, 1000), password);
+        setAdminActionModal(null);
+        setAdminActionPassword('');
+        setNotice(success);
+        await load();
+      } catch (actionError) {
+        setAdminActionPassword('');
+        setAdminActionError(actionError.message || 'Password confirmation failed. Please try again.');
+        window.setTimeout(() => adminActionPasswordRef.current?.focus(), 0);
+      } finally { setBusy(false); }
+      return;
+    }
     setAdminActionModal(null);
     setAdminActionReason('');
     runAction(() => action(reason.slice(0, 1000)), success);
@@ -1709,7 +2235,7 @@ function AdminPanel({ profile }) {
     setDeckPreviewError('');
     try {
       const result = await CSM.api(`admin/decks/view&id=${encodeURIComponent(deck.id)}`);
-      if (requestId === deckPreviewRequestRef.current) setDeckPreview({ ...result.deck, cards: result.cards || [], documents: result.documents || [] });
+      if (requestId === deckPreviewRequestRef.current) setDeckPreview({ ...result.deck, documents: result.documents || [] });
     } catch (requestError) {
       if (requestId === deckPreviewRequestRef.current) setDeckPreviewError(requestError.message || 'Could not load this deck preview.');
     } finally {
@@ -1760,7 +2286,7 @@ function AdminPanel({ profile }) {
       adminActionTriggerRef.current?.focus();
       return undefined;
     }
-    (adminActionModal.requiresReason ? adminActionReasonRef.current : adminActionConfirmRef.current)?.focus();
+    (adminActionModal.requiresReason ? adminActionReasonRef.current : adminActionModal.requiresPassword ? adminActionPasswordRef.current : adminActionConfirmRef.current)?.focus();
     const onKeyDown = event => {
       if (event.key === 'Escape' && !busy) {
         event.preventDefault();
@@ -1785,6 +2311,14 @@ function AdminPanel({ profile }) {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [Boolean(deckPreview)]);
+  useEffect(() => {
+    if (!userProfileModal) {
+      userProfileTriggerRef.current?.focus();
+      return undefined;
+    }
+    userProfileCloseRef.current?.focus();
+    return undefined;
+  }, [Boolean(userProfileModal)]);
   useEffect(() => {
     const lastPage = Math.max(1, Math.ceil(deckTotal / 10));
     if (deckPage > lastPage) setDeckPage(lastPage);
@@ -1817,6 +2351,7 @@ function AdminPanel({ profile }) {
       return;
     }
     setDateFilterError('');
+    setActivitySummaryPage(1);
     rangeTouchedRef.current = true;
     rangeInitializedRef.current = true;
     if (resetEventPage) setEventPage(1);
@@ -1831,12 +2366,15 @@ function AdminPanel({ profile }) {
   const deckPagination = buildAdminPagination('Decks', deckPage, deckTotal, setDeckPage);
   const userPagination = buildAdminPagination('Users', userPage, userTotal, setUserPage);
   const eventPagination = buildAdminPagination('Security events', eventPage, eventTotal, setEventPage);
+  const activitySummaryRows = dashboard?.days?.slice((activitySummaryPage - 1) * 10, activitySummaryPage * 10) || [];
+  const activitySummaryPagination = buildAdminPagination('Activity days', activitySummaryPage, dashboard?.days?.length || 0, setActivitySummaryPage);
   const sections = [['overview', 'Overview'], ['content', 'Content'], ['reports', 'Review queue'], ['users', 'Users'], ...(isSuper ? [['audit', 'Security log'], ['system', 'System']] : [])];
 
   return <div className="csm-screen custom-scroll csm-admin-screen">
+    <AdminReportArrivalNotice />
     <div className="csm-page-head csm-admin-page-head"><div><span className="csm-kicker">WORKSPACE ADMINISTRATION</span><h1>Admin console</h1><p>Review app activity and manage accounts and study content.</p></div><span className={`csm-admin-role-pill ${isSuper ? 'is-super' : ''}`}>{isSuper ? 'Superadmin' : 'Admin'}</span></div>
-    <div className="csm-admin-tabs" role="tablist" aria-label="Admin console sections">{sections.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={section === id} className={section === id ? 'active' : ''} onClick={() => { if (id === 'content') setDeckPage(1); if (id === 'users') setUserPage(1); if (id === 'audit') setEventPage(1); setSection(id); setNotice(null); setError(''); }}>{label}</button>)}</div>
-    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-admin-alert is-success" role="status">{notice}</div>}
+    <div className="csm-admin-tabs" role="tablist" aria-label="Admin console sections">{sections.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={section === id} className={`${section === id ? 'active' : ''}${id === 'reports' && reports.length ? ' has-open-reports' : ''}`} onClick={() => { if (id === 'content') setDeckPage(1); if (id === 'users') setUserPage(1); if (id === 'audit') setEventPage(1); setSection(id); setNotice(null); setError(''); }}>{label}{id === 'reports' && reports.length > 0 && <span className="csm-admin-review-dot" aria-label={`${reports.length} open reports`} title={`${reports.length} open reports`} />}</button>)}</div>
+    {error && <div className="csm-admin-alert is-error" role="alert">{error}</div>}{notice && <div className="csm-deck-visibility-toast" role="status" aria-live="polite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg><span>{notice}</span></div>}
 
     {section === 'overview' && <>
       {dateFilters()}
@@ -1845,27 +2383,62 @@ function AdminPanel({ profile }) {
         <div className="csm-admin-metrics">
           {[['Total users', dashboard.totals.users], ['Active now', dashboard.totals.activeNow], ['Active users (period)', dashboard.period.activeUsers], ['Total decks', dashboard.totals.decks], ['PDF uploads (period)', dashboard.period.uploads], ['Arena sessions (period)', dashboard.period.sessions], ['PDF storage', `${(dashboard.totals.storageBytes / 1048576).toFixed(1)} MB`]].map(([label, value]) => <article className={`csm-admin-metric ${label === 'Active now' ? 'is-live' : ''}`} key={label}><span>{label}</span><strong>{value}</strong>{label === 'Active now' && <small>Seen in the last 5 minutes</small>}</article>)}
         </div>
-        <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SELECTED PERIOD</span><h2>Activity summary</h2></div><span className="csm-admin-subtle">{dashboard.from} – {dashboard.to}</span></div>
+        <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SELECTED PERIOD</span><h2>Activity summary</h2></div><div className="csm-admin-content-tools"><span className="csm-admin-subtle">{dashboard.from} – {dashboard.to}</span><button type="button" className="csm-secondary-button" disabled={busy} onClick={() => downloadAdminCsv(`admin/dashboard/export&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, `co-studymaxx-activity-summary-${range.from}-to-${range.to}.csv`, 'CSV export started.')}><IconDownload />Export CSV</button></div></div>
           <div className="csm-admin-period-grid">{[['Active users', dashboard.period.activeUsers], ['New users', dashboard.period.newUsers], ['New decks', dashboard.period.newDecks], ['Documents uploaded', dashboard.period.uploads], ['Arena sessions', dashboard.period.sessions], ['Sessions completed', dashboard.period.completedSessions]].map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}</div>
-          {dashboard.days.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Date</th><th>Active users</th><th>Decks</th><th>Uploads</th><th>Arena sessions</th></tr></thead><tbody>{dashboard.days.map(day => <tr key={day.date}><td>{day.date}</td><td>{day.activeUsers}</td><td>{day.decks}</td><td>{day.uploads}</td><td>{day.arenaSessions}</td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No activity was recorded in this date range.</div>}
+          {dashboard.days.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Date</th><th>Active users</th><th>Decks</th><th>Uploads</th><th>Arena sessions</th></tr></thead><tbody>{activitySummaryRows.map(day => <tr key={day.date}><td>{day.date}</td><td>{day.activeUsers}</td><td>{day.decks}</td><td>{day.uploads}</td><td>{day.arenaSessions}</td></tr>)}</tbody></table></div> : <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Date</th><th>Active users</th><th>Decks</th><th>Uploads</th><th>Arena sessions</th></tr></thead><tbody><tr><td>{dashboard.from === dashboard.to ? dashboard.from : 'Selected period'}</td><td>0</td><td>0</td><td>0</td><td>0</td></tr></tbody></table></div>}
+          {activitySummaryPagination}
         </div>
         <div className="csm-admin-card csm-admin-review-preview"><div className="csm-admin-card-head"><div><span className="csm-kicker">NEEDS ATTENTION</span><h2>Flagged review preview</h2></div><div className="csm-admin-review-preview-actions"><span className="csm-admin-subtle">{reports.length} open</span><button type="button" className="csm-secondary-button" onClick={() => setSection('reports')}>Open review queue</button></div></div>
-          {reports.length ? <div className="csm-admin-report-list">{reports.slice(0, 3).map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · flagged by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Flagged {new Date(`${report.created_at}Z`).toLocaleString()}</small></div></article>)}</div> : <div className="csm-admin-review-preview-empty">No open flagged reviews.</div>}
+          {reports.length ? <div className="csm-admin-report-list">{reports.slice(0, 3).map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · reported by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Reported {new Date(`${report.created_at}Z`).toLocaleString()}</small></div></article>)}</div> : <div className="csm-admin-review-preview-empty">No open flagged reviews.</div>}
           {reports.length > 3 && <button type="button" className="csm-admin-review-preview-more" onClick={() => setSection('reports')}>View all {reports.length} reviews</button>}
         </div>
       </>}
     </>}
 
     {(section === 'users' || section === 'content') && <div className="csm-admin-card">
-      <div className="csm-admin-card-head"><div><span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span><h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2></div><form className="csm-admin-search" onSubmit={event => { event.preventDefault(); if (section === 'content') { setDeckPage(1); load(search, 1); } else { setUserPage(1); load(search, deckPage, 1); } }}><input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === 'users' ? 'Search username or email' : 'Search deck or owner'} aria-label="Search" /><button className="csm-secondary-button" type="submit">Search</button></form></div>
-      {section === 'content' && <div className="csm-admin-preview-launch"><div><strong>Review deck contents</strong><span>Read-only staff preview of Bombcards and answers.</span></div><label htmlFor="admin-preview-deck">Deck<select id="admin-preview-deck" value={previewDeckId} onChange={event => setPreviewDeckId(event.target.value)} disabled={!decks.length || deckPreviewLoading}>{decks.map(deck => <option key={deck.id} value={deck.id}>{deck.title} · {deck.owner}</option>)}</select></label><button type="button" className="csm-secondary-button" disabled={!previewDeckId || busy || deckPreviewLoading} onClick={event => { const deck = decks.find(item => item.id === previewDeckId); if (!deck) return; deckPreviewTriggerRef.current = event.currentTarget; loadDeckPreview(deck); }}>{deckPreviewLoading ? 'Loading…' : 'View deck'}</button></div>}
-      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status / actions</th></tr></thead><tbody>{users.map(account => <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span><div><strong>{account.username}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td>{isSuper ? <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: 'Update account role?', message: `Change ${account.username}'s role to ${role}?`, confirmLabel: 'Update role', success: 'Account role updated.', action: () => CSM.api('admin/users/role', 'POST', { userId: account.id, role }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><div className="csm-admin-user-status-actions"><span className={`csm-admin-status ${account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : account.is_active_now ? 'is-active' : 'is-inactive'}`}>{account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : account.is_active_now ? 'Active now' : 'Inactive'}</span><div className="csm-admin-row-actions">{account.locked_until && <button type="button" className="csm-admin-account-action" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}<button type="button" className="csm-admin-account-action" disabled={busy || !account.email} onClick={event => requestAdminAction(event, { title: 'Send secure password reset?', message: `Send a password-reset link to ${account.username}'s registered email? No password will be shown or changed until the user completes the reset.`, confirmLabel: 'Send reset link', success: 'Secure reset link sent to the registered email.', action: () => CSM.api('admin/users/reset', 'POST', { userId: account.id }) })}>Send reset link</button></div></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-row-actions"><button type="button" className="csm-admin-deck-action" disabled={busy} onClick={event => { flagTriggerRef.current = event.currentTarget; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}>Flag for review</button><button type="button" className={`csm-admin-deck-action ${deck.moderation_status === 'hidden' ? 'is-restore' : 'is-danger'}`} disabled={busy} onClick={event => { const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} “${deck.title}”. The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); }}>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button></div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
+      <div className="csm-admin-card-head">
+        <div>
+          <span className="csm-kicker">{section === 'users' ? 'ACCOUNT DIRECTORY' : 'PRIVATE STUDY CONTENT'}</span>
+          <h2>{section === 'users' ? 'User management' : 'Deck moderation'}</h2>
+          {section === 'content' && <small className="csm-admin-subtle">Search or page through decks, then preview from a deck row.</small>}
+        </div>
+        <div className="csm-admin-content-tools">
+          {section === 'users' ? <div className="csm-admin-user-tools">
+            <div className="csm-admin-user-search-row">
+              <select className="csm-admin-role-filter" aria-label="Filter users by role" value={userRoleFilter} onChange={event => { setUserRoleFilter(event.target.value); setUserPage(1); }}>
+                <option value="all">All roles</option><option value="user">Users</option><option value="admin">Admins</option><option value="superadmin">Superadmins</option>
+              </select>
+              <form className="csm-admin-search" onSubmit={event => { event.preventDefault(); setUserPage(1); load(search, deckPage, 1); }}>
+                <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search username or email" aria-label="Search" />
+                <button className="csm-secondary-button" type="submit">Search</button>
+              </form>
+            </div>
+            <button type="button" className="csm-secondary-button" disabled={busy} onClick={() => downloadAdminCsv('admin/users/export', 'co-studymaxx-users.csv', 'User directory downloaded as CSV.')}><IconDownload />Export all users CSV</button>
+          </div> : <div className="csm-admin-content-search-stack">
+            <form className="csm-admin-search" onSubmit={event => { event.preventDefault(); setDeckPage(1); load(search, 1); }}>
+              <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search deck or owner" aria-label="Search" />
+              <button className="csm-secondary-button" type="submit">Search</button>
+            </form>
+            <button type="button" className="csm-secondary-button" disabled={busy} onClick={() => downloadAdminCsv('admin/content/export', 'co-studymaxx-content.csv', 'Workspace content downloaded as CSV.')}><IconDownload />Export content CSV</button>
+          </div>}
+        </div>
+      </div>
+      {section === 'users' ? users.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Account</th><th>Role</th><th>Decks / PDFs</th><th>Last active</th><th>Status</th></tr></thead><tbody>{users.map(account => { const isCurrentSuperadmin = isSuper && account.username === profile?.username; return <tr key={account.id}><td><div className="csm-admin-account"><span className="csm-admin-avatar-wrap"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(account)}</span>{account.is_active_now && <span className="csm-admin-online-dot" title="Online now" aria-label="Online now" />}</span><div><strong>{account.username}{isCurrentSuperadmin && <small className="csm-admin-self-label">You</small>}</strong><small>{account.email || 'No email on file'}</small></div></div></td><td>{isSuper ? isCurrentSuperadmin ? <span className="csm-admin-status" title="Your own superadmin role cannot be changed here">Superadmin</span> : <select aria-label={`Role for ${account.username}`} value={account.role} disabled={busy} onChange={event => { const role = event.target.value; if (role !== account.role) requestAdminAction(event, { title: role === 'superadmin' ? `Promote ${account.username} to superadmin?` : 'Update account role?', message: role === 'superadmin' ? `Promoting ${account.username} grants full superadmin privileges. Enter your current password to confirm.` : `Change ${account.username}'s role to ${role}?`, confirmLabel: role === 'superadmin' ? 'Promote to superadmin' : 'Update role', requiresPassword: role === 'superadmin', success: role === 'superadmin' ? `${account.username} promoted to superadmin.` : 'Account role updated.', action: (_reason, password) => CSM.api('admin/users/role', 'POST', { userId: account.id, role, ...(role === 'superadmin' ? { password } : {}) }) }); }}>{['user', 'admin', 'superadmin'].map(role => <option key={role}>{role}</option>)}</select> : <span className="csm-admin-status">{account.role}</span>}</td><td>{account.deck_count} / {account.document_count}</td><td>{account.last_active ? new Date(`${account.last_active}Z`).toLocaleDateString() : '—'}</td><td><div className="csm-admin-user-status-actions"><div className="csm-admin-user-status-main"><span className={`csm-admin-status ${account.banned_at ? 'is-locked' : account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? 'is-locked' : account.is_active_now ? 'is-active' : 'is-inactive'}`}>{account.banned_at ? 'Banned' : account.locked_until && new Date(`${account.locked_until}Z`) > new Date() ? `Locked until ${new Date(`${account.locked_until}Z`).toLocaleString()}` : account.is_active_now ? 'Active now' : 'Inactive'}</span>{!account.banned_at && account.locked_until && new Date(`${account.locked_until}Z`) > new Date() && <button type="button" className="csm-admin-account-action" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unlock ${account.username}?`, message: 'This clears the temporary sign-in lock for this account.', confirmLabel: 'Unlock account', requiresReason: true, reasonLabel: 'Reason for unlocking', success: 'Account unlocked.', action: reason => CSM.api('admin/users/unlock', 'POST', { userId: account.id, reason }) })}>Unlock</button>}</div><div className="csm-admin-deck-menu"><details><summary className="csm-admin-deck-menu-trigger csm-admin-user-menu-trigger" aria-label={`Actions for ${account.username}`} title="Account actions"><svg className="csm-admin-user-more-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary><div className="csm-admin-deck-menu-popover csm-admin-user-menu-popover"><button type="button" onClick={event => { const details = event.currentTarget.closest('details'); userProfileTriggerRef.current = details.querySelector('summary'); details.open = false; viewAccountProfile(event, account); }}><IconUser />View profile</button></div></details></div></div></td></tr>})}</tbody></table></div> : <div className="csm-admin-empty">No accounts match this search.</div> : <>{decks.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table csm-admin-decks-table"><thead><tr><th>Deck</th><th>Owner</th><th>Cards / PDFs</th><th>Visibility</th><th>Actions</th></tr></thead><tbody>{decks.map(deck => <tr key={deck.id}><td><strong>{deck.title}</strong><small>{deck.subject || 'No subject'} · {deck.open_reports} open report(s)</small></td><td>{deck.owner}</td><td>{deck.card_count} / {deck.document_count}</td><td><span className={`csm-admin-status ${deck.moderation_status === 'hidden' ? 'is-locked' : ''}`}>{deck.moderation_status}</span></td><td><div className="csm-admin-deck-menu">
+  <details>
+    <summary className="csm-admin-deck-menu-trigger" aria-label={`Actions for ${deck.title}`} title="Deck actions"><svg className="csm-admin-user-more-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></summary>
+    <div className="csm-admin-deck-menu-popover">
+      <button type="button" disabled={busy || deckPreviewLoading} onClick={event => { const details = event.currentTarget.closest('details'); deckPreviewTriggerRef.current = details.querySelector('summary'); details.open = false; loadDeckPreview(deck); }}><svg className="csm-admin-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>{deckPreviewLoading && deckPreview?.id === deck.id ? 'Loading...' : 'View deck'}</button>
+      <button type="button" disabled={busy} onClick={event => { const details = event.currentTarget.closest('details'); flagTriggerRef.current = details.querySelector('summary'); details.open = false; setFlagDeckTarget(deck); setFlagReason(''); setFlagReasonError(''); }}><svg className="csm-admin-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 22V4"/><path d="M4 4c5-4 11 4 16 0v12c-5 4-11-4-16 0"/></svg>Flag for review</button>
+      <button type="button" className={deck.moderation_status === 'hidden' ? 'is-restore' : 'is-danger'} disabled={busy} onClick={event => { const details = event.currentTarget.closest('details'); adminActionTriggerRef.current = details.querySelector('summary'); details.open = false; const action = deck.moderation_status === 'hidden' ? 'restore' : 'hide'; requestAdminAction(event, { title: `${action === 'hide' ? 'Hide' : 'Restore'} this deck?`, message: `${action === 'hide' ? 'The owner will lose access to' : 'Make visible to its owner'} \"${deck.title}\". The owner will receive a notification with your review note.`, confirmLabel: action === 'hide' ? 'Hide deck' : 'Restore deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: `Deck ${action === 'hide' ? 'hidden' : 'restored'}.`, action: reason => CSM.api('admin/decks/visibility', 'PATCH', { deckId: deck.id, action, reason }) }); adminActionTriggerRef.current = details.querySelector('summary'); }}><svg className="csm-admin-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{deck.moderation_status === 'hidden' ? <><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/></> : <><path d="M3 3l18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A11 11 0 0 1 12 5c6.5 0 10 7 10 7a15 15 0 0 1-3.2 4.1"/><path d="M6.6 6.6C3.6 8.3 2 12 2 12s3.5 7 10 7c1 0 2-.2 2.9-.5"/></>}</svg>{deck.moderation_status === 'hidden' ? 'Restore' : 'Hide'}</button>
+    </div>
+  </details>
+</div></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No decks match this search.</div>}{deckPagination}</>}
     </div>}
     {section === 'users' && userPagination}
 
-    {section === 'reports' && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">STAFF REVIEW QUEUE</span><h2>Flagged decks</h2></div><span className="csm-admin-subtle">Private content is only visible to its owner and authorized staff.</span></div>{reports.length ? <div className="csm-admin-report-list">{reports.map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · flagged by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Flagged {new Date(`${report.created_at}Z`).toLocaleString()}</small></div><div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Dismiss this report?', message: `This report will be closed without hiding “${report.deckTitle}”. The deck owner will be notified of the review outcome.`, confirmLabel: 'Dismiss report', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Report dismissed.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'dismiss', reason }) })}>Dismiss</button><button type="button" className="csm-primary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Hide this deck?', message: `“${report.deckTitle}” will be hidden from its owner. They will receive a notification with your review note.`, confirmLabel: 'Hide deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Deck hidden and moderation action recorded.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'hide', reason }) })}>Hide deck</button></div></article>)}</div> : <div className="csm-admin-empty">No decks are waiting for review.</div>}</div>}
+    {section === 'reports' && <div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">STAFF REVIEW QUEUE</span><h2>Flagged decks</h2></div><span className="csm-admin-subtle">Private content is only visible to its owner and authorized staff.</span></div>{reports.length ? <div className="csm-admin-report-list">{reports.map(report => <article className="csm-admin-report" key={report.id}><div><span className="csm-admin-status is-locked">Open review</span><h3>{report.deckTitle}</h3><p>{report.subject || 'No subject'} · owner {report.owner} · reported by {report.flaggedBy || 'staff'}</p><blockquote>{report.reason}</blockquote><small>Reported {new Date(`${report.created_at}Z`).toLocaleString()}</small></div><div className="csm-admin-row-actions"><button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Dismiss this report?', message: `This report will be closed without hiding “${report.deckTitle}”. The deck owner will be notified of the review outcome.`, confirmLabel: 'Dismiss report', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Report dismissed.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'dismiss', reason }) })}>Dismiss</button><button type="button" className="csm-primary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Hide this deck?', message: `“${report.deckTitle}” will be hidden from its owner. They will receive a notification with your review note.`, confirmLabel: 'Hide deck', requiresReason: true, reasonLabel: 'Review note for the owner', success: 'Deck hidden and moderation action recorded.', action: reason => CSM.api('admin/reports', 'PATCH', { id: Number(report.id), action: 'hide', reason }) })}>Hide deck</button></div></article>)}</div> : <div className="csm-admin-empty">No decks are waiting for review.</div>}</div>}
 
-    {section === 'audit' && isSuper && <>{dateFilters('Security event period', true)}<div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Security event log</h2></div><span className="csm-admin-subtle">IP addresses are stored as one-way hashes.</span></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Non-sensitive details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status csm-admin-security-event">{formatAdminEventLabel(event.event)}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details)}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No security events were recorded in this date range.</div>}</div>{eventPagination}</>}
+    {section === 'audit' && isSuper && <>{dateFilters('Security event period', true)}<div className="csm-admin-card"><div className="csm-admin-card-head"><div><span className="csm-kicker">SUPERADMIN ONLY</span><h2>Security event log</h2></div><div className="csm-admin-content-tools"><span className="csm-admin-subtle">IP addresses are stored as one-way hashes.</span><button type="button" className="csm-secondary-button" disabled={busy} onClick={() => downloadAdminCsv(`admin/audit/export&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`, `co-studymaxx-security-events-${range.from}-to-${range.to}.csv`, 'Security event log downloaded as CSV.')}><IconDownload />Export CSV</button></div></div>{events.length ? <div className="csm-admin-table-wrap"><table className="csm-admin-table"><thead><tr><th>Time</th><th>Event</th><th>Actor</th><th>Target</th><th>IP fingerprint</th><th>Non-sensitive details</th></tr></thead><tbody>{events.map(event => <tr key={event.id}><td>{new Date(`${event.created_at}Z`).toLocaleString()}</td><td><span className="csm-admin-status csm-admin-security-event">{formatAdminEventLabel(event.event)}</span></td><td>{event.actor || 'System'}</td><td>{event.target || '—'}</td><td><code>{event.ip_hash ? event.ip_hash.slice(0, 16) : '—'}</code></td><td><code>{JSON.stringify(event.details)}</code></td></tr>)}</tbody></table></div> : <div className="csm-admin-empty">No security events were recorded in this date range.</div>}</div>{eventPagination}</>}
 
     {section === 'system' && isSuper && <div className="csm-admin-system-grid">{settings && <>
       <section className="csm-admin-card"><span className="csm-kicker">SERVICE AVAILABILITY</span><h2>Maintenance mode</h2><p>When enabled, regular accounts cannot load or change workspace data. Administrators can continue working; sign-in and sign-out remain available.</p><div className="csm-admin-setting-row"><span className={`csm-admin-status ${settings.maintenanceMode ? 'is-locked' : ''}`}>{settings.maintenanceMode ? 'Enabled' : 'Disabled'}</span><button type="button" className={settings.maintenanceMode ? 'csm-secondary-button' : 'csm-primary-button'} disabled={busy} onClick={event => requestAdminAction(event, { title: `${settings.maintenanceMode ? 'Disable' : 'Enable'} maintenance mode?`, message: settings.maintenanceMode ? 'Regular users will be able to access the workspace again.' : 'Regular users will see the maintenance page. Admins and superadmins can continue working.', confirmLabel: settings.maintenanceMode ? 'Disable maintenance' : 'Enable maintenance', success: `Maintenance mode ${settings.maintenanceMode ? 'disabled' : 'enabled'}.`, action: async () => setSettings(await CSM.api('admin/settings', 'PATCH', { maintenanceMode: !settings.maintenanceMode })) })}>{settings.maintenanceMode ? 'Disable' : 'Enable'}</button></div></section>
@@ -1873,7 +2446,25 @@ function AdminPanel({ profile }) {
       <section className="csm-admin-card csm-admin-danger-card"><span className="csm-kicker">SESSION SECURITY</span><h2>Sign out all users</h2><p>Revokes every active login on every device, including yours. Everyone must sign in again.</p><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={event => requestAdminAction(event, { title: 'Sign out every user?', message: 'This revokes every active login on every device, including yours. Everyone will need to sign in again.', confirmLabel: 'Clear all sessions', danger: true, success: 'All sessions cleared.', action: async () => { const result = await CSM.api('admin/sessions/clear', 'POST', { confirm: true }); setNotice(`${result.sessionsRemoved} sessions cleared; ${result.accountsInvalidated} accounts must sign in again.`); setTimeout(() => location.replace('login.html?mode=signin&reason=session_ended'), 1200); } })}>Clear all sessions</button></section>
     </>}</div>}
 
-    {(flagDeckTarget || adminActionModal || deckPreview) && ReactDOM.createPortal(<>
+    {(userProfileModal || flagDeckTarget || adminActionModal || deckPreview) && ReactDOM.createPortal(<>
+      {userProfileModal && <div className="csm-modal-backdrop csm-admin-profile-backdrop" role="presentation" onClick={closeUserProfile}>
+        <section className="csm-admin-profile-modal" role="dialog" aria-modal="true" aria-labelledby="admin-user-profile-title" onClick={event => event.stopPropagation()}>
+          <header className="csm-admin-profile-header"><div className="csm-admin-profile-identity"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[userProfileModal.data?.account?.avatar || userProfileModal.account.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials(userProfileModal.data?.account || userProfileModal.account)}</span><div><span className="csm-kicker">USER PROFILE</span><h2 id="admin-user-profile-title">{userProfileModal.data?.account?.display_name || userProfileModal.account.display_name || userProfileModal.account.username}</h2><p>@{userProfileModal.account.username} · {userProfileModal.data?.account?.email || userProfileModal.account.email || 'No email on file'}</p></div></div><button ref={userProfileCloseRef} type="button" className="csm-admin-preview-close" onClick={closeUserProfile} aria-label="Close user profile">×</button></header>
+          {userProfileError && <div className="csm-admin-alert is-error" role="alert">{userProfileError}</div>}
+          {userProfileNotice && <div className="csm-admin-alert is-success" role="status">{userProfileNotice}</div>}
+          {userProfileLoading ? <div className="csm-admin-empty" role="status">Loading account profile…</div> : userProfileModal.data && <>
+            <div className="csm-admin-profile-summary"><span className={`csm-admin-status ${userProfileModal.data.account.banned_at ? 'is-locked' : ''}`}>{userProfileModal.data.account.banned_at ? 'Banned' : userProfileModal.data.account.role}</span><span>Joined {new Date(`${userProfileModal.data.account.created_at}Z`).toLocaleDateString()}</span><span>{userProfileModal.data.account.deck_count} decks · {userProfileModal.data.account.document_count} PDFs</span><span>Last active {userProfileModal.data.account.last_active ? new Date(`${userProfileModal.data.account.last_active}Z`).toLocaleString() : '—'}</span></div>
+            {userProfileModal.data.account.banned_at && <div className="csm-admin-alert is-error" role="status">Banned {new Date(`${userProfileModal.data.account.banned_at}Z`).toLocaleString()}: {userProfileModal.data.account.ban_reason || 'No reason recorded.'}</div>}
+            <div className="csm-admin-tabs csm-admin-profile-tabs" role="tablist" aria-label="User profile information"><button type="button" role="tab" aria-selected={userProfileTab === 'activity'} className={userProfileTab === 'activity' ? 'active' : ''} onClick={() => setUserProfileTab('activity')}>Activity</button><button type="button" role="tab" aria-selected={userProfileTab === 'submitted'} className={userProfileTab === 'submitted' ? 'active' : ''} onClick={() => setUserProfileTab('submitted')}>Reports submitted ({userProfileModal.data.submittedReports.length})</button><button type="button" role="tab" aria-selected={userProfileTab === 'received'} className={userProfileTab === 'received' ? 'active' : ''} onClick={() => setUserProfileTab('received')}>Reports on decks ({userProfileModal.data.receivedReports.length})</button></div>
+            <div className="csm-admin-profile-content">
+              {userProfileTab === 'activity' && (userProfileModal.data.activity.length ? <div className="csm-admin-profile-list">{userProfileModal.data.activity.map((item, index) => <article className="csm-admin-profile-activity" key={`${item.created_at}-${index}`}><div><strong>{item.material}</strong><small>{item.mode} · {item.screen} · {item.status}{item.accuracy !== null ? ` · ${Number(item.accuracy)}% accuracy` : ''}</small></div><time>{new Date(`${item.created_at}Z`).toLocaleString()}</time></article>)}</div> : <div className="csm-admin-empty">No study activity has been recorded.</div>)}
+              {userProfileTab === 'submitted' && (userProfileModal.data.submittedReports.length ? <div className="csm-admin-profile-list">{userProfileModal.data.submittedReports.map(report => <article className="csm-admin-profile-report" key={report.id}><div><span className={`csm-admin-status ${report.status === 'open' ? 'is-locked' : ''}`}>{report.status}</span><strong>{report.deck_title}</strong><small>Deck owner: {report.deck_owner} · {new Date(`${report.created_at}Z`).toLocaleString()}</small><p>{report.reason}</p></div></article>)}</div> : <div className="csm-admin-empty">This account has not submitted any deck reports.</div>)}
+              {userProfileTab === 'received' && (userProfileModal.data.receivedReports.length ? <div className="csm-admin-profile-list">{userProfileModal.data.receivedReports.map(report => <article className="csm-admin-profile-report" key={report.id}><div><span className={`csm-admin-status ${report.status === 'open' ? 'is-locked' : ''}`}>{report.status}</span><strong>{report.deck_title}</strong><small>Reported by: {report.flagged_by || 'Unknown'} · {new Date(`${report.created_at}Z`).toLocaleString()}</small><p>{report.reason}</p></div></article>)}</div> : <div className="csm-admin-empty">No reports have been filed against this account’s decks.</div>)}
+            </div>
+          </>}
+          <footer className="csm-admin-profile-actions"><button type="button" className="csm-secondary-button" onClick={closeUserProfile}>Close</button>{userProfileModal.data?.account.role === 'user' && userProfileModal.account.username !== profile?.username && <>{userProfileModal.data.account.banned_at ? <button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Unban ${userProfileModal.account.username}?`, message: 'This will allow the account to sign in again.', confirmLabel: 'Unban account', requiresReason: true, reasonLabel: 'Reason for unbanning', success: 'Account unbanned.', action: async reason => { await CSM.api('admin/users/unban', 'POST', { userId: userProfileModal.account.id, reason }); setUserProfileModal(current => current ? { ...current, data: { ...current.data, account: { ...current.data.account, banned_at: null, ban_reason: null } } } : current); setUserProfileNotice('Account unbanned.'); } })}>Unban</button> : <><button type="button" className="csm-secondary-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Warn ${userProfileModal.account.username}?`, message: 'The user will receive this warning in their account notifications.', confirmLabel: 'Send warning', requiresReason: true, reasonLabel: 'Warning message and reason', success: 'Warning sent to the user.', action: async reason => { await CSM.api('admin/users/warn', 'POST', { userId: userProfileModal.account.id, reason }); setUserProfileNotice('Warning sent to the user.'); } })}>Warn user</button><button type="button" className="csm-admin-danger-button" disabled={busy} onClick={event => requestAdminAction(event, { title: `Ban ${userProfileModal.account.username}?`, message: 'Banning immediately signs the account out and blocks future sign-ins. Add a reason for the audit record.', confirmLabel: 'Ban account', requiresReason: true, reasonLabel: 'Ban reason', danger: true, success: 'Account banned and signed out.', action: async reason => { await CSM.api('admin/users/ban', 'POST', { userId: userProfileModal.account.id, reason }); setUserProfileModal(current => current ? { ...current, data: { ...current.data, account: { ...current.data.account, banned_at: new Date().toISOString(), ban_reason: reason } } } : current); setUserProfileNotice('Account banned and signed out.'); } })}>Ban user</button></>}</>}</footer>
+        </section>
+      </div>}
       {flagDeckTarget && <div className="csm-modal-backdrop csm-admin-flag-backdrop" role="presentation" onClick={closeFlagModal}>
         <form className="csm-admin-flag-modal" role="dialog" aria-modal="true" aria-labelledby="admin-flag-title" aria-describedby="admin-flag-description" onSubmit={submitFlagReview} onClick={event => event.stopPropagation()}>
           <div className="csm-admin-flag-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 21V4m0 1h12l-2.5 4L17 13H5" /></svg></div>
@@ -1892,6 +2483,11 @@ function AdminPanel({ profile }) {
           <span className="csm-kicker">ADMIN ACTION</span>
           <h2 id="admin-action-title">{adminActionModal.title}</h2>
           <p id="admin-action-description">{adminActionModal.message}</p>
+          {adminActionModal.requiresPassword && <>
+            <label className="csm-admin-flag-label" htmlFor="admin-action-password">Your current password</label>
+            <input id="admin-action-password" ref={adminActionPasswordRef} type="password" autoComplete="current-password" value={adminActionPassword} onChange={event => { setAdminActionPassword(event.target.value); if (adminActionError) setAdminActionError(''); }} maxLength={72} aria-required="true" aria-invalid={Boolean(adminActionError)} aria-describedby={adminActionError ? 'admin-action-description admin-action-password-error' : 'admin-action-description'} />
+            {adminActionError && <p id="admin-action-password-error" className="csm-admin-flag-error" role="alert">{adminActionError}</p>}
+          </>}
           {adminActionModal.requiresReason && <>
             <label className="csm-admin-flag-label" htmlFor="admin-action-reason">{adminActionModal.reasonLabel || 'Reason'}</label>
             <textarea id="admin-action-reason" ref={adminActionReasonRef} value={adminActionReason} onChange={event => { setAdminActionReason(event.target.value); if (adminActionError) setAdminActionError(''); }} maxLength={1000} rows={4} placeholder="Add a clear note…" aria-required="true" aria-invalid={Boolean(adminActionError)} aria-describedby={adminActionError ? 'admin-action-description admin-action-error' : 'admin-action-description'} />
@@ -1906,22 +2502,13 @@ function AdminPanel({ profile }) {
             <div><span className="csm-kicker">AUTHORIZED STAFF · READ ONLY</span><h2 id="admin-preview-title">{deckPreview.title || deckPreview.code || 'Deck preview'}</h2><p>{deckPreview.owner ? `Owned by ${deckPreview.owner}` : 'Loading deck owner…'} · {deckPreview.subject || 'No subject'} · {deckPreview.document_count || 0} PDF(s)</p></div>
             <div className="csm-admin-preview-header-actions"><button type="button" className="csm-secondary-button" onClick={() => loadDeckPreview(deckPreview)} disabled={deckPreviewLoading}>{deckPreviewLoading ? 'Refreshing…' : 'Refresh'}</button><button ref={deckPreviewCloseRef} type="button" className="csm-admin-preview-close" onClick={closeDeckPreview} aria-label="Close deck preview">×</button></div>
           </header>
-          <p className="csm-admin-preview-description" id="admin-preview-description">Review this account’s Bombcards and attached PDFs. Staff access is read-only and recorded for moderation oversight.</p>
+          <p className="csm-admin-preview-description" id="admin-preview-description">View only this account’s attached PDF materials. Staff access is read-only and recorded for moderation oversight.</p>
           <div className="csm-admin-preview-content">
             {deckPreviewLoading ? <div className="csm-admin-empty" role="status">Loading the latest deck contents…</div> : deckPreviewError ? <div className="csm-admin-alert is-error" role="alert">{deckPreviewError}</div> : <>
               <section className="csm-admin-preview-documents" aria-label="PDF files attached to this deck">
                 <div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">REFERENCE FILES</span><h3>Attached PDFs</h3></div><span className="csm-admin-status">{deckPreview.documents?.length || 0} files</span></div>
                 {deckPreview.documents?.length ? <div className="csm-admin-preview-document-list">{deckPreview.documents.map(file => <article className="csm-admin-preview-document" key={file.id}><span className="csm-admin-preview-pdf-icon" aria-hidden="true">PDF</span><div className="csm-admin-preview-document-info"><strong>{file.title}</strong><small>{(Number(file.size) / 1048576).toFixed(2)} MB · Uploaded {new Date(`${file.uploadedAt}Z`).toLocaleDateString()}</small></div><a className="csm-secondary-button" href={file.url} target="_blank" rel="noreferrer">Open PDF ↗</a></article>)}</div> : <div className="csm-admin-empty csm-admin-preview-document-empty">No PDF files are attached to this deck.</div>}
               </section>
-              <section className="csm-admin-preview-bombcards" aria-label="Bombcards in this deck"><div className="csm-admin-preview-documents-heading"><div><span className="csm-kicker">STUDY CONTENT</span><h3>Bombcards</h3></div><span className="csm-admin-status">{deckPreview.cards?.length || 0} cards</span></div>
-                {deckPreview.cards?.length ? deckPreview.cards.map((card, index) => <article className="csm-admin-preview-card" key={card.id || index}>
-                  <div className="csm-admin-preview-card-meta"><span>Bombcard {index + 1}</span><span className="csm-admin-status">{card.type === 'MULTIPLE_CHOICE' ? 'Multiple choice' : card.type === 'TRUE_FALSE' ? 'True / False' : 'Identification'}</span></div>
-                  <h3>{card.prompt || 'Untitled question'}</h3>
-                  {card.hint && <p className="csm-admin-preview-detail"><strong>Hint:</strong> {card.hint}</p>}
-                  {card.type === 'MULTIPLE_CHOICE' && <ol className="csm-admin-preview-options">{(card.options || []).map((option, optionIndex) => <li className={optionIndex === Number(card.correctIndex) ? 'is-correct' : ''} key={`${card.id}-${optionIndex}`}><span>{String.fromCharCode(65 + optionIndex)}</span>{option}{optionIndex === Number(card.correctIndex) && <small>Correct</small>}</li>)}</ol>}
-                  <div className="csm-admin-preview-answer"><span>Correct answer</span><strong>{card.correctAnswer || 'No answer saved'}</strong></div>
-                  {card.explanation && <p className="csm-admin-preview-detail"><strong>Explanation:</strong> {card.explanation}</p>}
-                </article>) : <div className="csm-admin-empty">This deck does not have any Bombcards yet.</div>}</section>
             </>}
           </div>
           {deckPreview.updated_at && <footer className="csm-admin-preview-footer">Last updated {new Date(`${deckPreview.updated_at}Z`).toLocaleString()}</footer>}
@@ -1988,7 +2575,7 @@ function GuestLockedModal({ section, onClose }) {
             className="w-full py-2.5 px-4 bg-[#f04824] hover:bg-[#e03e1b] text-white font-bold text-xs rounded-xl shadow-md transition-all text-center flex items-center justify-center gap-1.5"
           >
             <span>Create Free Account</span>
-            <span>→</span>
+            <IconArrowRight />
           </a>
           <a
             href="login.html?mode=signin"
@@ -2009,14 +2596,235 @@ function GuestLockedModal({ section, onClose }) {
   );
 }
 
+function PeopleScreen({ onPlayDeck }) {
+  const [search, setSearch] = useState('');
+  const [people, setPeople] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [selectedPerson, setSelectedPerson] = useState(null);
+  const [selectedDeck, setSelectedDeck] = useState(null);
+  const [deckBusy, setDeckBusy] = useState(false);
+  const [deckError, setDeckError] = useState('');
+  const [revealedCards, setRevealedCards] = useState([]);
+  const [previewStudyMode, setPreviewStudyMode] = useState(false);
+  const [previewStudyIndex, setPreviewStudyIndex] = useState(0);
+  const [previewStudyRevealed, setPreviewStudyRevealed] = useState(false);
+  const [previewStudyDirection, setPreviewStudyDirection] = useState(1);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [reportNotice, setReportNotice] = useState('');
+  const peopleSearchRequestRef = useRef(0);
+
+  const loadPeople = async (term, requestedPage = 0) => {
+    const requestId = ++peopleSearchRequestRef.current;
+    setBusy(true); setError(''); setSelectedPerson(null); setPage(requestedPage);
+    try {
+      const result = await CSM.api(`people/search&q=${encodeURIComponent(term)}&limit=12&offset=${requestedPage * 12}`);
+      if (requestId !== peopleSearchRequestRef.current) return;
+      setPeople(Array.isArray(result.people) ? result.people : []); setTotal(Number(result.total) || 0);
+    } catch (requestError) { if (requestId === peopleSearchRequestRef.current) { setError(requestError.message || 'Could not search accounts.'); setPeople([]); setTotal(0); } }
+    finally { if (requestId === peopleSearchRequestRef.current) setBusy(false); }
+  };
+
+  useEffect(() => {
+    const term = search.trim();
+    setPage(0);
+    if (term.length < 2) {
+      peopleSearchRequestRef.current += 1;
+      setPeople([]); setTotal(0); setError(''); setBusy(false);
+      return undefined;
+    }
+    const timer = window.setTimeout(() => { loadPeople(term, 0); }, 350);
+    return () => { window.clearTimeout(timer); peopleSearchRequestRef.current += 1; };
+  }, [search]);
+
+  const searchPeople = (event, requestedPage = 0) => {
+    event?.preventDefault();
+    const term = search.trim();
+    if (term.length < 2) { setError('Enter at least 2 characters to search.'); setPeople([]); setTotal(0); return; }
+    loadPeople(term, requestedPage);
+  };
+
+  const openPerson = async (person) => {
+    setSelectedPerson({ ...person, loading: true }); setSelectedDeck(null); setPreviewStudyMode(false); setError('');
+    try {
+      const result = await CSM.api(`people/profile&id=${encodeURIComponent(person.id)}`);
+      setSelectedPerson(result.person);
+    } catch (requestError) { setSelectedPerson(null); setError(requestError.message || 'Could not load this profile.'); }
+  };
+
+  const openDeck = async (deck) => {
+    setDeckBusy(true); setDeckError(''); setRevealedCards([]); setPreviewStudyMode(false); setPreviewStudyIndex(0); setPreviewStudyRevealed(false); setPreviewStudyDirection(1); setSelectedDeck({ ...deck, loading: true });
+    try {
+      const result = await CSM.api(`people/deck&id=${encodeURIComponent(deck.id)}`);
+      setSelectedDeck(result.deck);
+    } catch (requestError) { setSelectedDeck(null); setDeckError(requestError.message || 'This deck is no longer available.'); }
+    finally { setDeckBusy(false); }
+  };
+
+  const submitDeckReport = async event => {
+    event.preventDefault();
+    const reason = reportReason.trim();
+    if (!selectedDeck || reason.length < 8) { setReportError('Please provide at least 8 characters explaining the issue.'); return; }
+    setReportBusy(true); setReportError('');
+    try {
+      await CSM.api('people/deck/report', 'POST', { deckId: selectedDeck.id, reason });
+      setReportModalOpen(false); setReportReason(''); setReportNotice('Your report was sent to the moderation team.');
+      window.setTimeout(() => setReportNotice(''), 4500);
+    } catch (requestError) { setReportError(requestError.message || 'Could not submit your report.'); }
+    finally { setReportBusy(false); }
+  };
+
+  return <div className="csm-screen csm-people-screen custom-scroll">
+    <div className="csm-page-head"><div><span className="csm-kicker">STUDY COMMUNITY</span><h1>Find people</h1><p>Discover classmates and browse the reviewer decks they’ve chosen to share.</p></div></div>
+    {!selectedPerson && !selectedDeck && <section className="csm-account-card csm-people-search-card">
+      <form className="csm-people-search-form" onSubmit={searchPeople}>
+        <label htmlFor="csm-people-search">Search by username or display name</label>
+        <div><input id="csm-people-search" value={search} onChange={event => { const value = event.target.value; setSearch(value); setPage(0); setError(''); setBusy(value.trim().length >= 2); }} placeholder="e.g. maya or Biology" maxLength={60} /><button type="submit" className="csm-primary-button" disabled={busy}>{busy ? 'Searching…' : <><IconSearch className="w-4 h-4 text-white" /> Search</>}</button></div>
+      </form>
+      {error && <div className="csm-people-feedback is-error" role="status">{error}</div>}
+      {!error && !busy && total > 0 && <p className="csm-people-result-count">{total} account{total === 1 ? '' : 's'} found · {people.length} shown</p>}
+      {busy ? <div className="csm-people-loading" role="status" aria-live="polite"><span className="csm-people-spinner" /><span>Searching for matching users…</span><div className="csm-people-loading-lines"><i /><i /><i /></div></div> : null}
+      {!busy && !error && search.trim().length >= 2 && people.length === 0 && <div className="csm-people-empty">No matching accounts found.</div>}
+      {!busy && <div className="csm-people-results">{people.map(person => <article className="csm-people-result" key={person.id} role="button" tabIndex={0} onClick={() => openPerson(person)} onKeyDown={event => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openPerson(person); } }}>
+        <span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[person.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials({ username: person.username, display_name: person.display_name })}</span>
+        <div className="csm-people-result-copy"><strong>{person.display_name}</strong><span>@{person.username}</span><small>{Number(person.public_deck_count) || 0} public deck{Number(person.public_deck_count) === 1 ? '' : 's'}</small></div>
+        <button type="button" className="csm-secondary-button" onClick={event => { event.stopPropagation(); openPerson(person); }}>View profile</button>
+      </article>)}</div>}
+      {total > 12 && <div className="csm-people-pagination"><span>Page {page + 1} of {Math.ceil(total / 12)}</span><button type="button" className="csm-secondary-button" disabled={busy || page === 0} onClick={() => searchPeople(null, page - 1)}>Previous</button><button type="button" className="csm-secondary-button" disabled={busy || (page + 1) * 12 >= total} onClick={() => searchPeople(null, page + 1)}>Next</button></div>}
+      {!search.trim() && <div className="csm-people-empty csm-people-hint">Search using at least two characters. Profiles can appear in results while their decks remain private.</div>}
+    </section>}
+
+    {(selectedPerson || selectedDeck) && <>
+{selectedPerson && <div className="csm-people-inline-preview">
+      <section className="csm-account-card csm-people-profile-page" aria-labelledby="csm-people-profile-title">
+        <div className="csm-people-preview-nav"><button type="button" className="csm-secondary-button" onClick={() => { setSelectedPerson(null); setDeckError(''); }}>Back to search</button></div>
+        <button type="button" className="csm-people-modal-close" onClick={() => setSelectedPerson(null)} aria-label="Close profile">×</button>
+        <div className="csm-people-profile-heading"><span className="csm-admin-avatar" style={{ background: adminAvatarBackgrounds[selectedPerson.avatar] || adminAvatarBackgrounds.ember }} aria-hidden="true">{getAccountInitials({ username: selectedPerson.username, display_name: selectedPerson.display_name })}</span><div><span className="csm-kicker">STUDENT PROFILE</span><h2 id="csm-people-profile-title">{selectedPerson.display_name}</h2><p>@{selectedPerson.username}</p></div></div>
+        {selectedPerson.loading ? <div className="csm-people-empty">Loading profile…</div> : <>
+          <div className="csm-people-deck-heading"><div><h3>Public decks</h3><p>Public decks include their Bombcards and attached PDFs. Private notes and study progress remain private.</p></div><span>{selectedPerson.decks?.length || 0}</span></div>
+          {deckError && <div className="csm-people-feedback is-error" role="status">{deckError}</div>}
+          {selectedPerson.decks?.length ? <div className="csm-people-decks">{selectedPerson.decks.map(deck => <article className="csm-people-deck" key={deck.id}><div><strong>{deck.title}</strong><span>{deck.subject || 'No subject'} · {deck.card_count} Bombcards</span></div><button type="button" className="csm-secondary-button" disabled={deckBusy} onClick={() => openDeck(deck)}>{deckBusy ? 'Loading…' : 'View deck'}</button></article>)}</div> : <div className="csm-people-empty">This user hasn’t shared any decks.</div>}
+        </>}
+      </section>
+    </div>}
+
+{selectedDeck && <div className="csm-people-inline-preview">
+      <section className="csm-account-card csm-people-deck-page" aria-labelledby="csm-people-deck-title">
+        <button type="button" className="csm-people-modal-close" onClick={() => setSelectedDeck(null)} aria-label="Close deck">×</button>
+<div className="csm-people-deck-title-block">
+          <div className="csm-people-deck-title-copy">
+            <span className="csm-kicker">PUBLIC REVIEWER</span>
+            <h2 id="csm-people-deck-title">{selectedDeck.title}</h2>
+            <p className="csm-people-deck-subject">{selectedDeck.subject || 'No subject'} &middot; {selectedDeck.cards?.length || 0} Bombcards</p>
+          </div>
+          <div className="csm-people-deck-creator" aria-label="Deck creation date">
+            <span className="csm-people-deck-creator-copy"><small>Created {selectedDeck.created_at ? new Date(String(selectedDeck.created_at).replace(' ', 'T')).toLocaleDateString() : 'date unavailable'}</small></span>
+          </div>
+        </div>
+        {selectedDeck.loading && <div className="csm-people-loading" role="status"><span className="csm-people-spinner" /><span>Loading shared deck…</span></div>}
+        {deckError && <div className="csm-people-feedback is-error">{deckError}</div>}
+        <div className="csm-people-deck-actions"><button type="button" className="csm-secondary-button csm-people-report-trigger" onClick={() => { setReportReason(''); setReportError(''); setReportModalOpen(true); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M5 21V5m0 0c5-4 9 4 14 0v10c-5 4-9-4-14 0" /></svg>Report deck</button><button type="button" className="csm-primary-button" disabled={!selectedDeck.cards?.length} onClick={() => { setSelectedDeck(null); setSelectedPerson(null); onPlayDeck?.(selectedDeck); }}><IconArrowRight /> Play this deck in Arena</button></div>
+        {!previewStudyMode && selectedDeck.documents?.length > 0 && <section className="csm-people-public-documents" aria-label="Public PDFs"><h3>PDF materials <span>{selectedDeck.documents.length}</span></h3><div>{selectedDeck.documents.map(file => <a key={file.id} href={file.url} target="_blank" rel="noreferrer"><IconPdf /><span><strong>{file.title}</strong><small>{(Number(file.size) / 1048576).toFixed(2)} MB · Opens in a new tab</small></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M14 4h6v6m0-6-9 9"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/></svg></a>)}</div></section>}
+        {previewStudyMode && selectedDeck.cards?.length > 0 && (() => {
+          const card = selectedDeck.cards[previewStudyIndex];
+          const togglePreviewAnswer = () => setPreviewStudyRevealed(value => !value);
+          return <section className="csm-people-study-preview" aria-label="Temporary study preview">
+            <div className="csm-people-study-preview-heading"><div><span className="csm-kicker">STUDY PREVIEW</span><h3>{selectedDeck.title}</h3><p>This is a preview only. Your study progress and decks won’t be changed.</p></div><button type="button" className="csm-secondary-button" onClick={() => { setPreviewStudyMode(false); setPreviewStudyRevealed(false); }}>Back to deck preview</button></div>
+            <div className="csm-people-study-preview-count">Card {previewStudyIndex + 1} of {selectedDeck.cards.length}</div>
+            <article key={previewStudyIndex} className={`csm-people-public-card csm-people-study-preview-card slide-${previewStudyDirection > 0 ? 'next' : 'previous'}${previewStudyRevealed ? ' is-flipped' : ''}`}>
+              <div className="csm-people-flip-inner">
+                <div className="csm-people-flip-face csm-people-flip-front"><span className="csm-people-card-type">BOMB CARD {previewStudyIndex + 1} · {String(card.type || '').replaceAll('_', ' ')}</span><button type="button" className="csm-people-question-face" onClick={togglePreviewAnswer} disabled={previewStudyRevealed} aria-pressed={previewStudyRevealed} aria-label={`Show answer for card ${previewStudyIndex + 1}`}><span className="csm-people-question-label">QUESTION</span><strong>{card.prompt}</strong>{card.options?.length > 0 && <ol>{card.options.map((option, i) => <li key={`${card.id}-${i}`}>{option}</li>)}</ol>}<span className="csm-people-flip-hint">Click to reveal answer</span></button></div>
+                <div className="csm-people-flip-face csm-people-flip-back" aria-hidden={!previewStudyRevealed} onClick={event => { if (previewStudyRevealed && !event.target.closest('.csm-people-answer-clickable, button')) togglePreviewAnswer(); }}><span className="csm-people-question-label">ANSWER</span><div className="csm-people-answer csm-people-answer-clickable" role="button" tabIndex={previewStudyRevealed ? 0 : -1} aria-label="Flip back to question" onClick={() => previewStudyRevealed && togglePreviewAnswer()} onKeyDown={event => { if (previewStudyRevealed && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); togglePreviewAnswer(); } }}><strong>{card.correctAnswer}</strong>{card.explanation && <small>{card.explanation}</small>}</div><button type="button" className="csm-people-reveal" onClick={togglePreviewAnswer} disabled={!previewStudyRevealed}>Back to question</button></div>
+              </div>
+            </article>
+            <div className="csm-people-study-preview-controls"><button type="button" className="csm-secondary-button" disabled={previewStudyIndex === 0} onClick={() => { setPreviewStudyDirection(-1); setPreviewStudyIndex(index => index - 1); setPreviewStudyRevealed(false); }}>Previous</button><button type="button" className="csm-primary-button" disabled={previewStudyIndex >= selectedDeck.cards.length - 1} onClick={() => { setPreviewStudyDirection(1); setPreviewStudyIndex(index => index + 1); setPreviewStudyRevealed(false); }}>Next card <IconArrowRight /></button></div>
+          </section>;
+        })()}
+        {!previewStudyMode && <div className="csm-people-preview-limited"><div className="csm-people-public-cards">{selectedDeck.cards?.slice(0, 3).map((card, index) => {
+          const flipped = revealedCards.includes(card.id);
+          const toggleCard = () => setRevealedCards(current => flipped ? current.filter(id => id !== card.id) : [...current, card.id]);
+          return <article className={`csm-people-public-card${flipped ? ' is-flipped' : ''}`} key={card.id}>
+            <div className="csm-people-flip-inner">
+              <div className="csm-people-flip-face csm-people-flip-front">
+                <span className="csm-people-card-type">BOMB CARD {index + 1} · {String(card.type || '').replaceAll('_', ' ')}</span>
+                <button type="button" className="csm-people-question-face" onClick={toggleCard} disabled={flipped} aria-pressed={flipped} aria-label={`Show answer for card ${index + 1}`}>
+                  <span className="csm-people-question-label">QUESTION</span>
+                  <strong>{card.prompt}</strong>
+                  {card.options?.length > 0 && <ol>{card.options.map((option, i) => <li key={`${card.id}-${i}`}>{option}</li>)}</ol>}
+                  <span className="csm-people-flip-hint">Click to reveal answer</span>
+                </button>
+              </div>
+              <div className="csm-people-flip-face csm-people-flip-back" aria-hidden={!flipped}>
+                <span className="csm-people-question-label">ANSWER</span>
+                <div className="csm-people-answer csm-people-answer-clickable" role="button" tabIndex={flipped ? 0 : -1} aria-label={`Flip card ${index + 1} back to question`} onClick={() => flipped && toggleCard()} onKeyDown={event => { if (flipped && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); toggleCard(); } }}><strong>{card.correctAnswer}</strong>{card.explanation && <small>{card.explanation}</small>}</div>
+                <button type="button" className="csm-people-reveal" onClick={toggleCard} disabled={!flipped}>Back to question</button>
+              </div>
+            </div>
+          </article>;
+        })}</div>{selectedDeck.cards?.length > 3 && <div className="csm-people-preview-gate"><div className="csm-people-preview-teaser" aria-hidden="true">{selectedDeck.cards.slice(3, 6).map((card, index) => <article className="csm-people-preview-teaser-card" key={card.id}><span>BOMB CARD {index + 4}</span><strong>{card.prompt}</strong></article>)}</div><div className="csm-people-preview-gate-content"><span>Continue studying</span><p>Study the remaining {selectedDeck.cards.length - 3} Bombcards in a temporary preview. Your progress won’t be saved.</p><button type="button" className="csm-primary-button" onClick={() => { setPreviewStudyIndex(3); setPreviewStudyRevealed(false); setPreviewStudyMode(true); }}>Continue to study <IconArrowRight /></button></div></div>}</div>}
+      </section>
+    </div>}
+
+    {reportNotice && <div className="csm-people-report-toast" role="status" aria-live="polite">{reportNotice}</div>}
+    {reportModalOpen && selectedDeck && ReactDOM.createPortal(<div className="csm-modal-backdrop csm-people-report-backdrop" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget && !reportBusy) setReportModalOpen(false); }}>
+      <section className="csm-people-report-modal" role="dialog" aria-modal="true" aria-labelledby="csm-people-report-title">
+        <button type="button" className="csm-people-modal-close" onClick={() => !reportBusy && setReportModalOpen(false)} aria-label="Close report dialog"><IconClose className="w-4 h-4" /></button>
+        <span className="csm-kicker">COMMUNITY MODERATION</span>
+        <h2 id="csm-people-report-title">Report this deck</h2>
+        <p>Tell us why {selectedDeck.title} should be reviewed. Reports are sent to the moderation team.</p>
+        <form onSubmit={submitDeckReport}>
+          <label htmlFor="csm-people-report-reason">Reason for report</label>
+          <textarea id="csm-people-report-reason" value={reportReason} onChange={event => setReportReason(event.target.value)} maxLength={1000} minLength={8} required placeholder="Describe the issue with this deck..." autoFocus />
+          <small>{reportReason.length}/1000 characters</small>
+          {reportError && <div className="csm-people-feedback is-error" role="alert">{reportError}</div>}
+          <div className="csm-people-report-actions"><button type="button" className="csm-secondary-button" disabled={reportBusy} onClick={() => setReportModalOpen(false)}>Cancel</button><button type="submit" className="csm-primary-button" disabled={reportBusy || reportReason.trim().length < 8}>{reportBusy ? 'Sending...' : 'Submit report'}</button></div>
+        </form>
+      </section>
+    </div>, document.body)}
+
+    </>}
+  </div>;
+}
+
+class WorkspaceErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error('Workspace render error:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <div style={{ margin: 'auto', padding: 24, maxWidth: 620, border: '1px solid #dbe3ee', borderRadius: 16, background: '#fff', color: '#18233a', font: '14px system-ui', boxShadow: '0 12px 32px #17243a12' }} role="alert">
+        <h1 style={{ margin: '0 0 8px', fontSize: 21 }}>The workspace hit a rendering error</h1>
+        <p style={{ margin: '0 0 18px', color: '#64748b', lineHeight: 1.55, overflowWrap: 'anywhere' }}>{this.state.error.message || 'An unexpected rendering error occurred.'}</p>
+        <button type="button" onClick={() => window.location.reload()} style={{ padding: '10px 14px', border: 0, borderRadius: 9, background: '#f04824', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Reload workspace</button>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 function App({ isGuest = false, sharedDeck = null }) {
   // Navigation: 'home' | 'library' | 'game' | 'arena' | 'account'
   const [guestLockedSection, setGuestLockedSection] = useState(null);
   const initialRole = window.CSM?.initial?.profile?.role || (isGuest ? 'guest' : 'user');
   const isStaffAccount = ['admin', 'superadmin'].includes(initialRole);
-  const staffRestrictedScreens = ['library', 'flashcards', 'creator', 'highlighter', 'game', 'arena'];
+  const staffRestrictedScreens = ['library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'people'];
   const requestedScreen = new URLSearchParams(window.location.search).get('screen');
-  const allowedScreens = ['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'account', 'admin'];
+  const allowedScreens = ['home', 'library', 'flashcards', 'creator', 'highlighter', 'game', 'arena', 'people', 'account', 'admin', 'archive'];
   const isAdminPath = /\/admin\/?$/i.test(window.location.pathname);
   const initialScreen = isAdminPath ? 'admin' : (allowedScreens.includes(requestedScreen) ? requestedScreen : (isGuest ? 'library' : 'home'));
   const guestAllowedScreens = ['library', 'flashcards', 'arena', 'game'];
@@ -2024,6 +2832,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [activeTab, setActiveTab] = useState(isStaffAccount && staffRestrictedScreens.includes(defaultScreen) ? 'home' : (!isStaffAccount && defaultScreen === 'admin' ? 'home' : defaultScreen));
   const [sidebarLocked, setSidebarLocked] = useState(readSidebarLockPreference);
   const [sidebarExpanded, setSidebarExpanded] = useState(readSidebarLockPreference);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const libraryNavExpanded = mobileMenuOpen || ['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab);
   const handleSidebarMouseEnter = () => {
     if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) {
       setSidebarExpanded(true);
@@ -2041,7 +2851,16 @@ function App({ isGuest = false, sharedDeck = null }) {
     try { window.localStorage.setItem('csm-sidebar-locked', next ? '1' : '0'); }
     catch (error) { }
   };
+  useEffect(() => {
+    if (!mobileMenuOpen) return undefined;
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [mobileMenuOpen]);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsWrapRef = useRef(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [signOutConfirmationOpen, setSignOutConfirmationOpen] = useState(false);
   const [signOutBusy, setSignOutBusy] = useState(false);
@@ -2052,7 +2871,15 @@ function App({ isGuest = false, sharedDeck = null }) {
   const defaultProfile = { displayName: isGuest ? 'Guest Student' : 'Gavin Dave', username: isGuest ? 'guest' : 'gavin_dave', avatar: 'ember', nameChangedAt: null };
   const [profile, setProfile] = useState(() => ({ ...defaultProfile, ...(window.CSM?.initial?.profile || {}) }));
   const isStaff = !isGuest && ['admin', 'superadmin'].includes(profile.role);
-  const openAdminAccess = () => window.location.assign(window.CSM.adminUrl || 'admin');
+  const openAdminAccess = (section = '') => {
+    const adminUrl = window.CSM.adminUrl || 'admin';
+    if (['overview', 'content', 'reports', 'users'].includes(section)) {
+      const separator = adminUrl.includes('?') ? '&' : '?';
+      window.location.assign(`${adminUrl}${separator}section=${encodeURIComponent(section)}`);
+      return;
+    }
+    window.location.assign(adminUrl);
+  };
   const refreshNotifications = async () => {
     if (isGuest) return;
     try {
@@ -2062,10 +2889,30 @@ function App({ isGuest = false, sharedDeck = null }) {
     } catch { /* Session handling is surfaced by the shared API client. */ }
   };
   useEffect(() => {
+    if (!notificationsOpen) return undefined;
+    const dismissOnOutsidePointer = event => {
+      if (!notificationsWrapRef.current?.contains(event.target)) setNotificationsOpen(false);
+    };
+    const dismissOnEscape = event => {
+      if (event.key === 'Escape') setNotificationsOpen(false);
+    };
+    document.addEventListener('pointerdown', dismissOnOutsidePointer);
+    document.addEventListener('keydown', dismissOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOnOutsidePointer);
+      document.removeEventListener('keydown', dismissOnEscape);
+    };
+  }, [notificationsOpen]);
+  useEffect(() => {
     if (isGuest) return;
     refreshNotifications();
     const interval = window.setInterval(refreshNotifications, 30000);
-    return () => window.clearInterval(interval);
+    const refreshOnNotificationChange = () => refreshNotifications();
+    window.addEventListener('csm:notifications-refresh', refreshOnNotificationChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('csm:notifications-refresh', refreshOnNotificationChange);
+    };
   }, [isGuest]);
   useEffect(() => {
     if (isGuest && ['home', 'creator', 'account', 'admin'].includes(activeTab)) {
@@ -2084,6 +2931,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [newPasswordDraft, setNewPasswordDraft] = useState('');
   const [confirmPasswordDraft, setConfirmPasswordDraft] = useState('');
   const [accountSection, setAccountSection] = useState('profile');
+  const [privacySaveStatus, setPrivacySaveStatus] = useState('');
 
   const [decks, setDecks] = useState(() => window.CSM?.initial?.decks || []);
   const [accountStats, setAccountStats] = useState(() => window.CSM?.initial?.stats || {});
@@ -2121,6 +2969,9 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [librarySubjectFilter, setLibrarySubjectFilter] = useState('All subjects');
   const [libraryPage, setLibraryPage] = useState(1);
   const [selectedDeckForFolderView, setSelectedDeckForFolderView] = useState(() => (isGuest && sharedDeck) ? sharedDeck : null); // When clicking folder
+  const [deckVisibilitySaving, setDeckVisibilitySaving] = useState(false);
+  const [deckVisibilityNotice, setDeckVisibilityNotice] = useState(null);
+  const deckVisibilityNoticeTimerRef = useRef(null);
   const [isDeckEditorOpen, setIsDeckEditorOpen] = useState(false);
   const [editingDeck, setEditingDeck] = useState(null);
 
@@ -2152,6 +3003,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [creatorTargetDeckId, setCreatorTargetDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
   const [creatorType, setCreatorType] = useState('MULTIPLE_CHOICE');
   const [creatorPrompt, setCreatorPrompt] = useState('');
+  const [creatorEditingCardId, setCreatorEditingCardId] = useState(null);
   const [creatorHint, setCreatorHint] = useState('');
   const [creatorOptions, setCreatorOptions] = useState(['', '', '', '']);
   const [creatorCorrectIndex, setCreatorCorrectIndex] = useState(0);
@@ -2162,6 +3014,45 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [creatorShowAlternates, setCreatorShowAlternates] = useState(false);
   const [creatorCardAddedAnimation, setCreatorCardAddedAnimation] = useState(false);
   const [creatorSessionCount, setCreatorSessionCount] = useState(0);
+
+  const startEditingBombcard = (deck, card) => {
+    if (!card?.id) {
+      triggerToast('This Bombcard cannot be edited because it has no saved ID.');
+      return;
+    }
+    const options = Array.isArray(card.options) ? card.options.slice(0, 4).map(option => String(option ?? '')) : [];
+    const savedCorrectIndex = Number(card.correctIndex);
+    const correctAnswerIndex = options.indexOf(card.correctAnswer);
+    setSelectedDeckIds([deck.id]);
+    setCreatorTargetDeckId(deck.id);
+    setCreatorEditingCardId(card.id);
+    setCreatorType(card.type || 'IDENTIFICATION');
+    setCreatorPrompt(card.prompt || '');
+    setCreatorHint(card.hint || '');
+    setCreatorOptions([...options, ...Array(Math.max(0, 4 - options.length)).fill('')]);
+    setCreatorCorrectIndex(Number.isInteger(savedCorrectIndex) && savedCorrectIndex >= 0 && savedCorrectIndex < options.length ? savedCorrectIndex : Math.max(0, correctAnswerIndex));
+    setCreatorAnswer(card.correctAnswer || '');
+    setCreatorAlternates(card.alternates || '');
+    setCreatorShowHint(Boolean(card.hint));
+    setCreatorShowAlternates(Boolean(card.alternates));
+    setCreatorStep(1);
+    setOpenMaterialMenuId(null);
+    setActiveTab('creator');
+  };
+
+  const prepareNewBombcard = () => {
+    setCreatorEditingCardId(null);
+    setCreatorType('MULTIPLE_CHOICE');
+    setCreatorPrompt('');
+    setCreatorHint('');
+    setCreatorOptions(['', '', '', '']);
+    setCreatorCorrectIndex(0);
+    setCreatorAnswer('');
+    setCreatorAlternates('');
+    setCreatorShowHint(false);
+    setCreatorShowAlternates(false);
+    setCreatorStep(1);
+  };
 
   const handleSaveBombcard = async () => {
     if (!creatorPrompt.trim()) {
@@ -2191,6 +3082,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
     const targetDeck = decks.find(d => d.id === creatorTargetDeckId) || decks[0];
     if (!targetDeck) return;
+    const isEditingCard = Boolean(creatorEditingCardId);
 
     const newCard = {
       id: 'c-' + Date.now(),
@@ -2208,24 +3100,31 @@ function App({ isGuest = false, sharedDeck = null }) {
     };
 
     try {
-      await CSM.api('cards', 'POST', { ...newCard, deckId: targetDeck.id });
+      await CSM.api('cards', isEditingCard ? 'PATCH' : 'POST', {
+        ...newCard,
+        ...(isEditingCard ? { id: creatorEditingCardId } : {}),
+        deckId: targetDeck.id
+      });
       await refreshWorkspace();
     } catch (error) { triggerToast(error.message); return; }
 
     recordActivity({
       material: targetDeck.code || targetDeck.title,
-      mode: 'Bombcard Creation',
+      mode: isEditingCard ? 'Bombcard Edit' : 'Bombcard Creation',
       deckId: targetDeck.id,
       screen: 'creator',
-      status: 'Card added'
+      status: isEditingCard ? 'Edited' : 'Card added'
     });
 
     try { sound.correct(); } catch (_) { }
-    triggerToast(`Bombcard added to ${targetDeck.code || targetDeck.title}!`);
-    setCreatorSessionCount(prev => prev + 1);
-    setCreatorCardAddedAnimation(true);
-    setTimeout(() => setCreatorCardAddedAnimation(false), 900);
+    triggerToast(isEditingCard ? 'Bombcard changes saved.' : `Bombcard added to ${targetDeck.code || targetDeck.title}!`);
+    if (!isEditingCard) {
+      setCreatorSessionCount(prev => prev + 1);
+      setCreatorCardAddedAnimation(true);
+      setTimeout(() => setCreatorCardAddedAnimation(false), 900);
+    }
 
+    setCreatorEditingCardId(null);
     setCreatorPrompt('');
     setCreatorHint('');
     setCreatorOptions(['', '', '', '']);
@@ -2235,6 +3134,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     setCreatorShowHint(false);
     setCreatorShowAlternates(false);
     setCreatorStep(1);
+    if (isEditingCard) setActiveTab('library');
   };
 
   // --- Dedicated Gemini AI Bombcards Generator State ---
@@ -2242,10 +3142,12 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [aiTargetDeckId, setAiTargetDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
   const [aiSourceType, setAiSourceType] = useState('pdf'); // 'pdf' | 'text'
   const [aiNotes, setAiNotes] = useState('');
-  const [aiCount, setAiCount] = useState(5);
   const [aiFormat, setAiFormat] = useState('MIXED'); // 'MIXED' | 'MULTIPLE_CHOICE' | 'IDENTIFICATION'
   const [aiFocus, setAiFocus] = useState('comprehensive'); // 'comprehensive' | 'key_terms' | 'conceptual'
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiReviewerDownloading, setAiReviewerDownloading] = useState(false);
+  const [aiReviewerImporting, setAiReviewerImporting] = useState(false);
+  const [aiReviewerReady, setAiReviewerReady] = useState(null);
   const [aiStage, setAiStage] = useState('input'); // 'input' | 'preview'
   const [aiGeneratedCards, setAiGeneratedCards] = useState([]);
   const [aiCardsAddedModal, setAiCardsAddedModal] = useState(null);
@@ -2462,13 +3364,12 @@ function App({ isGuest = false, sharedDeck = null }) {
       const res = await CSM.api('ai/generate', 'POST', {
         deckId: aiTargetDeckId,
         notes: aiNotes.trim(),
-        count: aiCount,
         format: aiFormat,
         focus: aiFocus,
         saveDirectly: false
       });
       if (res && res.cards && res.cards.length > 0) {
-        setAiGeneratedCards(res.cards.map(c => ({ ...c, selected: true })));
+        setAiGeneratedCards(res.cards.map(c => ({ ...c, selected: false })));
         setAiStage('preview');
         try { sound.correct(); } catch (_) { }
         triggerToast(`Gemini forged ${res.cards.length} high-yield Bombcards!`);
@@ -2479,6 +3380,43 @@ function App({ isGuest = false, sharedDeck = null }) {
       triggerToast(err.message || 'AI Generation failed.');
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  const handleGenerateAiReviewer = async () => {
+    if (aiGeneratedCards.length === 0 || aiReviewerDownloading) return;
+    const targetDeck = decks.find(deck => String(deck.id) === String(aiTargetDeckId));
+    const deckTitle = targetDeck?.code || targetDeck?.title || 'Gemini Generated';
+    setAiReviewerDownloading(true);
+    try {
+      const result = await CSM.api('ai/reviewer', 'POST', {
+        deckTitle,
+        notes: aiNotes.trim(),
+        cards: aiGeneratedCards.map(({ type, prompt, correctAnswer, options }) => ({ type, prompt, correctAnswer, options }))
+      });
+      if (!result?.reviewer?.sections?.length) throw new Error('Gemini did not return a usable study reviewer.');
+      const artifact = createAiReviewerPdf(result.reviewer, deckTitle);
+      setAiReviewerReady({ ...artifact, deckId: targetDeck?.id || '', deckTitle });
+    } catch (downloadError) {
+      triggerToast(downloadError.message || 'Could not create the study reviewer.');
+    } finally {
+      setAiReviewerDownloading(false);
+    }
+  };
+
+  const handleImportAiReviewer = async () => {
+    if (!aiReviewerReady?.deckId || aiReviewerImporting) return;
+    setAiReviewerImporting(true);
+    try {
+      const reviewerFile = new File([aiReviewerReady.blob], aiReviewerReady.filename, { type: 'application/pdf' });
+      await CSM.upload(aiReviewerReady.deckId, reviewerFile);
+      await refreshWorkspace();
+      triggerToast('AI-generated reviewer added to Reference Notes.');
+      setAiReviewerReady(null);
+    } catch (importError) {
+      triggerToast(importError.message || 'Could not add the reviewer to Reference Notes.');
+    } finally {
+      setAiReviewerImporting(false);
     }
   };
 
@@ -2534,8 +3472,10 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   // --- Bombstyle Arena State Controller ---
-  const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'gameplay' | 'results' | 'review_missed'
+  const [bombstylePhase, setBombstylePhase] = useState('select_deck'); // 'select_deck' | 'configure' | 'countdown' | 'gameplay' | 'results' | 'review_missed'
+  const [bombstyleCountdown, setBombstyleCountdown] = useState(3);
   const [bombstyleDeckId, setBombstyleDeckId] = useState(() => window.CSM?.initial?.decks?.[0]?.id || '');
+  const [publicArenaDeck, setPublicArenaDeck] = useState(null);
   const [bombstyleDifficulty, setBombstyleDifficulty] = useState('normal'); // 'easy' | 'normal' | 'hard'
   const [bombstyleQueue, setBombstyleQueue] = useState([]);
   const [bombstyleIndex, setBombstyleIndex] = useState(0);
@@ -2554,10 +3494,19 @@ function App({ isGuest = false, sharedDeck = null }) {
   const [bombstyleFeedback, setBombstyleFeedback] = useState(null); // 'defused' | 'exploded' | null
   const [bombstyleTimerHelpOpen, setBombstyleTimerHelpOpen] = useState(false);
   const [bombstyleExitModalOpen, setBombstyleExitModalOpen] = useState(false);
+  const pendingBombstyleExitActionRef = useRef(null);
   const [selectedDeckIds, setSelectedDeckIds] = useState(() => (isGuest && sharedDeck) ? [sharedDeck.id] : [window.CSM?.initial?.decks?.[0]?.id].filter(Boolean));
   const [soundMuted, setSoundMuted] = useState(false);
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [flashcardFlipped, setFlashcardFlipped] = useState(false);
+  const [flashcardDragX, setFlashcardDragX] = useState(0);
+  const [flashcardIsDragging, setFlashcardIsDragging] = useState(false);
+  const [flashcardSwipePhase, setFlashcardSwipePhase] = useState('');
+  const flashcardDragRef = useRef(null);
+  const ignoreFlashcardClickRef = useRef(false);
+  const flashcardMotionTimerRef = useRef(null);
+  const flashcardMotionLockRef = useRef(false);
+  const navigateFlashcardRef = useRef(null);
   const [highlightColor, setHighlightColor] = useState('#f5a23a');
   const [highlights, setHighlights] = useState([]);
   const [activeDocument, setActiveDocument] = useState(null);
@@ -2887,9 +3836,13 @@ function App({ isGuest = false, sharedDeck = null }) {
   const totalReviewers = decks.length;
   const totalBombCards = useMemo(() => decks.reduce((acc, d) => acc + d.cards.length, 0), [decks]);
   const totalDocuments = useMemo(() => decks.reduce((acc, d) => acc + (d.documents?.length || 0), 0), [decks]);
+  const currentStudyStreak = Number(accountStats.studyDays) || 0;
+  const bestStudyStreak = Number(accountStats.studyBestDays) || 0;
+  const studyStreakLost = currentStudyStreak === 0 && bestStudyStreak > 0;
   const formatTrend = value => `${Number(value) < 0 ? '\u2193' : '\u2191'} ${Math.abs(Number(value) || 0)}%`;
   const activityChart = Array.isArray(accountStats.activityChart) ? accountStats.activityChart : [];
-  const activityChartMax = Math.max(1, ...activityChart.flatMap(day => [Number(day.current) || 0, Number(day.previous) || 0]));
+  const arenaChart = Array.isArray(accountStats.arenaChart) ? accountStats.arenaChart : [];
+  const activityChartMax = Math.max(1, ...arenaChart.flatMap(day => [Number(day.current) || 0, Number(day.previous) || 0]));
   const activeFlashcardDeck = useMemo(() => decks.find(d => d.id === selectedDeckIds[0]) || decks[0], [decks, selectedDeckIds]);
   const activeDeckProgress = useMemo(() => studyProgress.filter(item => item.deck_id === activeFlashcardDeck?.id), [studyProgress, activeFlashcardDeck?.id]);
   const activeDeckKnownAnswers = activeDeckProgress.reduce((total, item) => total + (Number(item.times_known) || 0), 0);
@@ -2916,8 +3869,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const dailyGoalPercent = Math.min(100, Math.round((todayActivityCount / dailyGoalTarget) * 100));
 
   const totalWeekActivity = useMemo(() => {
-    return activityChart.reduce((acc, item) => acc + (Number(item.current) || 0), 0);
-  }, [activityChart]);
+    return arenaChart.reduce((acc, item) => acc + (Number(item.current) || 0), 0);
+  }, [arenaChart]);
 
   const deckMasteryList = useMemo(() => {
     return decks.slice(0, 4).map(deck => {
@@ -2955,6 +3908,66 @@ function App({ isGuest = false, sharedDeck = null }) {
   const flipFlashcard = () => {
     if (!isGuest && !flashcardFlipped && activeFlashcard?.id) CSM.api('study/progress', 'POST', { bombcardId: activeFlashcard.id, result: 'seen' }).then(() => CSM.api('study/progress').then(setStudyProgress)).catch(error => console.warn('Study progress was not saved:', error));
     setFlashcardFlipped(value => !value);
+  };
+  const navigateFlashcard = (direction) => {
+    if (flashcardMotionLockRef.current) return;
+    const nextIndex = Math.max(0, Math.min(Math.max(flashcards.length - 1, 0), flashcardIndex + direction));
+    if (nextIndex === flashcardIndex) return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setFlashcardIndex(nextIndex);
+      setFlashcardFlipped(false);
+      return;
+    }
+    flashcardMotionLockRef.current = true;
+    window.clearTimeout(flashcardMotionTimerRef.current);
+    setFlashcardFlipped(false);
+    setFlashcardSwipePhase(direction > 0 ? 'exit-left' : 'exit-right');
+    flashcardMotionTimerRef.current = window.setTimeout(() => {
+      setFlashcardIndex(nextIndex);
+      setFlashcardDragX(0);
+      setFlashcardSwipePhase(direction > 0 ? 'enter-right' : 'enter-left');
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        setFlashcardSwipePhase(direction > 0 ? 'settle-from-right' : 'settle-from-left');
+      }));
+      flashcardMotionTimerRef.current = window.setTimeout(() => {
+        setFlashcardSwipePhase('');
+        flashcardMotionLockRef.current = false;
+      }, 240);
+    }, 180);
+  };
+  navigateFlashcardRef.current = navigateFlashcard;
+  const handleFlashcardPointerDown = (event) => {
+    if (flashcardMotionLockRef.current || !event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    flashcardDragRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY };
+    setFlashcardIsDragging(true);
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch (_) { }
+  };
+  const handleFlashcardPointerMove = (event) => {
+    const start = flashcardDragRef.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - start.startX;
+    const deltaY = event.clientY - start.startY;
+    setFlashcardDragX(Math.abs(deltaX) > Math.abs(deltaY) ? Math.max(-140, Math.min(140, deltaX)) : 0);
+  };
+  const handleFlashcardPointerUp = (event) => {
+    const start = flashcardDragRef.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    flashcardDragRef.current = null;
+    const deltaX = event.clientX - start.startX;
+    const deltaY = event.clientY - start.startY;
+    setFlashcardIsDragging(false);
+    if (Math.abs(deltaX) >= 64 && Math.abs(deltaX) > Math.abs(deltaY) * 1.2) {
+      ignoreFlashcardClickRef.current = true;
+      window.setTimeout(() => { ignoreFlashcardClickRef.current = false; }, 500);
+      if (deltaX < 0 && flashcardIndex < flashcards.length - 1) navigateFlashcard(1);
+      else if (deltaX > 0 && flashcardIndex > 0) navigateFlashcard(-1);
+    }
+    setFlashcardDragX(0);
+  };
+  const handleFlashcardPointerCancel = () => {
+    flashcardDragRef.current = null;
+    setFlashcardIsDragging(false);
+    setFlashcardDragX(0);
   };
   const currentHour = new Date().getHours();
   const greeting = currentHour < 12 ? 'Good morning' : currentHour < 18 ? 'Good afternoon' : 'Good evening';
@@ -3018,11 +4031,18 @@ function App({ isGuest = false, sharedDeck = null }) {
 
   // --- Detail View States (Synced with decks) ---
   const [showAllBombcards, setShowAllBombcards] = useState(false);
+  const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
+  const [selectedBombcardIds, setSelectedBombcardIds] = useState([]);
 
   const currentSelectedDeck = useMemo(() => {
     if (!selectedDeckForFolderView) return null;
     return decks.find(d => d.id === selectedDeckForFolderView.id) || selectedDeckForFolderView;
   }, [decks, selectedDeckForFolderView]);
+
+  useEffect(() => {
+    setBulkDeleteMode(false);
+    setSelectedBombcardIds([]);
+  }, [selectedDeckForFolderView?.id]);
 
   const visibleCards = useMemo(() => {
     if (!currentSelectedDeck || !currentSelectedDeck.cards) return [];
@@ -3033,6 +4053,8 @@ function App({ isGuest = false, sharedDeck = null }) {
   const handleSelectDeckForDetail = (deck) => {
     setSelectedDeckForFolderView(deck);
     setShowAllBombcards(false);
+    setBulkDeleteMode(false);
+    setSelectedBombcardIds([]);
     recordActivity({ material: deck.code || deck.title, mode: 'Reviewer library', deckId: deck.id, screen: 'library' });
     setActiveTab('library');
   };
@@ -3170,6 +4192,31 @@ function App({ isGuest = false, sharedDeck = null }) {
     });
   };
 
+  const handleBulkRemoveBombcards = (deck) => {
+    if (isGuest) { setGuestLockedSection('creator'); return; }
+    const ids = (deck?.cards || []).map(card => card.id).filter(id => selectedBombcardIds.includes(id));
+    if (!deck || ids.length === 0) return;
+    requestDeleteConfirmation({
+      title: `Delete ${ids.length} Bombcard${ids.length === 1 ? '' : 's'}?`,
+      message: `The selected Bombcards will be permanently removed from ${deck.code || deck.title}. This cannot be undone.`,
+      confirmLabel: `Delete ${ids.length} card${ids.length === 1 ? '' : 's'}`,
+      action: async () => {
+        try {
+          await CSM.api('cards/bulk-delete', 'POST', { deckId: deck.id, ids });
+          setRevealedLibraryCards(current => current.filter(id => !ids.includes(id)));
+          setSelectedBombcardIds([]);
+          setBulkDeleteMode(false);
+          await refreshWorkspace();
+        } catch (error) {
+          triggerToast(error.message);
+          return;
+        }
+        triggerToast(`${ids.length} Bombcard${ids.length === 1 ? '' : 's'} deleted`);
+        showChangeConfirmation('Bombcards deleted', `${ids.length} selected Bombcard${ids.length === 1 ? ' was' : 's were'} removed from this reviewer.`);
+      }
+    });
+  };
+
   const handleOpenDeckStudy = (deck, mode = 'flashcards') => {
     if (isGuest && (mode === 'game' || mode === 'arena')) {
       setGuestLockedSection('arena');
@@ -3263,7 +4310,7 @@ function App({ isGuest = false, sharedDeck = null }) {
     setRevealedLibraryCards(prev => prev.includes(cardId) ? prev.filter(id => id !== cardId) : [...prev, cardId]);
   };
 
-  const deleteFolderPermanently = async (deckId, name) => {
+  const archiveFolder = async (deckId, name) => {
     if (isGuest) { setGuestLockedSection('creator'); return; }
     try { await CSM.api('decks', 'DELETE', { id: deckId }); await refreshWorkspace(); }
     catch (error) { triggerToast(error.message); return; }
@@ -3272,8 +4319,8 @@ function App({ isGuest = false, sharedDeck = null }) {
       setSelectedDeckForFolderView(null);
     }
     setDeleteDeckTarget(null);
-    triggerToast(`Deleted deck "${name}"`);
-    showChangeConfirmation('Deck deleted', `"${name}" and its materials were removed.`);
+    triggerToast(`Moved "${name}" to your archive`);
+    showChangeConfirmation('Deck archived', `“${name}” and its materials are in your archive. You can restore it later.`);
   };
 
   const confirmDeleteFolder = () => {
@@ -3282,10 +4329,10 @@ function App({ isGuest = false, sharedDeck = null }) {
     const name = deleteDeckTarget.code || deleteDeckTarget.title || 'this deck';
     setDeleteDeckTarget(null);
     requestDeleteConfirmation({
-      title: `Permanently delete “${name}”?`,
-      message: `This is the final confirmation. “${name}” and its cards and study materials will be permanently deleted. This action cannot be undone.`,
-      confirmLabel: 'Delete permanently',
-      action: () => deleteFolderPermanently(deckId, name)
+      title: `Move “${name}” to your archive?`,
+      message: 'The deck and its PDFs will be hidden from your library. You can restore them from Archive later.',
+      confirmLabel: 'Move to archive',
+      action: () => archiveFolder(deckId, name)
     });
   };
 
@@ -3313,12 +4360,11 @@ function App({ isGuest = false, sharedDeck = null }) {
           aria-label={`Actions for ${deck.code || deck.title}`}
           aria-expanded={isOpen}
           onClick={(e) => { e.stopPropagation(); setOpenDeckMenuId(isOpen ? null : deck.id); }}
-        >•••</button>
+        ><svg className="csm-admin-user-more-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
         {isOpen && (
           <div className="csm-deck-menu" onClick={(e) => e.stopPropagation()}>
-            <button type="button" onClick={(e) => handleShareDeck(deck, e)}><IconShare /> Share link</button>
             <button type="button" onClick={(e) => handleOpenEditFolderInfo(deck, e)}><IconEdit /> Edit</button>
-            <button type="button" className="danger" onClick={(e) => handleDeleteFolder(deck.id, e)}><IconTrash /> Delete</button>
+            <button type="button" className="danger" onClick={(e) => handleDeleteFolder(deck.id, e)}><IconTrash /> Move to archive</button>
           </div>
         )}
       </div>
@@ -3401,6 +4447,35 @@ function App({ isGuest = false, sharedDeck = null }) {
     showChangeConfirmation('Avatar updated', `${avatar?.label || 'Your new avatar'} is now set on your profile.`);
   };
 
+  const handleProfileDeckVisibility = async (event) => {
+    const deckVisibility = event.target.value;
+    setPrivacySaveStatus('Saving…');
+    try {
+      const saved = await CSM.api('profile', 'PATCH', { deckVisibility });
+      setProfile(saved);
+      setPrivacySaveStatus(`Your default deck visibility is ${deckVisibility}.`);
+    } catch (error) { setPrivacySaveStatus(error.message || 'Could not save this setting.'); }
+  };
+
+  const handleDeckVisibility = async (deck, visibility) => {
+    setDeckVisibilitySaving(true); setDeckVisibilityNotice(null);
+    const showDeckVisibilityNotice = notice => {
+      setDeckVisibilityNotice(notice);
+      window.clearTimeout(deckVisibilityNoticeTimerRef.current);
+      deckVisibilityNoticeTimerRef.current = window.setTimeout(() => setDeckVisibilityNotice(null), 3600);
+    };
+    try {
+      await CSM.api('decks', 'PATCH', { id: deck.id, title: deck.title || deck.code, subject: deck.subject || '', category: deck.category || 'Recent', visibility });
+      await refreshWorkspace();
+      const effectiveVisibility = visibility === 'inherit' ? profile.deckVisibility || 'private' : visibility;
+      const message = visibility === 'inherit'
+        ? `Your deck now follows your profile default (${effectiveVisibility}).`
+        : `Your deck is now ${effectiveVisibility}.`;
+      showDeckVisibilityNotice({ message, isError: false });
+    } catch (error) { showDeckVisibilityNotice({ message: error.message || 'Could not save deck visibility.', isError: true }); }
+    finally { setDeckVisibilitySaving(false); }
+  };
+
   const handleChangePassword = async (event) => {
     event.preventDefault();
     if (newPasswordDraft.length < 8 || newPasswordDraft.length > 72) return triggerToast('Use a password between 8 and 72 characters.');
@@ -3419,11 +4494,22 @@ function App({ isGuest = false, sharedDeck = null }) {
   useEffect(() => {
     if (!bombstyleExitModalOpen) return;
     const handleExitModalKeyDown = (event) => {
-      if (event.key === 'Escape') setBombstyleExitModalOpen(false);
+      if (event.key === 'Escape') resumeBombstyleSession();
     };
     document.addEventListener('keydown', handleExitModalKeyDown);
     return () => document.removeEventListener('keydown', handleExitModalKeyDown);
   }, [bombstyleExitModalOpen]);
+
+  useEffect(() => {
+    const handleArenaEscape = (event) => {
+      if (event.key !== 'Escape' || bombstyleExitModalOpen) return;
+      if (activeTab !== 'arena' || !['countdown', 'gameplay'].includes(bombstylePhase)) return;
+      event.preventDefault();
+      requestBombstyleExit();
+    };
+    document.addEventListener('keydown', handleArenaEscape);
+    return () => document.removeEventListener('keydown', handleArenaEscape);
+  }, [activeTab, bombstylePhase, bombstyleExitModalOpen]);
 
   const requestDeleteConfirmation = ({ title, message, confirmLabel = 'Delete', action }) => {
     setDeleteConfirmation({ title, message, confirmLabel, action });
@@ -3537,6 +4623,7 @@ function App({ isGuest = false, sharedDeck = null }) {
   };
 
   const handleChooseManualCreation = () => {
+    prepareNewBombcard();
     const target = targetDeckForAddMaterial || currentSelectedDeck || decks[0];
     if (target) {
       setSelectedDeckIds([target.id]);
@@ -3722,14 +4809,22 @@ function App({ isGuest = false, sharedDeck = null }) {
   // 6. BOMBSTYLE ARENA GAME ENGINE
   // ========================================================
   const bombstyleTimerRef = useRef(null);
+  const bombstyleCountdownTimerRef = useRef(null);
+  const bombstylePendingStartRef = useRef(null);
+  const bombstyleCountdownStartedRef = useRef(false);
   const bombstyleDeadlineRef = useRef(null);
   const bombstyleAnswerSubmittedRef = useRef(false);
   const bombstyleWrongFeedbackTimerRef = useRef(null);
   const bombstyleTimeoutStartedRef = useRef(false);
 
   const bombstyleActiveDeck = useMemo(() => {
-    return decks.find(d => d.id === bombstyleDeckId) || decks[0];
-  }, [decks, bombstyleDeckId]);
+    return decks.find(d => d.id === bombstyleDeckId) || (publicArenaDeck?.id === bombstyleDeckId ? publicArenaDeck : null) || decks[0];
+  }, [decks, bombstyleDeckId, publicArenaDeck]);
+
+  const arenaDeckChoices = useMemo(() => {
+    if (!publicArenaDeck || decks.some(deck => deck.id === publicArenaDeck.id)) return decks;
+    return [...decks, publicArenaDeck];
+  }, [decks, publicArenaDeck]);
 
   const bombstyleAvailableCards = useMemo(() => {
     return bombstyleActiveDeck?.cards || [];
@@ -3760,6 +4855,16 @@ function App({ isGuest = false, sharedDeck = null }) {
     setBombstyleTimeRemaining(safeRemainingMs / 1000);
   };
 
+  const constrainBombstyleClock = (remainingMs) => {
+    const safeRemainingMs = Math.max(0, Number(remainingMs) || 0);
+    const localDeadline = typeof bombstyleDeadlineRef.current === 'number'
+      ? bombstyleDeadlineRef.current
+      : Date.now() + Math.max(0, bombstyleTimeRemaining * 1000);
+    // Server resyncs can correct a clock down, but must never add time back.
+    bombstyleDeadlineRef.current = Math.min(localDeadline, Date.now() + safeRemainingMs);
+    setBombstyleTimeRemaining(Math.max(0, bombstyleDeadlineRef.current - Date.now()) / 1000);
+  };
+
   const currentBombstyleRemainingMs = () => {
     if (typeof bombstyleDeadlineRef.current === 'number') {
       return Math.max(0, bombstyleDeadlineRef.current - Date.now());
@@ -3767,24 +4872,37 @@ function App({ isGuest = false, sharedDeck = null }) {
     return Math.max(0, bombstyleTimeRemaining * 1000);
   };
 
-  const pauseBombstyleSession = async () => {
+  const openBombstyleExitConfirmation = () => {
     setBombstyleExitModalOpen(true);
-    try {
-      if (isGuest) setBombstyleClock(currentBombstyleRemainingMs());
-      else {
-        const session = await CSM.api('arena/pause', 'POST', { id: bombstyleSessionId });
-        if (session?.remainingMs != null) setBombstyleClock(session.remainingMs);
-      }
-    } catch (_) { }
+    // The exit dialog is only a confirmation layer; it must never pause or reset the round clock.
+    const sessionId = bombstyleSessionId;
+    if (activeTab === 'arena' && bombstylePhase === 'gameplay' && !isGuest && sessionId) {
+      CSM.api('arena/session&id=' + encodeURIComponent(sessionId)).then(async session => {
+        if (bombstyleSessionId !== sessionId || activeTab !== 'arena' || bombstylePhase !== 'gameplay') return;
+        // Clear legacy pause state, if any, without replacing the continuously running local deadline.
+        if (session?.status === 'active' && session.paused) {
+          session = await CSM.api('arena/resume', 'POST', { id: sessionId });
+        }
+        if (session?.status === 'active' && Number.isFinite(Number(session.remainingMs))) {
+          constrainBombstyleClock(session.remainingMs);
+        }
+      }).catch(error => console.warn('Could not sync the Arena timer:', error));
+    }
+  };
+
+  const requestBombstyleExit = (afterExit) => {
+    const sessionInProgress = activeTab === 'arena' && ['countdown', 'gameplay'].includes(bombstylePhase);
+    if (!sessionInProgress) {
+      afterExit?.();
+      return false;
+    }
+    pendingBombstyleExitActionRef.current = afterExit || null;
+    openBombstyleExitConfirmation();
+    return true;
   };
 
   const resumeBombstyleSession = async () => {
-    try {
-      if (!isGuest) {
-        const session = await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId });
-        if (session?.remainingMs != null) setBombstyleClock(session.remainingMs);
-      } else setBombstyleClock(currentBombstyleRemainingMs());
-    } catch (_) { }
+    pendingBombstyleExitActionRef.current = null;
     setBombstyleExitModalOpen(false);
   };
 
@@ -3792,9 +4910,9 @@ function App({ isGuest = false, sharedDeck = null }) {
     if (BOMBSTYLE_DIFFICULTIES[diff]) setBombstyleDifficulty(diff);
   };
 
-  const handleStartBombstyle = async (customCardQueue = null) => {
+  const handleStartBombstyle = (customCardQueue = null) => {
     const deck = bombstyleActiveDeck;
-    let cardsToUse = customCardQueue ? [...customCardQueue] : (deck ? [...(deck.cards || [])] : []);
+    const cardsToUse = customCardQueue ? [...customCardQueue] : (deck ? [...(deck.cards || [])] : []);
 
     if (cardsToUse.length === 0) {
       triggerToast('Selected deck does not contain any Bombcards yet.');
@@ -3805,10 +4923,27 @@ function App({ isGuest = false, sharedDeck = null }) {
     bombstyleWrongFeedbackTimerRef.current = null;
     bombstyleTimeoutStartedRef.current = false;
     setBombstyleAnswerError('');
+    sound.init();
+    bombstyleCountdownStartedRef.current = false;
+    setBombstyleCountdown(3);
+    bombstylePendingStartRef.current = async () => {
+      let queue = cardsToUse;
+      if (isGuest) {
+        setBombstyleSessionId('guest-session-' + Date.now());
+      } else {
+        try {
+          const session = await CSM.api('arena/start', 'POST', { deckId: deck.id, difficulty: bombstyleDifficulty });
+          setBombstyleSessionId(session.id);
+          queue = session.queue || queue;
+        } catch (error) {
+          bombstylePendingStartRef.current = null;
+          setBombstylePhase('configure');
+          triggerToast(error.message || 'Could not start the Arena session.');
+          return;
+        }
+      }
 
-    if (isGuest) {
-      setBombstyleSessionId('guest-session-' + Date.now());
-      setBombstyleQueue(cardsToUse);
+      setBombstyleQueue(queue);
       setBombstyleIndex(0);
       setBombstyleRevealed(false);
       setBombstyleAnswerDraft('');
@@ -3822,53 +4957,81 @@ function App({ isGuest = false, sharedDeck = null }) {
       setBombstyleStartTime(Date.now());
       setBombstylePhase('gameplay');
       setActiveTab('arena');
+      if (!isGuest) refreshWorkspace().catch(error => console.warn('Could not refresh study activity:', error));
+    };
+    setBombstylePhase('countdown');
+    setActiveTab('arena');
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'arena' || bombstylePhase !== 'countdown') {
+      if (bombstyleCountdownTimerRef.current) clearTimeout(bombstyleCountdownTimerRef.current);
+      bombstyleCountdownTimerRef.current = null;
       return;
     }
 
-    try {
-      const session = await CSM.api('arena/start', 'POST', { deckId: deck.id, difficulty: bombstyleDifficulty });
-      setBombstyleSessionId(session.id);
-      cardsToUse = session.queue || cardsToUse;
+    if (bombstyleCountdown <= 0) {
+      bombstyleCountdownTimerRef.current = null;
+      if (bombstyleCountdownStartedRef.current) return;
+      bombstyleCountdownStartedRef.current = true;
+      const startSession = bombstylePendingStartRef.current;
+      bombstylePendingStartRef.current = null;
+      if (startSession) startSession();
+      return;
+    }
 
-      setBombstyleQueue(cardsToUse);
-      setBombstyleIndex(0);
-      setBombstyleRevealed(false);
-      setBombstyleAnswerDraft('');
-      bombstyleAnswerSubmittedRef.current = false;
-      setBombstyleClock(selectedBombstyleDifficulty.seconds * 1000);
-      setBombstyleStreak(0);
-      setBombstyleMaxStreak(0);
-      setBombstyleCorrectCount(0);
-      setBombstyleMissedCards([]);
-      setBombstyleFeedback(null);
-      setBombstyleStartTime(Date.now());
-      setBombstylePhase('gameplay');
-      setActiveTab('arena');
+    if (bombstyleCountdown === 1) sound.whistle();
+    else sound.tick();
+    bombstyleCountdownTimerRef.current = setTimeout(() => {
+      setBombstyleCountdown(count => count - 1);
+    }, 1000);
+    return () => {
+      if (bombstyleCountdownTimerRef.current) clearTimeout(bombstyleCountdownTimerRef.current);
+      bombstyleCountdownTimerRef.current = null;
+    };
+  }, [activeTab, bombstylePhase, bombstyleCountdown]);
 
-      refreshWorkspace().catch(error => console.warn('Could not refresh study activity:', error));
-    } catch (error) { triggerToast(error.message); }
+  const cancelBombstyleCountdown = () => {
+    bombstylePendingStartRef.current = null;
+    bombstyleCountdownStartedRef.current = false;
+    if (bombstyleCountdownTimerRef.current) clearTimeout(bombstyleCountdownTimerRef.current);
+    bombstyleCountdownTimerRef.current = null;
+    setBombstylePhase('configure');
   };
 
   useEffect(() => {
     if (isGuest) return;
-    CSM.api('arena/active').then(session => {
+    CSM.api('arena/active').then(async session => {
       if (!session || session.status !== 'active') return;
-      setBombstyleSessionId(session.id); setBombstyleDeckId(session.deckId); setBombstyleDifficulty(session.difficulty);
-      const restoredQueue = session.queue || [];
-      setBombstyleQueue(restoredQueue); setBombstyleIndex(session.index || 0);
+      if (session.deckId && !decks.some(deck => deck.id === session.deckId)) {
+        try {
+          const result = await CSM.api(`people/deck&id=${encodeURIComponent(session.deckId)}`);
+          setPublicArenaDeck(result.deck);
+        } catch (error) {
+          console.warn('Could not restore the shared deck for this Arena session:', error);
+        }
+      }
+      let restoredSession = session;
+      // Older sessions may have been paused by an earlier version of the exit dialog.
+      if (session.paused) {
+        try { restoredSession = await CSM.api('arena/resume', 'POST', { id: session.id }); } catch (_) { }
+      }
+      setBombstyleSessionId(restoredSession.id); setBombstyleDeckId(restoredSession.deckId); setBombstyleDifficulty(restoredSession.difficulty);
+      const restoredQueue = restoredSession.queue || [];
+      setBombstyleQueue(restoredQueue); setBombstyleIndex(restoredSession.index || 0);
       setBombstyleAnswerDraft(''); setBombstyleRevealed(false);
-      const restoredAnswers = (session.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
+      const restoredAnswers = (restoredSession.answers || []).map(answer => ({ ...(restoredQueue[answer.position] || {}), result: answer.result }));
       setBombstyleMissedCards(restoredAnswers.filter(answer => answer.result !== 'correct'));
-      setBombstyleClock(session.remainingMs); setBombstyleStreak(session.streak || 0);
-      setBombstyleMaxStreak(session.maxStreak || 0); setBombstyleCorrectCount(session.correct || 0);
-      setBombstyleStartTime(Date.now() - (session.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
-      setBombstyleExitModalOpen(!!session.paused);
+      setBombstyleClock(restoredSession.remainingMs); setBombstyleStreak(restoredSession.streak || 0);
+      setBombstyleMaxStreak(restoredSession.maxStreak || 0); setBombstyleCorrectCount(restoredSession.correct || 0);
+      setBombstyleStartTime(Date.now() - (restoredSession.durationMs || 0)); setBombstylePhase('gameplay'); setActiveTab('arena');
+      setBombstyleExitModalOpen(false);
     }).catch(error => console.warn('Could not restore the active Arena session:', error));
   }, []);
 
   // Countdown Timer for Bombstyle
   useEffect(() => {
-    if (activeTab !== 'arena' || bombstylePhase !== 'gameplay' || bombstyleExitModalOpen) {
+    if (activeTab !== 'arena' || bombstylePhase !== 'gameplay') {
       if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
       return;
     }
@@ -3890,8 +5053,13 @@ function App({ isGuest = false, sharedDeck = null }) {
       syncLocalClock();
       if (document.visibilityState !== 'visible' || isGuest || !bombstyleSessionId) return;
       try {
-        const session = await CSM.api('arena/session&id=' + bombstyleSessionId);
-        if (session?.status === 'active') setBombstyleClock(session.remainingMs);
+        let session = await CSM.api('arena/session&id=' + bombstyleSessionId);
+        if (session?.status === 'active' && session.paused) {
+          session = await CSM.api('arena/resume', 'POST', { id: bombstyleSessionId });
+        }
+        if (session?.status === 'active') {
+          constrainBombstyleClock(session.remainingMs);
+        }
         else if (session?.status === 'timeout') handleBombstyleTimeout();
         else if (session?.status === 'completed') finishBombstyleSession();
       } catch (error) { console.warn('Could not resync the Arena clock:', error); }
@@ -3907,7 +5075,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       document.removeEventListener('visibilitychange', syncVisibleSession);
       window.removeEventListener('focus', syncVisibleSession);
     };
-  }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, bombstyleExitModalOpen, selectedBombstyleDifficulty.seconds, bombstyleSessionId, isGuest]);
+  }, [activeTab, bombstylePhase, bombstyleIndex, bombstyleFeedback, selectedBombstyleDifficulty.seconds, bombstyleSessionId, isGuest]);
 
   const normalizeBombstyleAnswer = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
   const isBombstyleAnswerCorrect = (answer, card) => {
@@ -4015,6 +5183,8 @@ function App({ isGuest = false, sharedDeck = null }) {
     if (bombstyleTimerRef.current) clearInterval(bombstyleTimerRef.current);
     if (bombstyleWrongFeedbackTimerRef.current) clearTimeout(bombstyleWrongFeedbackTimerRef.current);
     bombstyleWrongFeedbackTimerRef.current = null;
+    pendingBombstyleExitActionRef.current = null;
+    setBombstyleExitModalOpen(false);
     const duration = bombstyleStartTime ? Math.round((Date.now() - bombstyleStartTime) / 1000) : 0;
     setBombstyleDurationSeconds(duration);
     setBombstyleFeedback(null);
@@ -4037,7 +5207,7 @@ function App({ isGuest = false, sharedDeck = null }) {
       if (activeTab === 'arena') {
         if (bombstylePhase === 'gameplay' && !bombstyleFeedback) {
           if (e.key === 'Escape') {
-            pauseBombstyleSession();
+            openBombstyleExitConfirmation();
             return;
           }
           if (!bombstyleRevealed) {
@@ -4054,17 +5224,16 @@ function App({ isGuest = false, sharedDeck = null }) {
       }
 
       if (activeTab === 'flashcards') {
+        if (flashcardMotionLockRef.current) return;
         if (e.code === 'Space') {
           e.preventDefault();
           flipFlashcard();
         } else if (e.key === 'ArrowLeft') {
           e.preventDefault();
-          setFlashcardIndex(idx => Math.max(0, idx - 1));
-          setFlashcardFlipped(false);
+          navigateFlashcardRef.current?.(-1);
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
-          setFlashcardIndex(idx => Math.min(Math.max((flashcards.length || 1) - 1, 0), idx + 1));
-          setFlashcardFlipped(false);
+          navigateFlashcardRef.current?.(1);
         }
       }
     };
@@ -4094,7 +5263,7 @@ function App({ isGuest = false, sharedDeck = null }) {
         </div>
         <div className="csm-library-deck-card-footer">
           <span><IconUser /> {isGuest ? `By ${deck.owner || 'Shared Reviewer'}` : 'By you'}</span>
-          <strong>Open deck <span>→</span></strong>
+          <strong>Open deck <IconArrowRight /></strong>
         </div>
       </article>
     );
@@ -4106,34 +5275,45 @@ function App({ isGuest = false, sharedDeck = null }) {
       {/* ========================================================
               LEFT CAPSULE SIDEBAR
               ======================================================== */}
+      {mobileMenuOpen && <button type="button" className="csm-mobile-nav-backdrop" aria-label="Close navigation menu" onClick={() => setMobileMenuOpen(false)} />}
       <nav
-        className={`w-14 min-w-[56px] bg-[#141922] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20 ${sidebarExpanded ? 'sidebar-expanded' : ''}`}
+        id="primary-navigation"
+        className={`w-14 min-w-[56px] bg-[#141922] py-4 flex flex-col items-center justify-between shadow-2xl flex-shrink-0 z-20 ${sidebarExpanded || mobileMenuOpen ? 'sidebar-expanded' : ''} ${mobileMenuOpen ? 'csm-mobile-nav-open' : ''}`}
         aria-label="Primary navigation"
         onMouseEnter={handleSidebarMouseEnter}
         onMouseLeave={handleSidebarMouseLeave}
+        onClick={(event) => {
+          if (event.target.closest('button') || event.target.closest('.csm-sidebar-logo')) setMobileMenuOpen(false);
+        }}
       >
         {/* Top Logo */}
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="w-10 h-10 csm-sidebar-logo flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
-            onClick={() => {
-              if (isGuest) {
-                if (sidebarExpanded) setGuestLockedSection('home');
-                else setSidebarExpanded(true);
-                return;
-              }
-              if (sidebarExpanded) setActiveTab('home'); else setSidebarExpanded(true);
-            }}
-            title={isGuest ? 'Co-StudyMaxx (Home Locked for Guests)' : (sidebarExpanded ? 'Co-StudyMaxx Home' : 'Open sidebar')}
-            aria-label={sidebarExpanded ? 'Co-StudyMaxx Home' : 'Open sidebar'}
-          >
-            <img
-              src="assets/images/csm-sidebar-logo.png"
-              alt="Co-StudyMaxx Logo"
-              className="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
-            />
-            <svg className="csm-sidebar-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16M14 8l4 4-4 4" /></svg>
-            <span className="csm-sidebar-wordmark">Co-StudyMaxx</span>
+          <div className="csm-sidebar-brand-row w-full flex items-center justify-center">
+            <button
+              type="button"
+              className="w-10 h-10 csm-sidebar-logo flex items-center justify-center cursor-pointer select-none transition-transform hover:scale-105 active:scale-95"
+              onClick={() => {
+                if (isGuest) {
+                  if (sidebarExpanded || mobileMenuOpen) setGuestLockedSection('home');
+                  else setSidebarExpanded(true);
+                  return;
+                }
+                if (sidebarExpanded || mobileMenuOpen) requestBombstyleExit(() => setActiveTab('home')); else setSidebarExpanded(true);
+              }}
+              title={isGuest ? 'Co-StudyMaxx (Home Locked for Guests)' : ((sidebarExpanded || mobileMenuOpen) ? 'Co-StudyMaxx Home' : 'Open sidebar')}
+              aria-label={(sidebarExpanded || mobileMenuOpen) ? 'Co-StudyMaxx Home' : 'Open sidebar'}
+            >
+              <img
+                src="assets/images/csm-sidebar-logo.png"
+                alt="Co-StudyMaxx Logo"
+                className="w-10 h-10 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+              />
+              <svg className="csm-sidebar-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16M14 8l4 4-4 4" /></svg>
+              <span className="csm-sidebar-wordmark">Co-StudyMaxx</span>
+            </button>
+            <button type="button" className="csm-mobile-nav-close" aria-label="Close navigation menu" onClick={() => setMobileMenuOpen(false)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
           </div>
 
           {/* Navigation Tabs (MAIN Category) */}
@@ -4145,8 +5325,10 @@ function App({ isGuest = false, sharedDeck = null }) {
             <button
               onClick={() => {
                 if (isGuest) { setGuestLockedSection('home'); return; }
-                setSelectedDeckForFolderView(null);
-                setActiveTab('home');
+                requestBombstyleExit(() => {
+                  setSelectedDeckForFolderView(null);
+                  setActiveTab('home');
+                });
               }}
               data-tooltip={isGuest ? 'Home (Sign in to unlock)' : 'Overview'}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative ${activeTab === 'home'
@@ -4167,11 +5349,11 @@ function App({ isGuest = false, sharedDeck = null }) {
             {/* 2. Reviewer Library (Parent with Nested Child Items) */}
             {!isStaff && <div className="w-full flex flex-col items-center">
               <button
-                onClick={() => { setSelectedDeckForFolderView(isGuest && sharedDeck ? sharedDeck : null); setActiveTab('library'); }}
+                onClick={() => requestBombstyleExit(() => { setSelectedDeckForFolderView(isGuest && sharedDeck ? sharedDeck : null); setActiveTab('library'); })}
                 data-tooltip="Reviewer Library"
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${activeTab === 'library'
                   ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]'
-                  : ['flashcards', 'creator', 'highlighter'].includes(activeTab)
+                : ['flashcards', 'creator', 'highlighter'].includes(activeTab)
                     ? 'text-white bg-white/10 font-bold border border-white/15'
                     : 'text-zinc-400 hover:text-white hover:bg-white/5'
                   }`}
@@ -4183,16 +5365,16 @@ function App({ isGuest = false, sharedDeck = null }) {
 
               {/* Nested Navigation: Study, Create, PDF Tools & AI Generator (Smooth Animated Accordion) */}
               <div
-                className={`csm-sidebar-subnav-wrapper ${['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 'expanded' : 'collapsed'}`}
-                aria-hidden={!['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab)}
+                className={`csm-sidebar-subnav-wrapper ${libraryNavExpanded ? 'expanded' : 'collapsed'}`}
+                aria-hidden={!libraryNavExpanded}
               >
                 <div className="csm-sidebar-subnav-inner">
                   <div className="csm-sidebar-subnav">
                     {/* 2a. Study Mini Sidebar */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
-                      onClick={() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); }}
+                      tabIndex={libraryNavExpanded ? 0 : -1}
+                      onClick={() => requestBombstyleExit(() => { setSelectedDeckForFolderView(null); setFlashcardIndex(0); setFlashcardFlipped(false); setActiveTab('flashcards'); })}
                       data-tooltip="Study"
                       className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'flashcards' ? 'active' : ''}`}
                       title="Study (Review Bombcards)"
@@ -4208,11 +5390,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                     {/* 2b. Create Bombcards Mini Sidebar (Locked for Guest) */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
+                      tabIndex={libraryNavExpanded ? 0 : -1}
                       onClick={() => {
                         if (isGuest) { setGuestLockedSection('creator'); return; }
-                        setSelectedDeckForFolderView(null);
-                        setActiveTab('creator');
+                        requestBombstyleExit(() => {
+                          prepareNewBombcard();
+                          setSelectedDeckForFolderView(null);
+                          setActiveTab('creator');
+                        });
                       }}
                       data-tooltip={isGuest ? 'Create Bombcards (Sign in to unlock)' : 'Create Bombcards'}
                       className={`csm-sidebar-subitem flex items-center transition-all relative ${activeTab === 'creator' ? 'active' : ''}`}
@@ -4233,17 +5418,19 @@ function App({ isGuest = false, sharedDeck = null }) {
                     {/* 2c. PDF Tools Mini Sidebar */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
+                      tabIndex={libraryNavExpanded ? 0 : -1}
                       onClick={() => {
-                        setSelectedDeckForFolderView(null);
-                        if (!activeDocument) {
-                          const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
-                          if (firstDocDeck && firstDocDeck.documents[0]) {
-                            handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
-                            return;
+                        requestBombstyleExit(() => {
+                          setSelectedDeckForFolderView(null);
+                          if (!activeDocument) {
+                            const firstDocDeck = decks.find(d => d.documents && d.documents.length > 0);
+                            if (firstDocDeck && firstDocDeck.documents[0]) {
+                              handleOpenDocument(firstDocDeck, firstDocDeck.documents[0]);
+                              return;
+                            }
                           }
-                        }
-                        setActiveTab('highlighter');
+                          setActiveTab('highlighter');
+                        });
                       }}
                       data-tooltip="PDF Tools"
                       className={`csm-sidebar-subitem flex items-center transition-all ${activeTab === 'highlighter' ? 'active' : ''}`}
@@ -4256,10 +5443,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                     {/* 2d. AI Flashcard Generator Modal Trigger */}
                     <button
                       type="button"
-                      tabIndex={['library', 'flashcards', 'creator', 'highlighter'].includes(activeTab) ? 0 : -1}
+                      tabIndex={libraryNavExpanded ? 0 : -1}
                       onClick={() => {
                         if (isGuest) { setGuestLockedSection('creator'); return; }
-                        handleOpenAiGenerator();
+                        requestBombstyleExit(() => handleOpenAiGenerator());
                       }}
                       data-tooltip={isGuest ? 'AI Flashcards (Sign in to unlock)' : 'AI Generator'}
                       className="csm-sidebar-subitem flex items-center transition-all relative text-purple-300 hover:text-purple-200"
@@ -4273,6 +5460,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       )}
                       <span className="csm-sidebar-label">AI Generator</span>
                     </button>
+
                   </div>
                 </div>
               </div>
@@ -4285,9 +5473,11 @@ function App({ isGuest = false, sharedDeck = null }) {
                   setGuestLockedSection('arena');
                   return;
                 }
-                setBombstylePhase('select_deck');
-                setSelectedDeckForFolderView(null);
-                setActiveTab('arena');
+                requestBombstyleExit(() => {
+                  setBombstylePhase('select_deck');
+                  setSelectedDeckForFolderView(null);
+                  setActiveTab('arena');
+                });
               }}
               data-tooltip={isGuest ? 'Arena (Sign in to unlock)' : 'Arena'}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative ${activeTab === 'game' || activeTab === 'arena'
@@ -4306,6 +5496,30 @@ function App({ isGuest = false, sharedDeck = null }) {
             </button>}
 
             {/* ACCOUNT Category — placed below Arena */}
+            {!isGuest && <button
+              type="button"
+              onClick={() => requestBombstyleExit(() => { setSelectedDeckForFolderView(null); setActiveTab('archive'); })}
+              data-tooltip="Archive"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative ${activeTab === 'archive' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+              title="Archive"
+              aria-label="Open archive"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 4h18v4H3z"/><path d="M5 8v12h14V8M10 12h4"/></svg>
+              <span className="csm-sidebar-label">Archive</span>
+            </button>}
+
+            {!isGuest && !isStaff && <button
+              type="button"
+              onClick={() => requestBombstyleExit(() => { setSelectedDeckForFolderView(null); setActiveTab('people'); })}
+              data-tooltip="Discover"
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative ${activeTab === 'people' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
+              title="Discover people and public decks"
+              aria-label="Discover"
+            >
+              <IconSearch className={`w-5 h-5 ${activeTab === 'people' ? 'text-white' : 'text-zinc-400'}`} />
+              <span className="csm-sidebar-label">Discover</span>
+            </button>}
+
             <span className="csm-sidebar-category" style={{ marginTop: '8px' }}>ACCOUNT</span>
             <span className="csm-sidebar-divider" />
 
@@ -4316,7 +5530,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               data-tooltip={isGuest ? 'Profile (Sign in to unlock)' : 'Profile Settings'}
               onClick={() => {
                 if (isGuest) { setGuestLockedSection('profile'); return; }
-                handleOpenAccount();
+                requestBombstyleExit(() => handleOpenAccount());
               }}
             >
               <IconUser />
@@ -4331,7 +5545,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               type="button"
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'admin' ? 'active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.35)]' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
               title="Admin console" data-tooltip="Admin console" aria-label="Admin console"
-              onClick={openAdminAccess}
+              onClick={() => requestBombstyleExit(openAdminAccess)}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
               <span className="csm-sidebar-label">Admin</span>
@@ -4370,6 +5584,20 @@ function App({ isGuest = false, sharedDeck = null }) {
         {/* Unified fintech-inspired application header - hidden during active arena drill */}
         <header className="csm-topbar">
           <div className="csm-topbar-context">
+            <button
+              type="button"
+              className="csm-mobile-navigation-trigger"
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="primary-navigation"
+              onClick={() => setMobileMenuOpen(open => !open)}
+            >
+              {mobileMenuOpen ? (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              )}
+            </button>
             <span className="csm-topbar-workspace">Workspace</span>
             <span className="csm-topbar-sep">/</span>
             <span className="csm-topbar-current">
@@ -4390,11 +5618,12 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </>
               )}
               {activeTab === 'highlighter' && 'PDF Study Tool'}
+              {activeTab === 'archive' && (isStaff ? 'Admin Archive' : 'Archive')}
               {(activeTab === 'arena' || activeTab === 'game') && (
                 <>
-                  <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Arena</span>
+                  <span className="cursor-pointer hover:text-slate-900 transition-colors" onClick={() => requestBombstyleExit(() => setBombstylePhase('select_deck'))}>Arena</span>
                   <span className="csm-topbar-sep">/</span>
-                  <span className="text-slate-900 font-extrabold cursor-pointer hover:text-slate-700 transition-colors" onClick={() => setBombstylePhase('select_deck')}>Bombstyle</span>
+                  <span className="text-slate-900 font-extrabold cursor-pointer hover:text-slate-700 transition-colors" onClick={() => requestBombstyleExit(() => setBombstylePhase('select_deck'))}>Bombstyle</span>
                   {bombstylePhase === 'configure' && (
                     <>
                       <span className="csm-topbar-sep">/</span>
@@ -4423,6 +5652,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               )}
               {activeTab === 'account' && 'Account Settings'}
               {activeTab === 'admin' && 'Admin Console'}
+              {activeTab === 'people' && 'Discover'}
             </span>
           </div>
           <div className="csm-topbar-role-slot">
@@ -4471,7 +5701,7 @@ function App({ isGuest = false, sharedDeck = null }) {
               </div>
             ) : (
               <>
-                <div className="csm-notifications-wrap">
+                <div className="csm-notifications-wrap" ref={notificationsWrapRef}>
                   <button className={`csm-icon-button csm-notification ${notificationsUnread ? '' : 'is-empty'}`} type="button" aria-label={notificationsUnread ? `Notifications, ${notificationsUnread} unread` : 'Notifications'} aria-expanded={notificationsOpen} title="Notifications" onClick={() => { setNotificationsOpen(value => !value); if (!notificationsOpen) refreshNotifications(); }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
                     {notificationsUnread > 0 && <span className="csm-notification-badge" aria-hidden="true">{notificationsUnread > 99 ? '99+' : notificationsUnread}</span>}
@@ -4542,6 +5772,9 @@ function App({ isGuest = false, sharedDeck = null }) {
 
         {activeTab === 'home' && isStaff && <AdminHome profile={profile} onOpenAdmin={openAdminAccess} />}
         {activeTab === 'admin' && isStaff && <AdminPanel profile={profile} />}
+        {activeTab === 'archive' && isStaff && <AdminArchiveScreen profile={profile} />}
+        {activeTab === 'archive' && !isStaff && !isGuest && <UserArchiveScreen onWorkspaceRefresh={refreshWorkspace} />}
+        {activeTab === 'people' && !isStaff && !isGuest && <PeopleScreen onPlayDeck={deck => { setPublicArenaDeck(deck); handleOpenGameMode(deck.id); }} />}
 
         {/* ========================================================
                 VIEW A: HOME DASHBOARD
@@ -4581,7 +5814,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       {totalReviewers > 0 ? (
                         <React.Fragment><b className="csm-trend up">{formatTrend(accountStats.decksTrend)}</b> this month</React.Fragment>
                       ) : (
-                        <span className="text-orange-600 font-semibold">Create your first deck →</span>
+                        <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">Create your first deck <IconArrowRight /></span>
                       )}
                     </span>
                   </span>
@@ -4589,7 +5822,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                 <div
                   onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
-                  className="home-stat-card cards-stat cursor-pointer"
+                  className="home-stat-card cursor-pointer"
                   title="View Bombcards"
                 >
                   <span className="home-stat-icon" aria-hidden="true">
@@ -4605,13 +5838,17 @@ function App({ isGuest = false, sharedDeck = null }) {
                       {totalBombCards > 0 ? (
                         <React.Fragment><b className="csm-trend up">{formatTrend(accountStats.cardsTrend)}</b> across your sets</React.Fragment>
                       ) : (
-                        <span className="text-white/95 font-bold underline">Create cards to practice →</span>
+                        <span className="inline-flex items-center gap-1 text-white/95 font-bold underline">Create cards to practice <IconArrowRight /></span>
                       )}
                     </span>
                   </span>
                 </div>
 
-                <div className="home-stat-card cursor-pointer" onClick={() => setActiveTab('flashcards')} title="Practice cards to protect streak">
+                <div
+                  className={`home-stat-card cursor-pointer csm-study-streak-card ${currentStudyStreak > 0 ? 'is-active' : studyStreakLost ? 'is-lost' : 'is-new'}`}
+                  onClick={() => setActiveTab('flashcards')}
+                  title={studyStreakLost ? 'Your study streak ended. Study today to start a new one.' : 'Practice cards to protect your streak'}
+                >
                   <span className="home-stat-icon csm-stat-streak" aria-hidden="true">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 21a8 8 0 0 0 5.8-13.7C16.4 6 14.5 4.4 14 2c-3 2-4.2 4.2-3.4 6.3A4.6 4.6 0 0 0 7.5 12c0 1.3.6 2.5 1.5 3.4" />
@@ -4619,14 +5856,18 @@ function App({ isGuest = false, sharedDeck = null }) {
                     </svg>
                   </span>
                   <span className="home-stat-copy">
-                    <span className="home-stat-label">STUDY STREAK</span>
+                    <span className="home-stat-label">{studyStreakLost ? 'STREAK LOST' : 'STUDY STREAK'}</span>
                     <span className="home-stat-value">
-                      {(accountStats.studyDays || 0) === 1 ? '1 day' : `${accountStats.studyDays || 0} days`}
+                      {currentStudyStreak === 1 ? '1 day' : `${currentStudyStreak} days`}
                     </span>
                     <span className="home-stat-description">
-                      <b className="csm-trend up">
-                        {(accountStats.studyBestDays || 0) === 1 ? '1 day' : `${accountStats.studyBestDays || 0} days`}
-                      </b> personal best
+                      {studyStreakLost ? (
+                        <span className="csm-streak-lost-message">You missed a day. Study today to start again.</span>
+                      ) : currentStudyStreak > 0 ? (
+                        <><b className="csm-streak-best">{bestStudyStreak === 1 ? '1 day' : `${bestStudyStreak} days`}</b> personal best</>
+                      ) : (
+                        <span className="csm-streak-lost-message">Study today to start your streak.</span>
+                      )}
                     </span>
                   </span>
                 </div>
@@ -4645,7 +5886,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       {(accountStats.accuracy || 0) > 0 ? (
                         <React.Fragment><b className={`csm-trend ${(accountStats.accuracyTrend || 0) < 0 ? 'down' : 'up'}`}>{formatTrend(accountStats.accuracyTrend)}</b> than last week</React.Fragment>
                       ) : (
-                        <span className="text-orange-600 font-semibold">Test in Arena quiz →</span>
+                        <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">Test in Arena quiz <IconArrowRight /></span>
                       )}
                     </span>
                   </span>
@@ -4712,10 +5953,10 @@ function App({ isGuest = false, sharedDeck = null }) {
                         setSelectedDeckForFolderView(mostRecentDeck);
                         setActiveTab('library');
                       }}
-                      className="px-3 py-2.5 rounded-xl font-medium text-xs text-zinc-300 hover:text-white transition-colors"
+                      className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-3 py-2.5 rounded-xl font-medium text-xs text-zinc-300 hover:text-white transition-colors"
                       title="View in Library"
                     >
-                      View details →
+                      <span>View details</span><IconArrowRight />
                     </button>
                   </div>
                 </section>
@@ -4748,8 +5989,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                     <div className="flex items-start justify-between gap-3 mb-4">
                       <div>
                         <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">DATA & PROGRESS</span>
-                        <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Weekly Study Activity</h2>
-                        <p className="text-xs text-zinc-500 mt-0.5">Your study sessions and practice frequency across the week.</p>
+                        <h2 className="text-lg font-bold text-zinc-900 tracking-tight">Weekly Arena Sessions</h2>
+                        <p className="text-xs text-zinc-500 mt-0.5">Arena matches started each day, compared with last week.</p>
                       </div>
                       <div className="flex items-center gap-3 text-[11px] font-medium text-zinc-500">
                         <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-xs bg-[#182231] inline-block"></i> This week</span>
@@ -4759,7 +6000,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                     {/* Chart Columns */}
                     <div className="csm-modern-chart h-40 flex items-end justify-around gap-2 pt-4 pb-2 border-b border-zinc-100 relative">
-                      {activityChart.map(({ day, current = 0, previous = 0 }) => {
+                      {arenaChart.map(({ day, current = 0, previous = 0 }) => {
                         const isToday = day === todayDayName;
                         const currHeight = Math.max(8, (Number(current) || 0) / activityChartMax * 100);
                         const prevHeight = Math.max(8, (Number(previous) || 0) / activityChartMax * 100);
@@ -4768,20 +6009,20 @@ function App({ isGuest = false, sharedDeck = null }) {
                           <div className={`flex-1 flex flex-col items-center justify-end h-full gap-2 group relative ${isToday ? 'csm-chart-today' : ''}`} key={day}>
                             {/* Hover tooltip */}
                             <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-[10px] font-semibold py-1 px-2 rounded pointer-events-none whitespace-nowrap z-20 shadow-md">
-                              {day}: {current} sessions {previous ? `(vs ${previous})` : ''}
+                              {day}: {current} Arena session{current === 1 ? '' : 's'} {previous ? `(last week: ${previous})` : ''}
                             </div>
                             <div className="w-full flex items-end justify-center gap-1.5 h-full">
                               {previous > 0 && (
                                 <span
                                   className="w-2.5 sm:w-3.5 bg-[#f04824]/60 hover:bg-[#f04824] rounded-t-sm transition-all"
                                   style={{ height: `${prevHeight}%` }}
-                                  title={`Last week: ${previous}`}
+                                    title={`Last week Arena sessions: ${previous}`}
                                 />
                               )}
                               <span
                                 className={`w-2.5 sm:w-3.5 rounded-t-sm transition-all ${isToday ? 'bg-[#f04824] shadow-sm shadow-orange-500/30' : 'bg-[#182231] hover:bg-[#283850]'}`}
                                 style={{ height: `${currHeight}%` }}
-                                title={`This week: ${current}`}
+                                title={`This week Arena sessions: ${current}`}
                               />
                             </div>
                             <span className={`text-[11px] font-semibold ${isToday ? 'text-[#f04824] font-extrabold underline' : 'text-zinc-500'}`}>
@@ -4795,7 +6036,7 @@ function App({ isGuest = false, sharedDeck = null }) {
 
                   <div className="pt-3 text-xs text-zinc-500 flex items-center gap-1.5 border-t border-zinc-100">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
-                    <span><b>{totalWeekActivity}</b> study sessions recorded this week</span>
+                    <span><b>{totalWeekActivity}</b> Arena session{totalWeekActivity === 1 ? '' : 's'} this week</span>
                   </div>
                 </section>
 
@@ -4869,7 +6110,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       onClick={() => setActiveTab('library')}
                       className="text-xs font-bold text-[#f04824] hover:underline flex items-center gap-1"
                     >
-                      View all decks <span>→</span>
+                      View all decks <IconArrowRight />
                     </button>
                   </div>
 
@@ -4911,20 +6152,19 @@ function App({ isGuest = false, sharedDeck = null }) {
                                 setSelectedDeckIds([deck.id]);
                                 setActiveTab('flashcards');
                               }}
-                              className="font-bold text-[#f04824] hover:underline"
+                              className="csm-mastery-study-button"
                             >
-                              Study →
+                              <span>Study</span><IconArrowRight />
                             </button>
-                            <span className="text-zinc-300">·</span>
                             <button
                               type="button"
                               onClick={() => {
                                 setSelectedDeckIds([deck.id]);
                                 handleOpenGameMode();
                               }}
-                              className="font-bold text-zinc-700 hover:text-black"
+                              className="csm-mastery-arena-button"
                             >
-                              Arena
+                              <IconPlay /><span>Arena</span>
                             </button>
                           </div>
                         </div>
@@ -4985,7 +6225,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       onClick={handleOpenGameMode}
                       className="flex-1 py-2.5 px-4 rounded-xl bg-[#f04824] hover:bg-[#d83c1b] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
                     >
-                      <span>Enter Bombstyle Arena →</span>
+                      <span>Enter Bombstyle Arena</span><IconArrowRight />
                     </button>
                     {mostRecentDeck && (
                       <button
@@ -5055,7 +6295,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     <p>Your latest accessed study areas and quiz sessions appear here.</p>
                   </div>
                   <button type="button" className="csm-outline-button" onClick={handleOpenLibrary}>
-                    View library <span>-&gt;</span>
+                    View library <IconArrowRight />
                   </button>
                 </div>
                 <div className="csm-live-activity-list">
@@ -5080,7 +6320,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </span>
                       )}
                       <span className="csm-live-activity-status">{activity.status}</span>
-                      <span className="csm-live-activity-arrow group-hover:translate-x-1 transition-transform">-&gt;</span>
+                      <IconArrowRight className="csm-live-activity-arrow w-4 h-4 shrink-0 group-hover:translate-x-1 transition-transform" />
                     </button>
                   )) : (
                     <div className="csm-live-activity-empty">No activity has been recorded yet. Study a deck to start tracking!</div>
@@ -5113,7 +6353,7 @@ function App({ isGuest = false, sharedDeck = null }) {
             <div className={`csm-account-layout account-section-${accountSection}`}>
               <section className="csm-account-card csm-account-summary">
                 <div className="csm-account-summary-top"><span className="csm-account-avatar-large" style={{ background: currentAvatar.background }}>{currentAvatar.initials}</span><div><span className="csm-kicker">STUDY PROFILE</span><h2>{displayName}</h2><p>@{profile.username || defaultProfile.username}</p></div></div>
-                <div className="csm-account-summary-note"><span>Private study profile</span><p>Your profile, reviewers, and study progress are saved to your account and follow you across devices.</p></div>
+                <div className="csm-account-summary-note"><span>Discoverable profile</span><p>Classmates can find your username and display name. Your reviewer decks are shared only according to your privacy settings.</p></div>
                 <div className="csm-account-summary-stats"><div><strong>{totalReviewers}</strong><span>reviewers</span></div><div><strong>{totalBombCards}</strong><span>Bombcards</span></div><div><strong>{totalDocuments}</strong><span>PDF notes</span></div></div>
               </section>
 
@@ -5144,7 +6384,12 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <div className="csm-policy-item"><strong>Study activity</strong><p>The Home activity list only records the Library materials you open so you can return to your latest study work.</p></div>
                   <div className="csm-policy-item"><strong>Future policy links</strong><p>Privacy policy, terms, account deletion, and data export links will be connected here when the backend is ready.</p></div>
                 </div>
-                <div className="csm-policy-actions"><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Privacy policy is not configured yet.')}>View privacy policy</button><button type="button" className="csm-secondary-button" onClick={async () => { try { CSM.download(await CSM.api('account/export'), 'co-studymaxx-export.json'); } catch (error) { triggerToast(error.message); } }}>Export my data</button></div>
+                <div className="csm-public-deck-setting">
+                  <div><strong>Default deck visibility</strong><p>Your profile remains discoverable by username and display name. This setting controls decks set to “Use profile default”; you can override it for each deck. People search shows Bombcards only. Active share links remain separate and should be disabled from the deck’s Share menu if you want to revoke link access.</p></div>
+                  <label><span className="sr-only">Default deck visibility</span><select value={profile.deckVisibility || 'private'} onChange={handleProfileDeckVisibility}><option value="private">Private decks</option><option value="public">Public decks</option></select></label>
+                  {privacySaveStatus && <small role="status">{privacySaveStatus}</small>}
+                </div>
+        <div className="csm-policy-actions"><button type="button" className="csm-secondary-button" onClick={() => triggerToast('Privacy policy is not configured yet.')}>View privacy policy</button><button type="button" className="csm-secondary-button" onClick={async () => { try { CSM.download(await CSM.api('account/export'), 'co-studymaxx-export.json'); } catch (error) { triggerToast(error.message); } }}><IconDownload />Export my data</button></div>
               </section>
             </div>
           </div>
@@ -5196,11 +6441,12 @@ function App({ isGuest = false, sharedDeck = null }) {
                     </div>
                   </div>
                   <div className="csm-library-detail-actions">
+                    {!isGuest && <label className="csm-deck-visibility-control"><span>Deck visibility</span><select aria-label="Deck visibility" value={currentSelectedDeck.visibility || 'inherit'} disabled={deckVisibilitySaving} onChange={event => handleDeckVisibility(currentSelectedDeck, event.target.value)}><option value="inherit">Use profile default ({profile.deckVisibility || 'private'})</option><option value="public">Public</option><option value="private">Private</option></select></label>}
                     <button type="button" className="csm-share-button" onClick={(e) => handleShareDeck(currentSelectedDeck, e)} title="Share this reviewer via link">
                       <IconShare /> Share
                     </button>
                     {!isGuest && <DeckCardActions deck={currentSelectedDeck} />}
-                    <button type="button" className="csm-secondary-button" onClick={() => handleOpenDeckStudy(currentSelectedDeck)}>Study deck</button>
+                    <button type="button" className="csm-secondary-button" onClick={() => handleOpenDeckStudy(currentSelectedDeck)}><IconNotebook /> Study deck</button>
                     <button
                       type="button"
                       className="csm-primary-button"
@@ -5210,39 +6456,90 @@ function App({ isGuest = false, sharedDeck = null }) {
                       }}
                     >
                       {isGuest && <IconLock className="w-3.5 h-3.5 mr-1.5 text-white/90" />}
-                      Play Bomb Mode <span>→</span>
+                      Play Bomb Mode <IconArrowRight />
                     </button>
                   </div>
                 </div>
 
                 <div className="csm-library-detail-stats">
-                  <div className="csm-library-detail-stat accent"><small>Bombcards</small><strong>{currentSelectedDeck.cards?.length || 0}</strong></div>
+                  <div className="csm-library-detail-stat"><small>Bombcards</small><strong>{currentSelectedDeck.cards?.length || 0}</strong></div>
                   <div className="csm-library-detail-stat"><small>PDF notes</small><strong>{currentSelectedDeck.documents?.length || 0}</strong></div>
-                  <div className="csm-library-detail-stat"><small>Study status</small><strong>{currentSelectedDeck.cards?.length ? 'Ready' : 'Needs cards'}</strong></div>
+                  <div className={`csm-library-detail-stat${currentSelectedDeck.cards?.length ? ' accent' : ''}`}><small>Study status</small><strong>{currentSelectedDeck.cards?.length ? 'Ready' : 'Needs cards'}</strong></div>
                 </div>
 
                 <section className="csm-library-content-section">
                   <div className="csm-library-section-heading">
                     <div className="csm-library-section-heading-left"><span className="csm-kicker">PRACTICE SET</span><span className="csm-library-count-pill">{currentSelectedDeck.cards?.length || 0} cards</span></div>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (isGuest) { setGuestLockedSection('creator'); return; }
-                          setSelectedDeckIds([currentSelectedDeck.id]);
-                          setCreatorTargetDeckId(currentSelectedDeck.id);
-                          setActiveTab('creator');
-                        }}
-                      >
-                        {isGuest ? <><IconLock className="w-3.5 h-3.5 mr-1 text-slate-500" /> Create Bombcards</> : <><IconPlus /> Create Bombcards</>}
-                      </button>
+                    <div className="csm-library-section-actions">
                       {currentSelectedDeck.cards?.length > 3 && (
-                        <button type="button" onClick={() => setShowAllBombcards(prev => !prev)}>
+                        <button
+                          type="button"
+                          className="csm-library-show-all"
+                          aria-expanded={showAllBombcards}
+                          aria-controls="practice-set-cards"
+                          onClick={() => setShowAllBombcards(prev => !prev)}
+                        >
                           {showAllBombcards ? 'Show less' : 'Show all'}
                         </button>
                       )}
+                      {isGuest && <button
+                        type="button"
+                        onClick={() => setGuestLockedSection('creator')}
+                      >
+                        <IconLock className="w-3.5 h-3.5 mr-1 text-slate-500" /> Create Bombcards
+                      </button>}
                     </div>
                   </div>
+                  {!!currentSelectedDeck.cards?.length && !isGuest && (
+                    <div className={`csm-bombcard-bulk-toolbar ${bulkDeleteMode ? 'is-selecting' : ''}`}>
+                      <div className="csm-bombcard-bulk-controls">
+                      {!bulkDeleteMode ? (
+                        <button
+                          type="button"
+                          className="csm-bombcard-bulk-start"
+                          onClick={() => {
+                            setBulkDeleteMode(true);
+                            setSelectedBombcardIds([]);
+                            setShowAllBombcards(true);
+                          }}
+                        >
+                          <IconTrash /> Select Cards
+                        </button>
+                      ) : (
+                        <>
+                          <div className="csm-bombcard-bulk-selection">
+                            <button
+                              type="button"
+                              className="csm-bombcard-bulk-select-all"
+                              onClick={() => {
+                                const allIds = (currentSelectedDeck.cards || []).map(card => card.id).filter(Boolean);
+                                const allSelected = allIds.length > 0 && allIds.every(id => selectedBombcardIds.includes(id));
+                                setSelectedBombcardIds(allSelected ? [] : allIds);
+                              }}
+                            >
+                              {currentSelectedDeck.cards.every(card => card.id && selectedBombcardIds.includes(card.id)) ? 'Deselect all' : `Select all ${currentSelectedDeck.cards.length}`}
+                            </button>
+                            <span aria-live="polite">{selectedBombcardIds.length} selected</span>
+                          </div>
+                          <div className="csm-bombcard-bulk-actions">
+                            <button type="button" className="csm-bombcard-bulk-cancel" onClick={() => { setBulkDeleteMode(false); setSelectedBombcardIds([]); }}>Cancel</button>
+                            <button type="button" className="csm-bombcard-bulk-delete" disabled={!selectedBombcardIds.length} onClick={() => handleBulkRemoveBombcards(currentSelectedDeck)}>
+                              <IconTrash /> Delete selected ({selectedBombcardIds.length})
+                            </button>
+                          </div>
+                        </>
+                      )}
+                      </div>
+                      <button type="button" className="csm-bombcard-create-button" onClick={() => {
+                        setBulkDeleteMode(false);
+                        setSelectedBombcardIds([]);
+                        prepareNewBombcard();
+                        setSelectedDeckIds([currentSelectedDeck.id]);
+                        setCreatorTargetDeckId(currentSelectedDeck.id);
+                        setActiveTab('creator');
+                      }}><IconPlus /> Create Bombcards</button>
+                    </div>
+                  )}
                   {(!currentSelectedDeck.cards || currentSelectedDeck.cards.length === 0) ? (
                     <div className="csm-library-empty">
                       <strong>Your Bombcard set is empty</strong>
@@ -5252,6 +6549,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         className="csm-primary-button"
                         onClick={() => {
                           if (isGuest) { setGuestLockedSection('creator'); return; }
+                          prepareNewBombcard();
                           setSelectedDeckIds([currentSelectedDeck.id]);
                           setCreatorTargetDeckId(currentSelectedDeck.id);
                           setActiveTab('creator');
@@ -5261,16 +6559,28 @@ function App({ isGuest = false, sharedDeck = null }) {
                       </button>
                     </div>
                   ) : (
-                    <div className="csm-library-bombcard-grid">
+                    <div className="csm-library-bombcard-grid" id="practice-set-cards">
                       {visibleCards.map((card, idx) => {
                         const cardId = card.id || `${currentSelectedDeck.id}-card-${idx}`;
                         const isRevealed = revealedLibraryCards.includes(cardId);
                         const materialMenuOpen = openMaterialMenuId === cardId;
+                        const isSelectedForDeletion = selectedBombcardIds.includes(cardId);
                         return (
-                          <article key={cardId} className={`csm-library-bombcard ${isRevealed ? 'revealed' : ''}`}>
+                          <article key={cardId} className={`csm-library-bombcard ${isRevealed ? 'revealed' : ''} ${isSelectedForDeletion ? 'is-selected-for-delete' : ''}`}>
                             <div className="csm-library-bombcard-top">
-                              <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>
-                              {!isGuest && <div className="csm-material-actions">
+                              {bulkDeleteMode ? (
+                                <label className="csm-bombcard-select-control">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelectedForDeletion}
+                                    disabled={!card.id}
+                                    aria-label={`Select Bombcard ${idx + 1} for deletion`}
+                                    onChange={(event) => setSelectedBombcardIds(current => event.target.checked ? [...current, cardId] : current.filter(id => id !== cardId))}
+                                  />
+                                  <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>
+                                </label>
+                              ) : <span>{currentSelectedDeck.code || currentSelectedDeck.title} · M{idx + 1}</span>}
+                              {!isGuest && !bulkDeleteMode && <div className="csm-material-actions">
                                 <button
                                   type="button"
                                   className="csm-material-menu-trigger"
@@ -5293,14 +6603,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => {
-                                        setOpenMaterialMenuId(null);
-                                        setSelectedDeckIds([currentSelectedDeck.id]);
-                                        setCreatorTargetDeckId(currentSelectedDeck.id);
-                                        setActiveTab('creator');
-                                      }}
+                                      onClick={() => startEditingBombcard(currentSelectedDeck, card)}
                                     >
-                                      <IconEdit /> Create cards
+                                      <IconEdit /> Edit Bombcard
                                     </button>
                                     <button
                                       type="button"
@@ -5327,13 +6632,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <div className="csm-library-section-heading">
                     <div className="csm-library-section-heading-left"><span className="csm-kicker">REFERENCE NOTES</span><span className="csm-library-count-pill">{currentSelectedDeck.documents?.length || 0} PDFs</span></div>
                     <button
+                      className="csm-library-add-pdf-button"
                       type="button"
                       onClick={(e) => {
                         if (isGuest) { setGuestLockedSection('creator'); return; }
                         handleOpenAddMaterialPopup(currentSelectedDeck, e);
                       }}
                     >
-                      {isGuest ? <><IconLock className="w-3.5 h-3.5 mr-1" /> Add PDF</> : <><IconPlus /> Add PDF</>}
+                      {isGuest ? <><IconLock className="w-3.5 h-3.5" /> Add PDF</> : <><IconPlus /> Add PDF</>}
                     </button>
                   </div>
                   <div className="csm-library-documents">
@@ -5355,7 +6661,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                               <IconSparkles className="w-3 h-3 text-purple-600" />
                               <span>AI Cards</span>
                             </button>}
-                            <button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}>•••</button>
+                            <button type="button" className="csm-material-menu-trigger" aria-label={`Document options for ${doc.title}`} aria-expanded={documentMenuOpen} onClick={() => setOpenMaterialMenuId(documentMenuOpen ? null : docMenuId)}><svg className="csm-admin-user-more-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg></button>
                             {documentMenuOpen && (
                               <div className="csm-material-menu">
                                 <button type="button" onClick={() => { setOpenMaterialMenuId(null); handleOpenDocument(currentSelectedDeck, doc); }}>Open PDF tools</button>
@@ -5423,14 +6729,38 @@ function App({ isGuest = false, sharedDeck = null }) {
               <div>
                 <span className="csm-kicker">ACTIVE REVIEW</span>
                 <h1>Study Bombcards</h1>
-                <p>Recall first, reveal the answer when you’re ready. Focus on understanding before moving forward.</p>
+                <p>Recall first, reveal the answer when you&apos;re ready. Focus on understanding before moving forward.</p>
               </div>
-              <div className="csm-page-actions">
+            </div>
+            <div className="csm-viewer-toolbar">
+              <label>
+                Reviewing deck
+                <select
+                  value={activeFlashcardDeck?.id || ''}
+                  onChange={(e) => {
+                    setSelectedDeckIds([e.target.value]);
+                    setFlashcardIndex(0);
+                    setFlashcardFlipped(false);
+                    setFlashcardDragX(0);
+                    setFlashcardSwipePhase('');
+                    window.clearTimeout(flashcardMotionTimerRef.current);
+                    flashcardMotionLockRef.current = false;
+                  }}
+                >
+                  {decks.map(deck => (
+                    <option key={deck.id} value={deck.id}>
+                      {deck.title || deck.subject || deck.code} ({deck.cards?.length || 0} cards)
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="csm-viewer-toolbar-actions">
                 <button
                   type="button"
                   className="csm-secondary-button"
                   onClick={() => {
                     if (isGuest) { setGuestLockedSection('creator'); return; }
+                    prepareNewBombcard();
                     setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
                     setActiveTab('creator');
                   }}
@@ -5446,28 +6776,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                   }}
                 >
                   {isGuest && <IconLock className="w-3.5 h-3.5 mr-1.5 text-white/90" />}
-                  Play Bombstyle <span>→</span>
+                  Play Bombstyle <IconArrowRight />
                 </button>
               </div>
-            </div>
-            <div className="csm-viewer-toolbar">
-              <label>
-                Reviewing deck
-                <select
-                  value={activeFlashcardDeck?.id || ''}
-                  onChange={(e) => {
-                    setSelectedDeckIds([e.target.value]);
-                    setFlashcardIndex(0);
-                    setFlashcardFlipped(false);
-                  }}
-                >
-                  {decks.map(deck => (
-                    <option key={deck.id} value={deck.id}>
-                      {deck.code} — {deck.title || deck.subject} ({deck.cards?.length || 0} cards)
-                    </option>
-                  ))}
-                </select>
-              </label>
               <span className="csm-viewer-progress">
                 Card {flashcards.length ? Math.min(flashcardIndex + 1, flashcards.length) : 0} of {flashcards.length}
               </span>
@@ -5478,17 +6789,39 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <span style={{ width: `${flashcards.length ? ((flashcardIndex + 1) / flashcards.length) * 100 : 0}%` }} />
                 </div>
                 {flashcards.length > 0 ? (
+                  <div className="csm-flashcard-stage">
                   <button
                     type="button"
-                    className={`csm-flashcard ${flashcardFlipped ? 'is-flipped' : ''}`}
-                    onClick={flipFlashcard}
-                    aria-label="Flip flashcard"
+                    className={`csm-flashcard csm-study-flip-card ${flashcardFlipped ? 'is-flipped' : ''} ${flashcardIsDragging ? 'is-dragging' : ''} ${flashcardSwipePhase ? `is-swipe-${flashcardSwipePhase}` : ''}`}
+                    style={flashcardIsDragging ? { '--flashcard-drag-x': `${flashcardDragX}px`, '--flashcard-drag-rotation': `${flashcardDragX * 0.025}deg` } : undefined}
+                    onPointerDown={handleFlashcardPointerDown}
+                    onPointerMove={handleFlashcardPointerMove}
+                    onPointerUp={handleFlashcardPointerUp}
+                    onPointerCancel={handleFlashcardPointerCancel}
+                    onClick={() => {
+                      if (ignoreFlashcardClickRef.current) {
+                        ignoreFlashcardClickRef.current = false;
+                        return;
+                      }
+                      flipFlashcard();
+                    }}
+                    aria-label={flashcardFlipped ? 'Show question' : 'Reveal answer'}
                   >
-                    <span className="csm-flashcard-side-label">{flashcardFlipped ? 'ANSWER' : 'PROMPT'}</span>
-                    <strong>{flashcardFlipped ? (activeFlashcard?.correctAnswer || 'No answer saved yet') : (activeFlashcard?.prompt || 'No cards in this deck yet.')}</strong>
-                    {flashcardFlipped && activeFlashcard?.explanation && <p>{activeFlashcard.explanation}</p>}
-                    <small>{flashcardFlipped ? 'Click or press Space to see prompt' : 'Click or press Space to reveal answer'} &bull; &larr; &rarr; to navigate</small>
+                    <span className="csm-study-flip-inner">
+                      <span className="csm-study-flip-face csm-study-flip-front" aria-hidden={flashcardFlipped}>
+                        <span className="csm-flashcard-side-label">QUESTION</span>
+                        <strong>{activeFlashcard?.prompt || 'No cards in this deck yet.'}</strong>
+                        <small>Click or press Space to reveal answer &bull; Swipe or use &larr; &rarr; to navigate</small>
+                      </span>
+                      <span className="csm-study-flip-face csm-study-flip-back" aria-hidden={!flashcardFlipped}>
+                        <span className="csm-flashcard-side-label">ANSWER</span>
+                        <strong>{activeFlashcard?.correctAnswer || 'No answer saved yet'}</strong>
+                        {activeFlashcard?.explanation && <p>{activeFlashcard.explanation}</p>}
+                        <small>Click or press Space to see question &bull; Swipe or use &larr; &rarr; to navigate</small>
+                      </span>
+                    </span>
                   </button>
+                  </div>
                 ) : (
                   <div className="csm-flashcard flex flex-col items-center justify-center p-8 text-center">
                     <div className="w-12 h-12 rounded-2xl bg-orange-50 text-[#f04824] flex items-center justify-center mb-3">
@@ -5500,6 +6833,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       type="button"
                       className="csm-primary-button"
                       onClick={() => {
+                        prepareNewBombcard();
                         setCreatorTargetDeckId(activeFlashcardDeck?.id || decks[0]?.id);
                         setActiveTab('creator');
                       }}
@@ -5512,18 +6846,18 @@ function App({ isGuest = false, sharedDeck = null }) {
                   <button
                     type="button"
                     className="csm-secondary-button"
-                    onClick={() => { setFlashcardIndex(index => Math.max(0, index - 1)); setFlashcardFlipped(false); }}
-                    disabled={flashcardIndex === 0}
+                    onClick={() => navigateFlashcard(-1)}
+                    disabled={flashcardIndex === 0 || !!flashcardSwipePhase}
                   >
-                    ← Previous
+                    &larr; Previous
                   </button>
                   <button
                     type="button"
                     className="csm-primary-button"
-                    onClick={() => { setFlashcardIndex(index => Math.min(Math.max(flashcards.length - 1, 0), index + 1)); setFlashcardFlipped(false); }}
-                    disabled={!flashcards.length || flashcardIndex >= flashcards.length - 1}
+                    onClick={() => navigateFlashcard(1)}
+                    disabled={!flashcards.length || flashcardIndex >= flashcards.length - 1 || !!flashcardSwipePhase}
                   >
-                    Next card →
+                    Next card <IconArrowRight />
                   </button>
                 </div>
               </section>
@@ -5535,14 +6869,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                 <div className="csm-summary-stat"><strong>{activeDeckMissedCount}</strong><span>missed to revisit</span></div>
                 <button
                   type="button"
-                  className="csm-text-button"
+                  className="csm-secondary-button csm-missed-practice-button"
                   onClick={() => {
                     if (isGuest) { setGuestLockedSection('arena'); return; }
                     setActiveTab('game');
                   }}
                 >
                   {isGuest && <IconLock className="w-3 h-3 mr-1 inline-block text-slate-400" />}
-                  Practice missed cards <span>→</span>
+                  <span>Practice missed cards</span><IconArrowRight />
                 </button>
               </aside>
             </div>
@@ -5568,18 +6902,22 @@ function App({ isGuest = false, sharedDeck = null }) {
                       <span className="w-2 h-2 rounded-full bg-[#f04824] animate-pulse"></span>
                       BOMBCARD STUDIO
                     </span>
-                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">Create Bombcards</h1>
+                    <h1 className="text-2xl font-black text-slate-900 tracking-tight">{creatorEditingCardId ? 'Edit Bombcard' : 'Create Bombcards'}</h1>
                     <p className="text-xs text-slate-500 mt-1">
-                      Craft high-retention questions step-by-step for your reviewer deck.
+                      {creatorEditingCardId ? 'Update the question, answer, or study details for this Bombcard.' : 'Craft high-retention questions step-by-step for your reviewer deck.'}
                     </p>
                   </div>
                   <div className="csm-page-actions flex items-center gap-2.5">
                     <button
                       type="button"
                       className="csm-secondary-button"
-                      onClick={() => { setSelectedDeckForFolderView(null); setActiveTab('library'); }}
+                      onClick={() => {
+                        if (!creatorEditingCardId) setSelectedDeckForFolderView(null);
+                        setCreatorEditingCardId(null);
+                        setActiveTab('library');
+                      }}
                     >
-                      Back to Library
+                      {creatorEditingCardId ? 'Back to Deck' : 'Back to Library'}
                     </button>
                     <button
                       type="button"
@@ -5589,7 +6927,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         setActiveTab('flashcards');
                       }}
                     >
-                      Go to Study <span>→</span>
+                      Go to Study <IconArrowRight />
                     </button>
                   </div>
                 </div>
@@ -5599,10 +6937,12 @@ function App({ isGuest = false, sharedDeck = null }) {
                   {/* Left: Deck Context Selector */}
                   <div className="flex items-center gap-2">
                     <label className="csm-studio-deck-pill">
-                      <span className="text-[11px] font-bold text-slate-400">Creating in:</span>
+                      <span className="text-[11px] font-bold text-slate-400">{creatorEditingCardId ? 'Editing in:' : 'Creating in:'}</span>
                       <select
                         value={creatorTargetDeckId}
                         onChange={(e) => setCreatorTargetDeckId(e.target.value)}
+                        disabled={Boolean(creatorEditingCardId)}
+                        aria-label={creatorEditingCardId ? 'Deck containing the Bombcard being edited' : 'Deck for new Bombcards'}
                         className="csm-studio-deck-select"
                       >
                         {decks.map(d => (
@@ -5767,7 +7107,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                                   }`}
                               >
                                 Next: Set Answers
-                                <span>→</span>
+                                <IconArrowRight />
                               </button>
                             </div>
                           </div>
@@ -5982,8 +7322,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                                   onClick={handleSaveBombcard}
                                   className="h-11 px-6 rounded-xl bg-[#f04824] hover:bg-[#e03e1b] text-white font-extrabold text-xs shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                                 >
-                                  <IconPlus className="w-4 h-4" />
-                                  Add Bombcard
+                                  {creatorEditingCardId ? <IconEdit className="w-4 h-4" /> : <IconPlus className="w-4 h-4" />}
+                                  {creatorEditingCardId ? 'Save Changes' : 'Add Bombcard'}
                                 </button>
                               </div>
                             </div>
@@ -6037,7 +7377,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm px-3"
                       >
                         <span className="truncate">Study {currentTargetDeck?.code || 'Deck'} Now</span>
-                        <span className="flex-shrink-0">→</span>
+                        <IconArrowRight className="w-4 h-4 flex-shrink-0" />
                       </button>
                     </div>
 
@@ -6313,7 +7653,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                     onClick={() => setPdfPage(page => Math.min(pdfPageCount, page + 1))}
                     disabled={!activeDocument || !pdfPageCount || pdfPage >= pdfPageCount}
                   >
-                    Next →
+                    Next <IconArrowRight />
                   </button>
                 </div>
               </section>
@@ -6488,15 +7828,16 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </div>
 
                 <div className="csm-arena-deck-grid">
-                  {decks.map(deck => {
+                  {arenaDeckChoices.map(deck => {
                     const cardCount = deck.cards ? deck.cards.length : 0;
                     const hasCards = cardCount > 0;
                     const isSelected = bombstyleDeckId === deck.id;
+                    const isTemporary = publicArenaDeck?.id === deck.id && !decks.some(ownedDeck => ownedDeck.id === deck.id);
 
                     return (
                       <div
                         key={deck.id}
-                        className={`csm-arena-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''}`}
+                        className={`csm-arena-deck-card ${isSelected ? 'is-selected' : ''} ${!hasCards ? 'is-disabled' : ''} ${isTemporary ? 'is-temporary' : ''}`}
                         onClick={() => {
                           if (!hasCards) {
                             triggerToast('This deck has no Bombcards. Create cards in Library first!');
@@ -6513,6 +7854,19 @@ function App({ isGuest = false, sharedDeck = null }) {
                             </span>
                           </div>
                           <p className="csm-arena-deck-subject">{deck.subject || 'General Studies'}</p>
+                          {isTemporary && (
+                            <span
+                              className="csm-arena-temporary-badge"
+                              title="This shared deck is available in Arena only and is not saved to your library."
+                            >
+                              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="10" cy="10" r="7.2" />
+                                <path d="M10 5.8v4.6l3 1.8" />
+                              </svg>
+                              <span>Temporary deck</span>
+                              <span className="csm-arena-temporary-note">Arena only · not saved</span>
+                            </span>
+                          )}
                         </div>
 
                         <div className="csm-arena-deck-bottom">
@@ -6520,7 +7874,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                             {deck.category || 'Deck'} &bull; {deck.cards?.length || 0} items
                           </span>
                           <span className="csm-arena-deck-action">
-                            {hasCards ? 'Select Deck →' : 'No cards yet'}
+                            {hasCards ? <><span>Select Deck</span><IconArrowRight /></> : 'No cards yet'}
                           </span>
                         </div>
                       </div>
@@ -6633,6 +7987,47 @@ function App({ isGuest = false, sharedDeck = null }) {
               </div>
             )}
 
+            {bombstylePhase === 'countdown' && (
+              <section className="csm-bombstyle-countdown" role="status" aria-live="assertive" aria-label={`Game starts in ${bombstyleCountdown} ${bombstyleCountdown === 1 ? 'second' : 'seconds'}`}>
+                <span className="csm-kicker">ARENA STARTING</span>
+                <svg className="csm-bombstyle-stopwatch" viewBox="0 0 300 320" aria-hidden="true">
+                  <rect x="127" y="31" width="46" height="51" rx="5" fill="#ed3e18" />
+                  <rect x="96" y="5" width="108" height="34" rx="7" fill="#17172f" />
+                  <rect x="103" y="12" width="94" height="19" rx="2" fill="#f04419" />
+                  <g transform="rotate(45 270 79)">
+                    <rect x="255" y="68" width="30" height="21" rx="4" fill="#17172f" />
+                    <rect x="261" y="72" width="18" height="12" rx="2" fill="#f04419" />
+                  </g>
+                  <circle cx="150" cy="190" r="123" fill="#27263d" stroke="#17172f" strokeWidth="8" />
+                  <circle cx="150" cy="190" r="111" fill="#4a495f" />
+                  <circle cx="150" cy="190" r="101" fill="#eeeaf3" stroke="#d7d3df" strokeWidth="4" />
+                  <g className="csm-bombstyle-stopwatch-ticks" fill="none" stroke="#17172f" strokeLinecap="round" strokeWidth="7">
+                    <path d="M150 91v16" />
+                    <path d="m225 115-12 12" />
+                    <path d="M249 190h-16" />
+                    <path d="m225 265-12-12" />
+                    <path d="M150 289v-16" />
+                    <path d="m75 265 12-12" />
+                    <path d="M51 190h16" />
+                    <path d="m75 115 12 12" />
+                  </g>
+                  <g
+                    className="csm-bombstyle-stopwatch-hand"
+                    style={{ transform: `rotate(${(3 - bombstyleCountdown) * 120}deg)` }}
+                  >
+                    <path d="M150 126 160 181a10 10 0 0 1-20 0Z" fill="#f04419" stroke="#17172f" strokeWidth="6" strokeLinejoin="round" />
+                  </g>
+                  <text className="csm-bombstyle-countdown-number" x="150" y="221" key={bombstyleCountdown}>{bombstyleCountdown}</text>
+                  <text className="csm-bombstyle-stopwatch-unit" x="150" y="244">SEC</text>
+                  <circle cx="150" cy="190" r="9" fill="#17172f" />
+                  <circle cx="150" cy="190" r="4" fill="#f04419" />
+                </svg>
+                <h1>Get ready</h1>
+                <p>{bombstyleActiveDeck?.code || bombstyleActiveDeck?.title || 'Your deck'} is about to begin.</p>
+                <button type="button" className="csm-bombstyle-cancel-button csm-bombstyle-countdown-cancel" onClick={cancelBombstyleCountdown}>Cancel countdown</button>
+              </section>
+            )}
+
             {/* PHASE 3: GAMEPLAY SCREEN */}
             {bombstylePhase === 'gameplay' && (
               <div className="csm-arena-gameplay-wrap">
@@ -6645,7 +8040,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                       className="csm-secondary-button"
                       style={{ height: '34px', width: '34px', padding: 0 }}
                       title="Exit Run to Arena Hub"
-                      onClick={pauseBombstyleSession}
+                      onClick={() => requestBombstyleExit(() => setBombstylePhase('select_deck'))}
                     >
                       <IconArrowLeft />
                     </button>
@@ -6992,12 +8387,6 @@ function App({ isGuest = false, sharedDeck = null }) {
                       </span>
                     </div>
                     <div className="csm-arena-stat-cell">
-                      <span className="csm-arena-stat-label">EXPLOSIONS</span>
-                      <span className="csm-arena-stat-val" style={{ color: '#ef4444' }}>
-                        {bombstyleQueue.length - bombstyleCorrectCount}
-                      </span>
-                    </div>
-                    <div className="csm-arena-stat-cell">
                       <span className="csm-arena-stat-label">TIME SPENT</span>
                       <span className="csm-arena-stat-val" style={{ color: '#334155' }}>
                         {Math.floor(bombstyleDurationSeconds / 60)}m {bombstyleDurationSeconds % 60}s
@@ -7057,27 +8446,28 @@ function App({ isGuest = false, sharedDeck = null }) {
                       These are the cards you missed during the pressure run for {bombstyleActiveDeck?.code || 'this deck'}. Review them below, then jump to Study to commit them to memory.
                     </p>
                   </div>
-                  <div className="csm-page-actions">
+                  <div className="csm-page-actions csm-bombstyle-missed-actions">
                     <button
                       type="button"
                       className="csm-primary-button"
                       onClick={handleStudyMissedDeck}
                     >
-                      <IconCards /> STUDY THIS DECK IN LIBRARY
+                      <IconCards /> <span>Library</span>
                     </button>
                     <button
                       type="button"
                       className="csm-secondary-button"
                       onClick={() => handleStartBombstyle(bombstyleMissedCards)}
                     >
-                      RETRY MISSED IN BOMBSTYLE
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 7v5h-5"/><path d="M4 17v-5h5"/><path d="M5.6 9A7 7 0 0 1 17.2 6L20 12M4 12l2.8 6A7 7 0 0 0 18.4 15"/></svg>
+                      <span>Retry</span>
                     </button>
                     <button
                       type="button"
                       className="csm-secondary-button"
                       onClick={() => setBombstylePhase('results')}
                     >
-                      Back to Results
+                      <IconArrowLeft /> <span>Back to Results</span>
                     </button>
                   </div>
                 </div>
@@ -7099,7 +8489,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                           ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                               <svg style={{ width: '12px', height: '12px', color: '#ef4444' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                              Failed Recall
+                              Missed
                             </span>
                           )}
                         </span>
@@ -7131,10 +8521,20 @@ function App({ isGuest = false, sharedDeck = null }) {
       {bombstyleExitModalOpen && (
         <div className="csm-modal-backdrop csm-bombstyle-exit-backdrop" role="presentation" onClick={resumeBombstyleSession}>
           <div className="csm-bombstyle-exit-modal" role="dialog" aria-modal="true" aria-labelledby="bombstyle-exit-title" aria-describedby="bombstyle-exit-description" onClick={(event) => event.stopPropagation()}>
-            <div className="csm-bombstyle-exit-icon" aria-hidden="true"><IconArrowLeft /></div>
-            <span className="csm-kicker">LEAVE SESSION?</span>
-            <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
-            <p id="bombstyle-exit-description">Your answers are saved. Exit this session and return to the Arena?</p>
+            <div className="csm-bombstyle-exit-heading">
+              <div className="csm-bombstyle-exit-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10.3 3.9 2.1 18a2 2 0 0 0 1.7 3h16.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+                  <path d="M12 9v4" />
+                  <path d="M12 17h.01" />
+                </svg>
+              </div>
+              <div>
+                <span className="csm-kicker">LEAVE SESSION?</span>
+                <h2 id="bombstyle-exit-title">Exit Bombstyle?</h2>
+              </div>
+            </div>
+            <p id="bombstyle-exit-description">Your answers are saved. Leaving now will end this round and return you to the Arena.</p>
             <div className="csm-bombstyle-exit-actions">
               <button type="button" className="csm-secondary-button" autoFocus onClick={resumeBombstyleSession}>Cancel</button>
               <button
@@ -7142,11 +8542,14 @@ function App({ isGuest = false, sharedDeck = null }) {
                 className="csm-danger-button"
                 onClick={async () => {
                   try { if (!isGuest) { await CSM.api('arena/abandon', 'POST', { id: bombstyleSessionId }); await refreshWorkspace(); } } catch (error) { triggerToast(error.message); }
+                  const afterExit = pendingBombstyleExitActionRef.current;
+                  pendingBombstyleExitActionRef.current = null;
                   setBombstyleExitModalOpen(false);
                   setBombstyleFeedback(null);
                   setBombstyleRevealed(false);
                   bombstyleAnswerSubmittedRef.current = false;
                   setBombstylePhase('select_deck');
+                  afterExit?.();
                 }}
               >
                 Exit session
@@ -7175,12 +8578,12 @@ function App({ isGuest = false, sharedDeck = null }) {
         <div className="csm-modal-backdrop" role="presentation" onClick={() => setDeleteDeckTarget(null)}>
           <div className="csm-delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-deck-title" onClick={(e) => e.stopPropagation()}>
             <div className="csm-delete-icon"><IconTrash /></div>
-            <span className="csm-kicker">DELETE DECK</span>
-            <h2 id="delete-deck-title">Delete “{deleteDeckTarget.code || deleteDeckTarget.title}”?</h2>
-            <p>This will permanently remove the deck and its cards. This action cannot be undone.</p>
+            <span className="csm-kicker">DECK ARCHIVE</span>
+            <h2 id="delete-deck-title">Move “{deleteDeckTarget.code || deleteDeckTarget.title}” to Archive?</h2>
+            <p>The deck, Bombcards, and PDFs will be kept safely in your archive. You can restore the deck later.</p>
             <div className="csm-delete-actions">
               <button type="button" className="csm-secondary-button" onClick={() => setDeleteDeckTarget(null)}>Cancel</button>
-              <button type="button" className="csm-danger-button" onClick={confirmDeleteFolder}>Delete deck</button>
+              <button type="button" className="csm-primary-button" onClick={confirmDeleteFolder}>Move to archive</button>
             </div>
           </div>
         </div>
@@ -7215,6 +8618,11 @@ function App({ isGuest = false, sharedDeck = null }) {
           </div>
         </div>
       )}
+
+      {deckVisibilityNotice && <div className={`csm-deck-visibility-toast ${deckVisibilityNotice.isError ? 'is-error' : ''}`} role={deckVisibilityNotice.isError ? 'alert' : 'status'} aria-live="polite">
+        {!deckVisibilityNotice.isError && <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>}
+        <span>{deckVisibilityNotice.message}</span>
+      </div>}
 
       {deleteConfirmation && (
         <div className="csm-modal-backdrop" role="presentation" onClick={() => setDeleteConfirmation(null)}>
@@ -7972,8 +9380,8 @@ function App({ isGuest = false, sharedDeck = null }) {
                     </div>
                   )}
 
-                  {/* Generation Controls: Format & Quantity */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Generation Controls */}
+                  <div className="pt-1">
                     <div>
                       <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
                         Question Format
@@ -8009,24 +9417,9 @@ function App({ isGuest = false, sharedDeck = null }) {
                         </button>
                       </div>
                     </div>
-
-                    <div>
-                      <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
-                        Card Quantity
-                      </label>
-                      <div className="flex items-center p-1 bg-[#f1f5f9] border border-slate-200 rounded-xl gap-1">
-                        {[3, 5, 8, 12, 15].map(num => (
-                          <button
-                            key={num}
-                            type="button"
-                            onClick={() => setAiCount(num)}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${aiCount === num ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
-                          >
-                            {num}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                      Card count adapts to the selected study material. You’ll choose which Bombcards to add after generation.
+                    </p>
                   </div>
 
                   {/* Study Focus */}
@@ -8072,7 +9465,7 @@ function App({ isGuest = false, sharedDeck = null }) {
                         {aiGeneratedCards.filter(c => c.selected).length} of {aiGeneratedCards.length} cards selected
                       </span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setAiGeneratedCards(cards => cards.map(c => ({ ...c, selected: true })))}
@@ -8087,6 +9480,17 @@ function App({ isGuest = false, sharedDeck = null }) {
                         className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
                       >
                         Deselect All
+                      </button>
+                      <span className="text-purple-300">·</span>
+                      <button
+                        type="button"
+                        onClick={handleGenerateAiReviewer}
+                        disabled={aiReviewerDownloading}
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 hover:underline cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                        aria-label="Generate an AI study reviewer"
+                        title="Generate an AI study reviewer"
+                      >
+                        <IconSparkles className="w-3.5 h-3.5" /> {aiReviewerDownloading ? 'Creating reviewer…' : 'Generate study reviewer'}
                       </button>
                     </div>
                   </div>
@@ -8240,6 +9644,60 @@ function App({ isGuest = false, sharedDeck = null }) {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {aiReviewerReady && (
+        <div
+          className="fixed inset-0 z-[70] bg-slate-950/55 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          role="presentation"
+          onClick={() => { if (!aiReviewerImporting) setAiReviewerReady(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ai-reviewer-ready-title"
+            aria-describedby="ai-reviewer-ready-description"
+            onClick={event => event.stopPropagation()}
+            className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl"
+          >
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-purple-700">
+              <IconSparkles className="h-7 w-7" />
+            </div>
+            <div className="mb-2 flex justify-center">
+              <span className="rounded-full border border-purple-200 bg-purple-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-purple-700">AI-generated</span>
+            </div>
+            <h2 id="ai-reviewer-ready-title" className="text-center text-xl font-black tracking-tight text-slate-900">Your study reviewer is ready</h2>
+            <p id="ai-reviewer-ready-description" className="mt-2 text-center text-sm leading-relaxed text-slate-500">
+              Save the AI-generated reviewer PDF to <strong className="text-slate-700">{aiReviewerReady.deckTitle}</strong> Reference Notes, or download it for offline study.
+            </p>
+            <div className="mt-6 grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleImportAiReviewer}
+                disabled={!aiReviewerReady.deckId || aiReviewerImporting}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f04824] px-4 text-xs font-extrabold text-white shadow-lg shadow-orange-500/20 transition hover:bg-[#e03e1b] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {aiReviewerImporting ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <IconPlus className="h-4 w-4" />}
+                {aiReviewerImporting ? 'Adding to notes…' : 'Add to Reference Notes'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { downloadAiReviewerPdf(aiReviewerReady); setAiReviewerReady(null); }}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-extrabold text-slate-700 transition hover:bg-slate-50"
+              >
+                <IconDownload className="h-4 w-4" /> Download PDF
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiReviewerReady(null)}
+              disabled={aiReviewerImporting}
+              className="mx-auto mt-4 block px-4 py-2 text-xs font-bold text-slate-500 transition hover:text-slate-800 disabled:opacity-50"
+            >
+              Skip
+            </button>
           </div>
         </div>
       )}
@@ -8635,11 +10093,15 @@ function renderAdminAccessDenied() {
         }
       };
 
+      root.classList.remove('csm-startup-root');
+      root.removeAttribute('aria-busy');
       ReactDOM.render(
-        <App isGuest={isGuest} sharedDeck={sharedDeck} />,
+        <WorkspaceErrorBoundary><App isGuest={isGuest} sharedDeck={sharedDeck} /></WorkspaceErrorBoundary>,
         root
       );
+      window.__CSM_APP_READY__ = true;
     } catch (error) {
+      window.__CSM_APP_READY__ = true;
       renderSharedDeckUnavailable(error.message);
     }
     return;
@@ -8647,13 +10109,17 @@ function renderAdminAccessDenied() {
 
   CSM.api('auth/session').then(async session => {
     const adminPath = /\/admin\/?$/i.test(window.location.pathname);
-    if (!session.authenticated) { window.location.replace(`login.html?mode=signin${adminPath ? '&next=admin' : ''}${session.timedOut ? '&reason=idle_timeout' : ''}`); return; }
+    if (!session.authenticated) { const reason = session.reason || (session.timedOut ? 'idle_timeout' : ''); window.location.replace(`login.html?mode=signin${adminPath ? '&next=admin' : ''}${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`); return; }
     if (adminPath && !['admin', 'superadmin'].includes(session.profile?.role)) { renderAdminAccessDenied(); return; }
     window.CSM.adminUrl = session.adminUrl || 'admin';
     CSM.initial = await CSM.api('workspace');
     CSM.startIdleMonitor();
-    ReactDOM.render(<App isGuest={false} sharedDeck={null} />, root);
+    root.classList.remove('csm-startup-root');
+    root.removeAttribute('aria-busy');
+    ReactDOM.render(<WorkspaceErrorBoundary><App isGuest={false} sharedDeck={null} /></WorkspaceErrorBoundary>, root);
+    window.__CSM_APP_READY__ = true;
   }).catch(error => {
+    window.__CSM_APP_READY__ = true;
     root.innerHTML = `<div style="margin:auto;padding:24px;max-width:560px;background:white;border:1px solid #dbe3ee;border-radius:16px;color:#18233a;font:16px system-ui"><h2>Workspace unavailable</h2><p>${String(error.message || 'Could not load your account data.').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))}</p><button onclick="location.href='login.html'">Back to sign in</button></div>`;
   });
 })();

@@ -26,5 +26,5 @@ if (preg_match('~/admin/$~i', $path)) {
     exit;
 }
 if (preg_match('~/admin$~i', $path)) { readfile(__DIR__.'/index.html'); return true; }
-if ($path==='/') { readfile(__DIR__.'/index.html'); return true; }
+if ($path==='/') { readfile(__DIR__.'/landing.html'); return true; }
 return false;

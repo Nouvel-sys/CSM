@@ -4,10 +4,11 @@ CREATE TABLE users (
  id CHAR(32) PRIMARY KEY, username VARCHAR(24) NOT NULL UNIQUE,
  email VARCHAR(254) NULL UNIQUE, password_hash VARCHAR(255) NOT NULL, auth_version INT NOT NULL DEFAULT 1,
  role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user', locked_until DATETIME(3) NULL,
+ banned_at DATETIME(3) NULL, banned_by_user_id CHAR(32) NULL, ban_reason VARCHAR(500) NULL,
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE profiles (
- user_id CHAR(32) PRIMARY KEY, display_name VARCHAR(40) NOT NULL, first_name VARCHAR(80) NOT NULL DEFAULT '', middle_name VARCHAR(80) NULL, last_name VARCHAR(80) NOT NULL DEFAULT '', avatar VARCHAR(16) NOT NULL DEFAULT 'ember', name_changed_at DATETIME(3) NULL,
+ user_id CHAR(32) PRIMARY KEY, display_name VARCHAR(40) NOT NULL, first_name VARCHAR(80) NOT NULL DEFAULT '', middle_name VARCHAR(80) NULL, last_name VARCHAR(80) NOT NULL DEFAULT '', avatar VARCHAR(16) NOT NULL DEFAULT 'ember', deck_visibility ENUM('private','public') NOT NULL DEFAULT 'private', name_changed_at DATETIME(3) NULL,
  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -25,9 +26,9 @@ CREATE TABLE password_reset_tokens (
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE decks (
- id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,title VARCHAR(160) NOT NULL,subject VARCHAR(160) NOT NULL DEFAULT '',category VARCHAR(80) NOT NULL DEFAULT 'Recent',moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible',
+ id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,title VARCHAR(160) NOT NULL,subject VARCHAR(160) NOT NULL DEFAULT '',category VARCHAR(80) NOT NULL DEFAULT 'Recent',moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible',visibility ENUM('inherit','private','public') NOT NULL DEFAULT 'inherit',deleted_at DATETIME(3) NULL,
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
- INDEX(user_id,updated_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+ INDEX(user_id,updated_at),INDEX(user_id,deleted_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 -- One source of truth for hand-authored and future approved generated Bombcards.
 CREATE TABLE cards (

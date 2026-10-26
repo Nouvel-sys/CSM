@@ -447,7 +447,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=1.31"></script>
+  <script src="api.js?v=1.32"></script>
   <script>
     // Retained only as migration history; the following browser-only demo auth is intentionally disabled.
     if (false) {
@@ -777,6 +777,7 @@
       const signoutNotices = {
         idle_timeout: ['Session timed out', 'You were signed out after 20 minutes of inactivity. Please sign in again to continue.'],
         'another-tab': ['Signed out of this tab', 'Your account was signed in from another tab, so this tab was signed out.'],
+        session_replaced: ['Signed out on this device', 'Your account was signed in on a different device or browser tab, so this session was signed out. If this was not you, change your password.'],
         signed_out: ['You’ve been signed out', 'Your session ended securely. Sign in again whenever you’re ready.'],
         session_ended: ['Session ended', 'Your session is no longer active. Please sign in again to continue.']
       };

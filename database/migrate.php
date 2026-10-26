@@ -11,6 +11,7 @@ $tables=$db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
 foreach(['users','decks','cards','documents'] as $required) if(!in_array($required,$tables,true)){fwrite(STDERR,"Expected existing table '$required'; use schema.sql only for a new empty database.\n");exit(1);}
 if(!in_array('profiles',$tables,true)){fwrite(STDERR,"Expected existing table 'profiles'; use schema.sql only for a new empty database.\n");exit(1);}
 $profileColumns=array_column($db->query('SHOW COLUMNS FROM profiles')->fetchAll(),'Field');
+if(!in_array('deck_visibility',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN deck_visibility ENUM('private','public') NOT NULL DEFAULT 'private' AFTER avatar");echo "Added private-by-default deck discovery settings.\n";}
 if(!in_array('first_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN first_name VARCHAR(80) NOT NULL DEFAULT '' AFTER display_name");echo "Added first names to profiles; existing accounts were preserved.\n";}
 if(!in_array('middle_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN middle_name VARCHAR(80) NULL AFTER first_name");echo "Added optional middle names to profiles.\n";}
 if(!in_array('last_name',$profileColumns,true)){$db->exec("ALTER TABLE profiles ADD COLUMN last_name VARCHAR(80) NOT NULL DEFAULT '' AFTER middle_name");echo "Added last names to profiles; existing accounts were preserved.\n";}
@@ -45,8 +46,13 @@ if(in_array('highlights',$highlightTables,true)){
 $userColumns=array_column($db->query('SHOW COLUMNS FROM users')->fetchAll(),'Field');
 if(!in_array('role',$userColumns,true)){$db->exec("ALTER TABLE users ADD COLUMN role ENUM('user','admin','superadmin') NOT NULL DEFAULT 'user' AFTER auth_version");echo "Added default user roles; existing accounts remain regular users.\n";}
 if(!in_array('locked_until',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN locked_until DATETIME(3) NULL AFTER role');echo "Added temporary account-lock status.\n";}
+if(!in_array('banned_at',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN banned_at DATETIME(3) NULL AFTER locked_until');echo "Added reversible account ban status.\n";}
+if(!in_array('banned_by_user_id',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN banned_by_user_id CHAR(32) NULL AFTER banned_at');echo "Added account ban actor tracking.\n";}
+if(!in_array('ban_reason',$userColumns,true)){$db->exec('ALTER TABLE users ADD COLUMN ban_reason VARCHAR(500) NULL AFTER banned_by_user_id');echo "Added account ban reason tracking.\n";}
 $deckColumns=array_column($db->query('SHOW COLUMNS FROM decks')->fetchAll(),'Field');
+if(!in_array('visibility',$deckColumns,true)){$db->exec("ALTER TABLE decks ADD COLUMN visibility ENUM('inherit','private','public') NOT NULL DEFAULT 'inherit' AFTER moderation_status");echo "Added per-deck visibility overrides; existing decks remain private by default.\n";}
 if(!in_array('moderation_status',$deckColumns,true)){$db->exec("ALTER TABLE decks ADD COLUMN moderation_status ENUM('visible','hidden') NOT NULL DEFAULT 'visible' AFTER category");echo "Added moderation visibility without changing existing decks.\n";}
+if(!in_array('deleted_at',$deckColumns,true)){$db->exec('ALTER TABLE decks ADD COLUMN deleted_at DATETIME(3) NULL AFTER moderation_status, ADD INDEX idx_decks_user_deleted(user_id,deleted_at)');echo "Added recoverable deck archive status; existing decks remain active.\n";}
 $cardType=$db->query("SHOW COLUMNS FROM cards LIKE 'type'")->fetch();
 if($cardType && strpos((string)($cardType['Type']??''),"'TRUE_FALSE'")===false){$db->exec("ALTER TABLE cards MODIFY type ENUM('MULTIPLE_CHOICE','TRUE_FALSE','IDENTIFICATION') NOT NULL");echo "Added True/False Bombcard support; existing card types were preserved.\n";}
 $db->exec("CREATE TABLE IF NOT EXISTS deck_reports (

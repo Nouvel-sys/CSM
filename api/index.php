@@ -39,10 +39,18 @@ $publicSessionRoutes = [
     'auth/password/reset',
     'shared/deck',
     'shared/document',
+    'people/document',
 ];
 
-if (isset($_SESSION['user_id']) && !in_array($route, $publicSessionRoutes, true) && !tab_session_matches((string)$_SESSION['user_id'])) {
-    fail(401, 'This tab was signed out because the account was opened in another tab. Please sign in again.');
+if (isset($_SESSION['user_id']) && !in_array($route, $publicSessionRoutes, true)) {
+    $sessionUserId = (string)$_SESSION['user_id'];
+    $currentAuthVersion = query('SELECT auth_version FROM users WHERE id=?', [$sessionUserId])->fetchColumn();
+    if ($currentAuthVersion === false || (int)$currentAuthVersion !== (int)($_SESSION['auth_version'] ?? 0)) {
+        fail(401, 'Your account was signed in on another device or tab. Please sign in again.', ['code' => 'session_replaced']);
+    }
+    if (!tab_session_matches($sessionUserId, ['auth_version' => (int)$currentAuthVersion])) {
+        fail(401, 'Your account was signed in from another tab. Please sign in again.', ['code' => 'another_tab']);
+    }
 }
 
 if ($method !== 'GET') {
@@ -56,14 +64,22 @@ if ($method !== 'GET') {
 // Check active session & return profile
 if ($route === 'auth/session' && $method === 'GET') {
     $ok = false;
+    $sessionReason = null;
     if (isset($_SESSION['user_id'])) {
         $u = query('SELECT auth_version FROM users WHERE id=?', [$_SESSION['user_id']])->fetch();
-        $ok = $u && (int)$u['auth_version'] == ($_SESSION['auth_version'] ?? 0) && tab_session_matches((string)$_SESSION['user_id'], $u);
+        if (!$u || (int)$u['auth_version'] !== (int)($_SESSION['auth_version'] ?? 0)) {
+            $sessionReason = 'session_replaced';
+        } elseif (!tab_session_matches((string)$_SESSION['user_id'], $u)) {
+            $sessionReason = 'another_tab';
+        } else {
+            $ok = true;
+        }
     }
     $sessionProfile = $ok ? profile($_SESSION['user_id']) : null;
     respond([
         'authenticated' => (bool)$ok,
         'timedOut' => $sessionTimedOut,
+        'reason' => $sessionReason,
         'csrf' => $_SESSION['csrf'],
         'profile' => $sessionProfile,
         'adminUrl' => $sessionProfile && in_array($sessionProfile['role'] ?? '', ['admin', 'superadmin'], true) ? admin_entry_url() : null,
@@ -184,6 +200,11 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
     $normalizedLogin = function_exists('mb_strtolower') ? mb_strtolower(trim($login), 'UTF-8') : strtolower(trim($login));
     $accountBucket = $row ? hash('sha256', 'account-login:user:' . $row['id']) : hash('sha256', 'account-login:identifier:' . $normalizedLogin);
 
+    if ($row && !empty($row['banned_at'])) {
+        audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_banned']);
+        fail(401, 'Incorrect username or password, or account unavailable.');
+    }
+
     if ($row && $row['locked_until'] && strtotime($row['locked_until'] . ' UTC') > time()) {
         audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_locked']);
         fail(401, 'Incorrect username or password, or account temporarily unavailable.');
@@ -214,6 +235,10 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
         fail(400, 'Refresh the page and try signing in again.');
     }
 
+    // Increment the account-wide auth version so every older device/session is revoked.
+    query('UPDATE users SET auth_version=auth_version+1 WHERE id=?', [$row['id']]);
+    $newAuthVersion = (int)query('SELECT auth_version FROM users WHERE id=?', [$row['id']])->fetchColumn();
+
     query(
         'INSERT INTO user_active_tabs(user_id,browser_hash,active_tab_hash) VALUES(?,?,?) ON DUPLICATE KEY UPDATE active_tab_hash=VALUES(active_tab_hash),updated_at=UTC_TIMESTAMP(3)',
         [$row['id'], $browserHash, $tabHash]
@@ -221,17 +246,17 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
     query('DELETE FROM auth_attempts WHERE bucket IN (?,?)', [$bucket, $accountBucket]);
     audit_event($row['id'], 'login_success', $row['id'], ['remembered' => ($data['remember'] ?? false) === true]);
 
-    $_SESSION = [];
+    $tabSessions = $_SESSION['tab_sessions'] ?? [];
+    $_SESSION = ['tab_sessions' => $tabSessions];
     session_regenerate_id(true);
     $remember = ($data['remember'] ?? false) === true;
     $until = time() + ($remember ? 2592000 : 43200);
-    $_SESSION = [
-        'user_id' => $row['id'],
-        'auth_version' => (int)$row['auth_version'],
-        'expires_at' => $until,
-        'last_activity' => time(),
-        'csrf' => bin2hex(random_bytes(32)),
-    ];
+    $_SESSION['user_id'] = $row['id'];
+    $_SESSION['auth_version'] = $newAuthVersion;
+    $_SESSION['expires_at'] = $until;
+    $_SESSION['last_activity'] = time();
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+    unset($_SESSION['idle_logout']);
     setcookie(session_name(), session_id(), [
         'expires' => $remember ? $until : 0,
         'path' => '/',
@@ -335,6 +360,29 @@ if ($route === 'shared/document' && $method === 'GET') {
     exit;
 }
 
+// Public PDFs attached to a deck that is currently shared through Discover.
+// Visibility is checked on every request so changing a deck back to private revokes access.
+if ($route === 'people/document' && $method === 'GET') {
+    $docId = $_GET['id'] ?? '';
+    if (!is_string($docId) || !preg_match('/^[a-f0-9]{32}$/D', $docId)) fail(404, 'Invalid document ID.');
+    $document = query("SELECT m.id,m.title,m.stored_name FROM documents m
+        JOIN decks d ON d.id=m.deck_id JOIN users u ON u.id=d.user_id JOIN profiles p ON p.user_id=d.user_id
+        WHERE m.id=? AND u.role='user' AND u.banned_at IS NULL AND d.deleted_at IS NULL AND d.moderation_status='visible'
+          AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))", [$docId])->fetch();
+    if (!$document) fail(404, 'This PDF is private or unavailable.');
+    $path = $config['upload_dir'] . '/' . $document['stored_name'];
+    if (!is_file($path)) fail(404, 'PDF missing from file storage.');
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    header('Content-Type: application/pdf');
+    header('Content-Length: ' . filesize($path));
+    header("Content-Disposition: inline; filename=\"document.pdf\"; filename*=UTF-8''" . rawurlencode((string)$document['title']));
+    header('Cache-Control: private, no-store');
+    header('X-Content-Type-Options: nosniff');
+    header("Content-Security-Policy: frame-ancestors 'self'; base-uri 'none'");
+    readfile($path);
+    exit;
+}
+
 // ============================================================================
 // 4. Authenticated Context Setup
 // ============================================================================
@@ -343,6 +391,74 @@ $currentRole = current_role($user);
 
 global $users, $decksService, $bombcardsService, $materialsService, $progressService, $bombstyleService, $deckSharesService;
 
+// Searchable public profiles expose only explicitly public reviewer decks.
+if ($route === 'people/search' && $method === 'GET') {
+    $term = field($_GET, 'q', 60, false);
+    if (text_length($term) < 2) respond(['people' => [], 'total' => 0]);
+    $limit = max(1, min(20, (int)($_GET['limit'] ?? 12)));
+    $offset = max(0, min(1000, (int)($_GET['offset'] ?? 0)));
+    $count = (int)query("SELECT COUNT(*) FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='user' AND u.banned_at IS NULL AND (LOCATE(LOWER(?),LOWER(u.username))>0 OR LOCATE(LOWER(?),LOWER(p.display_name))>0)", [$term, $term])->fetchColumn();
+    $people = query("SELECT u.id, u.username, p.display_name, p.avatar,
+        (SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id AND d.deleted_at IS NULL AND d.moderation_status='visible' AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))) public_deck_count
+        FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.role='user' AND u.banned_at IS NULL AND (LOCATE(LOWER(?),LOWER(u.username))>0 OR LOCATE(LOWER(?),LOWER(p.display_name))>0)
+        ORDER BY p.display_name,u.username LIMIT $limit OFFSET $offset", [$term, $term])->fetchAll();
+    respond(['people' => $people, 'total' => $count, 'limit' => $limit, 'offset' => $offset]);
+}
+
+if ($route === 'people/profile' && $method === 'GET') {
+    $target = id_field($_GET);
+    $person = query("SELECT u.id,u.username,p.display_name,p.avatar FROM users u JOIN profiles p ON p.user_id=u.id WHERE u.id=? AND u.role='user' AND u.banned_at IS NULL", [$target])->fetch();
+    if (!$person) fail(404, 'Profile not found.');
+    $person['decks'] = query("SELECT d.id,d.title,d.subject,d.category,d.updated_at,
+        (SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count
+        FROM decks d JOIN profiles p ON p.user_id=d.user_id
+        WHERE d.user_id=? AND d.deleted_at IS NULL AND d.moderation_status='visible'
+          AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))
+        ORDER BY d.updated_at DESC,d.id", [$target])->fetchAll();
+    respond(['person' => $person]);
+}
+
+if ($route === 'people/deck' && $method === 'GET') {
+    $deckId = id_field($_GET);
+    $deck = query("SELECT d.id,d.title,d.subject,d.category,d.created_at,u.username owner,p.display_name owner_display_name,p.avatar owner_avatar
+        FROM decks d JOIN users u ON u.id=d.user_id JOIN profiles p ON p.user_id=u.id
+        WHERE d.id=? AND u.role='user' AND u.banned_at IS NULL AND d.deleted_at IS NULL AND d.moderation_status='visible'
+          AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))", [$deckId])->fetch();
+    if (!$deck) fail(404, 'This deck is private or unavailable.');
+    $deck['cards'] = array_map('card_data', $bombcardsService->forDeck($deckId));
+    $deck['documents'] = query('SELECT id,title,size_bytes size FROM documents WHERE deck_id=? ORDER BY created_at,id', [$deckId])->fetchAll();
+    foreach ($deck['documents'] as &$document) {
+        $document['size'] = (int)$document['size'];
+        $document['url'] = 'api/index.php?r=people/document&id=' . rawurlencode((string)$document['id']);
+    }
+    unset($document);
+    // Public deck PDFs are shareable; annotations and personal study progress remain private.
+    respond(['deck' => $deck]);
+}
+
+if ($route === 'people/deck/report' && $method === 'POST') {
+    $data = input();
+    $deckId = id_field($data, 'deckId');
+    $reason = field($data, 'reason', 1000);
+    if (text_length($reason) < 8) fail(422, 'Please provide at least 8 characters explaining the issue.');
+    $deck = query("SELECT d.id,d.user_id,d.title FROM decks d JOIN users owner ON owner.id=d.user_id JOIN profiles p ON p.user_id=d.user_id WHERE d.id=? AND owner.role='user' AND owner.banned_at IS NULL AND d.deleted_at IS NULL AND d.moderation_status='visible' AND (d.visibility='public' OR (d.visibility='inherit' AND p.deck_visibility='public'))", [$deckId])->fetch();
+    if (!$deck) fail(404, 'This public deck is no longer available.');
+    if ((string)$deck['user_id'] === (string)$user) fail(403, 'You cannot report your own deck.');
+    if (query("SELECT 1 FROM deck_reports WHERE deck_id=? AND flagged_by_user_id=? AND status='open' LIMIT 1", [$deckId, $user])->fetchColumn()) {
+        fail(409, 'You already have an open report for this deck.');
+    }
+    $db->beginTransaction();
+    query('INSERT INTO deck_reports(deck_id,flagged_by_user_id,reason) VALUES(?,?,?)', [$deckId, $user, $reason]);
+    $reportId = (int)$db->lastInsertId();
+    $staffRecipients = query("SELECT id FROM users WHERE role IN ('admin','superadmin') AND banned_at IS NULL")->fetchAll();
+    foreach ($staffRecipients as $recipient) {
+        notify_user((string)$recipient['id'], 'deck_report_received', 'Deck reported', 'A public deck was reported and is waiting in the review queue.', (string)$deckId);
+    }
+    audit_event($user, 'deck_flagged', $deckId, ['reportId' => $reportId], 'deck');
+    $db->commit();
+    respond(['ok' => true, 'reportId' => $reportId], 201);
+}
+
 // Notifications
 if ($route === 'notifications' && $method === 'GET') {
     $items = query(
@@ -350,12 +466,13 @@ if ($route === 'notifications' && $method === 'GET') {
         [$user]
     )->fetchAll();
     $unread = (int)query('SELECT COUNT(*) FROM user_notifications WHERE user_id=? AND read_at IS NULL', [$user])->fetchColumn();
+    $unreadReportDecks = (int)query("SELECT COUNT(DISTINCT deck_id) FROM user_notifications WHERE user_id=? AND notification_type='deck_report_received' AND read_at IS NULL AND deck_id IS NOT NULL", [$user])->fetchColumn();
     foreach ($items as &$item) {
         $item['id'] = (int)$item['id'];
         $item['isRead'] = $item['readAt'] !== null;
     }
     unset($item);
-    respond(['notifications' => $items, 'unreadCount' => $unread]);
+    respond(['notifications' => $items, 'unreadCount' => $unread, 'unreadReportDeckCount' => $unreadReportDecks]);
 }
 
 if ($route === 'notifications/read' && $method === 'PATCH') {
@@ -365,6 +482,8 @@ if ($route === 'notifications/read' && $method === 'PATCH') {
             fail(422, 'Invalid notification id.');
         }
         query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE id=? AND user_id=? AND read_at IS NULL', [$data['id'], $user]);
+    } elseif (($data['type'] ?? null) === 'deck_report_received') {
+        query("UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE user_id=? AND notification_type='deck_report_received' AND read_at IS NULL", [$user]);
     } else {
         query('UPDATE user_notifications SET read_at=UTC_TIMESTAMP(3) WHERE user_id=? AND read_at IS NULL', [$user]);
     }
@@ -386,6 +505,28 @@ if (str_starts_with($route, 'admin/')) {
     }
     $isSuper = $role === 'superadmin';
     $admin = new Admin($database);
+    $sendCsv = static function (string $filename, array $columns, callable $writeRows): void {
+        $csvCell = static function ($value): string {
+            if ($value === null) return '';
+            $cell = is_string($value) ? $value : (string)$value;
+            return preg_match('/^[\\s]*[=+\\-@]/u', $cell) ? "'" . $cell : $cell;
+        };
+        session_write_close();
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Cache-Control: private, no-store');
+        header('X-Content-Type-Options: nosniff');
+        $output = fopen('php://output', 'wb');
+        if ($output === false) fail(500, 'Could not create the CSV export.');
+        fwrite($output, "\xEF\xBB\xBF"); // UTF-8 BOM helps Excel identify the encoding.
+        fputcsv($output, array_map($csvCell, $columns), ',', '"', '\\');
+        $writeRow = static function (array $values) use ($output, $csvCell): void {
+            fputcsv($output, array_map($csvCell, $values), ',', '"', '\\');
+        };
+        $writeRows($writeRow);
+        fclose($output);
+        exit;
+    };
 
     if ($route === 'admin/dashboard' && $method === 'GET') {
         $from = $_GET['from'] ?? gmdate('Y-m-01');
@@ -396,24 +537,78 @@ if (str_starts_with($route, 'admin/')) {
         respond($admin->dashboard($from, $to));
     }
 
+    if ($route === 'admin/dashboard/export' && $method === 'GET') {
+        $from = $_GET['from'] ?? gmdate('Y-m-01');
+        $to = $_GET['to'] ?? gmdate('Y-m-d');
+        if (!is_string($from) || !is_string($to)) {
+            fail(422, 'Invalid date range.');
+        }
+        $summary = $admin->dashboard($from, $to);
+        audit_event($user, 'admin_activity_summary_exported', null, ['from' => $summary['from'], 'to' => $summary['to'], 'format' => 'csv'], 'system');
+        $filename = 'co-studymaxx-activity-summary-' . $summary['from'] . '-to-' . $summary['to'] . '.csv';
+        $sendCsv($filename, ['record_type','period_start','period_end','date','active_users','new_users','new_decks','documents_uploaded','arena_sessions','sessions_completed'], static function (callable $writeRow) use ($summary): void {
+            $period = $summary['period'];
+            $writeRow(['summary',$summary['from'],$summary['to'],'',$period['activeUsers'],$period['newUsers'],$period['newDecks'],$period['uploads'],$period['sessions'],$period['completedSessions']]);
+            if ($summary['days']) {
+                foreach ($summary['days'] as $day) {
+                    $writeRow(['daily','','',$day['date'],$day['activeUsers'],'',$day['decks'],$day['uploads'],$day['arenaSessions'],'']);
+                }
+            } else {
+                $writeRow(['daily','','',$summary['from'] === $summary['to'] ? $summary['from'] : 'Selected period',0,'',0,0,0,'']);
+            }
+        });
+    }
+
+    if ($route === 'admin/users/export' && $method === 'GET') {
+        audit_event($user, 'admin_users_exported', null, ['format' => 'csv'], 'system');
+        $columns = ['user_id','username','email','display_name','role','account_status','locked_until_utc','active_now','deck_count','pdf_count','created_at_utc','last_active_utc'];
+        $notArchivedSql = '(GREATEST(u.created_at,COALESCE((SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id),u.created_at),COALESCE((SELECT MAX(e.created_at) FROM security_events e WHERE e.actor_user_id=u.id OR e.target_user_id=u.id),u.created_at),COALESCE((SELECT MAX(t.updated_at) FROM user_active_tabs t WHERE t.user_id=u.id),u.created_at))>=UTC_TIMESTAMP(3)-INTERVAL 7 DAY OR EXISTS(SELECT 1 FROM user_active_tabs live WHERE live.user_id=u.id AND live.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE))';
+        $sendCsv('co-studymaxx-users.csv', $columns, static function (callable $writeRow) use ($notArchivedSql): void {
+            $statement = query('SELECT u.id,u.username,u.email,COALESCE(p.display_name,u.username) display_name,u.role,CASE WHEN u.locked_until>UTC_TIMESTAMP(3) THEN \'locked\' ELSE \'active\' END account_status,u.locked_until,EXISTS(SELECT 1 FROM user_active_tabs t WHERE t.user_id=u.id AND t.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE) is_active_now,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id AND d.deleted_at IS NULL) deck_count,(SELECT COUNT(*) FROM documents m JOIN decks d ON d.id=m.deck_id WHERE m.user_id=u.id AND d.deleted_at IS NULL) pdf_count,u.created_at,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE ' . $notArchivedSql . ' ORDER BY is_active_now DESC,LOWER(u.username) ASC,u.id ASC');
+            while ($row = $statement->fetch()) {
+                $writeRow([$row['id'],$row['username'],$row['email'],$row['display_name'],$row['role'],$row['account_status'],$row['locked_until'],$row['is_active_now'] ? 'Yes' : 'No',$row['deck_count'],$row['pdf_count'],$row['created_at'],$row['last_active']]);
+            }
+        });
+    }
+
     if ($route === 'admin/users' && $method === 'GET') {
         $search = $_GET['q'] ?? '';
         if (!is_string($search) || text_length($search) > 80) {
             fail(422, 'Search text is too long.');
         }
+        $roleFilter = $_GET['role'] ?? 'all';
+        if (!is_string($roleFilter) || !in_array($roleFilter, ['all', 'user', 'admin', 'superadmin'], true)) {
+            fail(422, 'Invalid user role filter.');
+        }
         $like = '%' . trim($search) . '%';
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
         $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
-        $total = (int)query('SELECT COUNT(*) FROM users WHERE username LIKE ? OR email LIKE ?', [$like, $like])->fetchColumn();
+        $notArchivedSql = '(GREATEST(u.created_at,COALESCE((SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id),u.created_at),COALESCE((SELECT MAX(e.created_at) FROM security_events e WHERE e.actor_user_id=u.id OR e.target_user_id=u.id),u.created_at),COALESCE((SELECT MAX(t.updated_at) FROM user_active_tabs t WHERE t.user_id=u.id),u.created_at))>=UTC_TIMESTAMP(3)-INTERVAL 7 DAY OR EXISTS(SELECT 1 FROM user_active_tabs live WHERE live.user_id=u.id AND live.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE))';
+        $userWhere = $notArchivedSql . ' AND (u.username LIKE ? OR u.email LIKE ?)' . ($roleFilter === 'all' ? '' : ' AND u.role=?');
+        $userParams = [$like, $like];
+        if ($roleFilter !== 'all') {
+            $userParams[] = $roleFilter;
+        }
+        $total = (int)query('SELECT COUNT(*) FROM users u WHERE ' . $userWhere, $userParams)->fetchColumn();
         $rows = query(
-            'SELECT u.id,u.username,u.email,u.role,u.locked_until,u.created_at,EXISTS(SELECT 1 FROM user_active_tabs t WHERE t.user_id=u.id AND t.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE) is_active_now,COALESCE(p.display_name,u.username) display_name,COALESCE(p.avatar,\'ember\') avatar,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id) deck_count,(SELECT COUNT(*) FROM documents m WHERE m.user_id=u.id) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.username LIKE ? OR u.email LIKE ? ORDER BY u.created_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
-            [$like, $like]
+            'SELECT u.id,u.username,u.email,u.role,u.locked_until,u.banned_at,u.ban_reason,u.created_at,EXISTS(SELECT 1 FROM user_active_tabs t WHERE t.user_id=u.id AND t.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE) is_active_now,COALESCE(p.display_name,u.username) display_name,COALESCE(p.avatar,\'ember\') avatar,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id AND d.deleted_at IS NULL) deck_count,(SELECT COUNT(*) FROM documents m JOIN decks d ON d.id=m.deck_id WHERE m.user_id=u.id AND d.deleted_at IS NULL) document_count,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE ' . $userWhere . ' ORDER BY is_active_now DESC,LOWER(u.username) ASC,u.id ASC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            $userParams
         )->fetchAll();
         $rows = array_map(static function (array $row): array {
             $row['is_active_now'] = (bool)$row['is_active_now'];
             return $row;
         }, $rows);
         respond(['users' => $rows, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
+    }
+
+    if ($route === 'admin/users/profile' && $method === 'GET') {
+        $target = id_field($_GET, 'id');
+        $account = query('SELECT u.id,u.username,u.email,u.role,u.created_at,u.locked_until,u.banned_at,u.ban_reason,COALESCE(p.display_name,u.username) display_name,COALESCE(p.first_name,\'\') first_name,p.middle_name,COALESCE(p.last_name,\'\') last_name,COALESCE(p.avatar,\'ember\') avatar,(SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id) last_active,(SELECT COUNT(*) FROM decks d WHERE d.user_id=u.id AND d.deleted_at IS NULL) deck_count,(SELECT COUNT(*) FROM documents m JOIN decks d ON d.id=m.deck_id WHERE m.user_id=u.id AND d.deleted_at IS NULL) document_count FROM users u LEFT JOIN profiles p ON p.user_id=u.id WHERE u.id=?', [$target])->fetch();
+        if (!$account) fail(404, 'Account not found.');
+        $activity = query('SELECT material,mode,screen,status,accuracy,created_at FROM study_activity WHERE user_id=? ORDER BY created_at DESC,id DESC LIMIT 25', [$target])->fetchAll();
+        $submittedReports = query('SELECT r.id,r.reason,r.status,r.moderation_action,r.moderation_reason,r.created_at,r.reviewed_at,d.title deck_title,owner.username deck_owner FROM deck_reports r JOIN decks d ON d.id=r.deck_id JOIN users owner ON owner.id=d.user_id WHERE r.flagged_by_user_id=? ORDER BY r.created_at DESC,r.id DESC LIMIT 50', [$target])->fetchAll();
+        $receivedReports = query('SELECT r.id,r.reason,r.status,r.moderation_action,r.moderation_reason,r.created_at,r.reviewed_at,d.title deck_title,flagger.username flagged_by FROM deck_reports r JOIN decks d ON d.id=r.deck_id LEFT JOIN users flagger ON flagger.id=r.flagged_by_user_id WHERE d.user_id=? ORDER BY r.created_at DESC,r.id DESC LIMIT 50', [$target])->fetchAll();
+        respond(['account'=>$account,'activity'=>$activity,'submittedReports'=>$submittedReports,'receivedReports'=>$receivedReports]);
     }
 
     if ($route === 'admin/decks' && $method === 'GET') {
@@ -425,23 +620,55 @@ if (str_starts_with($route, 'admin/')) {
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
         $offset = max(0, (int)($_GET['offset'] ?? 0));
         $total = (int)query(
-            'SELECT COUNT(*) FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ?',
+            'SELECT COUNT(*) FROM decks d JOIN users u ON u.id=d.user_id WHERE d.deleted_at IS NULL AND d.moderation_status=\'visible\' AND (d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ?)',
             [$like, $like, $like]
         )->fetchColumn();
         $rows = query(
-            'SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ? ORDER BY d.updated_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            'SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT COUNT(*) FROM deck_reports r WHERE r.deck_id=d.id AND r.status=\'open\') open_reports FROM decks d JOIN users u ON u.id=d.user_id WHERE d.deleted_at IS NULL AND d.moderation_status=\'visible\' AND (d.title LIKE ? OR d.subject LIKE ? OR u.username LIKE ?) ORDER BY d.updated_at DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
             [$like, $like, $like]
         )->fetchAll();
         respond(['decks' => $rows, 'total' => $total, 'limit' => $limit, 'offset' => $offset]);
     }
 
+    if ($route === 'admin/content/export' && $method === 'GET') {
+        audit_event($user, 'admin_content_exported', null, ['format' => 'csv'], 'system');
+        $columns = ['record_type','deck_id','deck_title','owner_username','subject','category','moderation_status','deck_created_at','deck_updated_at','card_id','card_type','prompt','options_json','correct_answer','accepted_alternates','hint','explanation','card_created_at','document_id','document_title','document_mime_type','document_size_bytes','document_uploaded_at'];
+        $sendCsv('co-studymaxx-content.csv', $columns, static function (callable $writeRow): void {
+            $decks = query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.created_at,d.updated_at,u.username owner FROM decks d JOIN users u ON u.id=d.user_id WHERE d.deleted_at IS NULL AND d.moderation_status=\'visible\' ORDER BY d.title,d.id');
+            while ($deck = $decks->fetch()) {
+                $writeRow(['deck',$deck['id'],$deck['title'],$deck['owner'],$deck['subject'],$deck['category'],$deck['moderation_status'],$deck['created_at'],$deck['updated_at']]);
+            }
+
+            $cards = query('SELECT c.id card_id,c.deck_id,c.type,c.prompt,c.hint,c.correct_answer,c.alternates,c.explanation,c.created_at card_created_at,d.title deck_title,d.subject,d.category,d.moderation_status,d.created_at deck_created_at,d.updated_at deck_updated_at,u.username owner,o.answer_text option_text,o.is_correct option_correct FROM cards c JOIN decks d ON d.id=c.deck_id JOIN users u ON u.id=d.user_id LEFT JOIN card_options o ON o.card_id=c.id WHERE d.deleted_at IS NULL AND d.moderation_status=\'visible\' ORDER BY d.title,c.position,c.id,o.position');
+            $currentCard = null;
+            $options = [];
+            $writeCard = static function (?array $card, array $cardOptions) use ($writeRow): void {
+                if (!$card) return;
+                $writeRow(['card',$card['deck_id'],$card['deck_title'],$card['owner'],$card['subject'],$card['category'],$card['moderation_status'],$card['deck_created_at'],$card['deck_updated_at'],$card['card_id'],$card['type'],$card['prompt'],json_encode($cardOptions, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE),$card['correct_answer'],$card['alternates'],$card['hint'],$card['explanation'],$card['card_created_at']]);
+            };
+            while ($row = $cards->fetch()) {
+                if ($currentCard !== null && $currentCard['card_id'] !== $row['card_id']) {
+                    $writeCard($currentCard, $options);
+                    $options = [];
+                }
+                $currentCard = $row;
+                if ($row['option_text'] !== null) $options[] = ['text' => $row['option_text'], 'is_correct' => (bool)$row['option_correct']];
+            }
+            $writeCard($currentCard, $options);
+
+            $documents = query('SELECT m.id document_id,m.deck_id,m.title document_title,m.mime_type,m.size_bytes,m.created_at uploaded_at,d.title deck_title,d.subject,d.category,d.moderation_status,d.created_at deck_created_at,d.updated_at deck_updated_at,u.username owner FROM documents m JOIN decks d ON d.id=m.deck_id JOIN users u ON u.id=d.user_id WHERE d.deleted_at IS NULL AND d.moderation_status=\'visible\' ORDER BY d.title,m.created_at,m.id');
+            while ($document = $documents->fetch()) {
+                $writeRow(['document',$document['deck_id'],$document['deck_title'],$document['owner'],$document['subject'],$document['category'],$document['moderation_status'],$document['deck_created_at'],$document['deck_updated_at'],null,null,null,null,null,null,null,null,null,$document['document_id'],$document['document_title'],$document['mime_type'],$document['size_bytes'],$document['uploaded_at']]);
+            }
+        });
+    }
+
     if ($route === 'admin/decks/view' && $method === 'GET') {
         $deckId = id_field($_GET);
-        $deck = query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.updated_at,u.username owner FROM decks d JOIN users u ON u.id=d.user_id WHERE d.id=?', [$deckId])->fetch();
+        $deck = query('SELECT d.id,d.title,d.subject,d.category,d.moderation_status,d.updated_at,u.username owner FROM decks d JOIN users u ON u.id=d.user_id WHERE d.id=? AND d.deleted_at IS NULL', [$deckId])->fetch();
         if (!$deck) {
             fail(404, 'Reviewer not found.');
         }
-        $cards = array_map('card_data', query('SELECT * FROM cards WHERE deck_id=? ORDER BY position,created_at,id', [$deckId])->fetchAll());
         $documents = query('SELECT id,title,mime_type mimeType,size_bytes size,created_at uploadedAt FROM documents WHERE deck_id=? ORDER BY created_at DESC,id', [$deckId])->fetchAll();
         foreach ($documents as &$document) {
             $document['size'] = (int)$document['size'];
@@ -449,13 +676,13 @@ if (str_starts_with($route, 'admin/')) {
         }
         unset($document);
         $deck['document_count'] = count($documents);
-        audit_event($user, 'admin_deck_viewed', $deckId, ['cardCount' => count($cards), 'documentCount' => count($documents)], 'deck');
-        respond(['deck' => $deck, 'cards' => $cards, 'documents' => $documents]);
+        audit_event($user, 'admin_deck_viewed', $deckId, ['documentCount' => count($documents)], 'deck');
+        respond(['deck' => $deck, 'documents' => $documents]);
     }
 
     if ($route === 'admin/documents/file' && $method === 'GET') {
         $documentId = id_field($_GET);
-        $document = query('SELECT m.id,m.deck_id,m.title,m.stored_name FROM documents m WHERE m.id=?', [$documentId])->fetch();
+        $document = query('SELECT m.id,m.deck_id,m.title,m.stored_name FROM documents m JOIN decks d ON d.id=m.deck_id WHERE m.id=? AND d.deleted_at IS NULL', [$documentId])->fetch();
         if (!$document) {
             fail(404, 'PDF not found.');
         }
@@ -479,7 +706,7 @@ if (str_starts_with($route, 'admin/')) {
         $data = input();
         $deckId = id_field($data, 'deckId');
         $reason = field($data, 'reason', 1000);
-        $deck = query('SELECT id,user_id,title FROM decks WHERE id=?', [$deckId])->fetch();
+        $deck = query('SELECT id,user_id,title FROM decks WHERE id=? AND deleted_at IS NULL', [$deckId])->fetch();
         if (!$deck) {
             fail(404, 'Reviewer not found.');
         }
@@ -503,7 +730,7 @@ if (str_starts_with($route, 'admin/')) {
         }
         $status = $action === 'hide' ? 'hidden' : 'visible';
         $db->beginTransaction();
-        $deck = query('SELECT id,user_id,title,moderation_status FROM decks WHERE id=? FOR UPDATE', [$deckId])->fetch();
+        $deck = query('SELECT id,user_id,title,moderation_status FROM decks WHERE id=? AND deleted_at IS NULL FOR UPDATE', [$deckId])->fetch();
         if (!$deck) {
             fail(404, 'Reviewer not found.');
         }
@@ -531,7 +758,7 @@ if (str_starts_with($route, 'admin/')) {
         $where = $status === 'all' ? '' : 'WHERE r.status=?';
         $params = $status === 'all' ? [] : [$status];
         $rows = query(
-            'SELECT r.id,r.deck_id deckId,r.reason,r.status,r.moderation_action moderationAction,r.moderation_reason moderationReason,r.created_at,r.reviewed_at,d.title deckTitle,d.subject,d.moderation_status moderationStatus,u.username owner,flagger.username flaggedBy FROM deck_reports r JOIN decks d ON d.id=r.deck_id JOIN users u ON u.id=d.user_id LEFT JOIN users flagger ON flagger.id=r.flagged_by_user_id ' . $where . ' ORDER BY (r.status=\'open\') DESC,r.created_at DESC LIMIT 100',
+            'SELECT r.id,r.deck_id deckId,r.reason,r.status,r.moderation_action moderationAction,r.moderation_reason moderationReason,r.created_at,r.reviewed_at,d.title deckTitle,d.subject,d.moderation_status moderationStatus,u.username owner,flagger.username flaggedBy FROM deck_reports r JOIN decks d ON d.id=r.deck_id JOIN users u ON u.id=d.user_id LEFT JOIN users flagger ON flagger.id=r.flagged_by_user_id WHERE d.deleted_at IS NULL' . ($where !== '' ? ' AND ' . substr($where, 6) : '') . ' ORDER BY (r.status=\'open\') DESC,r.created_at DESC LIMIT 100',
             $params
         )->fetchAll();
         respond(['reports' => $rows]);
@@ -556,7 +783,7 @@ if (str_starts_with($route, 'admin/')) {
         if ($report['status'] !== 'open') {
             fail(409, 'This report has already been reviewed.');
         }
-        $deck = query('SELECT id,user_id,title FROM decks WHERE id=? FOR UPDATE', [$report['deck_id']])->fetch();
+        $deck = query('SELECT id,user_id,title FROM decks WHERE id=? AND deleted_at IS NULL FOR UPDATE', [$report['deck_id']])->fetch();
         if (!$deck) {
             fail(404, 'Reviewer not found.');
         }
@@ -577,6 +804,50 @@ if (str_starts_with($route, 'admin/')) {
         audit_event($user, 'deck_report_' . $action, $report['deck_id'], ['reportId' => $reportId, 'reason' => $reason], 'deck');
         $db->commit();
         respond(['ok' => true]);
+    }
+
+    if ($route === 'admin/users/warn' && $method === 'POST') {
+        $data = input();
+        $target = id_field($data, 'userId');
+        $reason = field($data, 'reason', 500);
+        if ($target === $user) fail(409, 'You cannot warn your own account.');
+        $account = query('SELECT id,username,role FROM users WHERE id=?', [$target])->fetch();
+        if (!$account) fail(404, 'Account not found.');
+        if ($account['role'] !== 'user') fail(403, 'Only regular user accounts can be warned here.');
+        notify_user($target, 'account_warning', 'Account warning', 'A workspace administrator issued a warning: ' . $reason);
+        audit_event($user, 'account_warned', $target, ['reason'=>$reason]);
+        respond(['ok'=>true]);
+    }
+
+    if ($route === 'admin/users/ban' && $method === 'POST') {
+        $data = input();
+        $target = id_field($data, 'userId');
+        $reason = field($data, 'reason', 500);
+        if ($target === $user) fail(409, 'You cannot ban your own account.');
+        $account = query('SELECT id,username,role,banned_at FROM users WHERE id=?', [$target])->fetch();
+        if (!$account) fail(404, 'Account not found.');
+        if ($account['role'] !== 'user') fail(403, 'Only regular user accounts can be banned here.');
+        if ($account['banned_at']) fail(409, 'This account is already banned.');
+        $db->beginTransaction();
+        query('SELECT id FROM users WHERE id=? FOR UPDATE', [$target]);
+        query('UPDATE users SET banned_at=UTC_TIMESTAMP(3),banned_by_user_id=?,ban_reason=?,locked_until=NULL,auth_version=auth_version+1 WHERE id=?', [$user,$reason,$target]);
+        query('DELETE FROM user_active_tabs WHERE user_id=?', [$target]);
+        audit_event($user, 'account_banned', $target, ['reason'=>$reason]);
+        $db->commit();
+        respond(['ok'=>true]);
+    }
+
+    if ($route === 'admin/users/unban' && $method === 'POST') {
+        $data = input();
+        $target = id_field($data, 'userId');
+        $reason = field($data, 'reason', 500);
+        $account = query('SELECT id,username,role,banned_at FROM users WHERE id=?', [$target])->fetch();
+        if (!$account) fail(404, 'Account not found.');
+        if ($account['role'] !== 'user') fail(403, 'Only regular user accounts can be unbanned here.');
+        if (!$account['banned_at']) fail(409, 'This account is not banned.');
+        query('UPDATE users SET banned_at=NULL,banned_by_user_id=NULL,ban_reason=NULL,auth_version=auth_version+1 WHERE id=?', [$target]);
+        audit_event($user, 'account_unbanned', $target, ['reason'=>$reason]);
+        respond(['ok'=>true]);
     }
 
     if ($route === 'admin/users/unlock' && $method === 'POST') {
@@ -639,11 +910,16 @@ if (str_starts_with($route, 'admin/')) {
         if (!in_array($nextRole, ['user', 'admin', 'superadmin'], true)) {
             fail(422, 'Invalid role.');
         }
-        if ($target === $user && $nextRole !== 'superadmin') {
+        $isPromotingToSuperadmin = $nextRole === 'superadmin' && (string)$target !== (string)$user;
+        $confirmationPassword = $data['password'] ?? null;
+        if ($isPromotingToSuperadmin && (!is_string($confirmationPassword) || $confirmationPassword === '' || strlen($confirmationPassword) > 72)) {
+            fail(422, 'Enter your password to confirm promoting this account to superadmin.');
+        }
+        if ((string)$target === (string)$user && $nextRole !== 'superadmin') {
             fail(409, 'Use another superadmin to change your own role.');
         }
         $db->beginTransaction();
-        $accounts = query('SELECT id,role FROM users WHERE id IN (?,?) ORDER BY id FOR UPDATE', [$user, $target])->fetchAll();
+        $accounts = query('SELECT id,role,password_hash FROM users WHERE id IN (?,?) ORDER BY id FOR UPDATE', [$user, $target])->fetchAll();
         $targetRow = null;
         $actorRow = null;
         foreach ($accounts as $account) {
@@ -659,6 +935,9 @@ if (str_starts_with($route, 'admin/')) {
         }
         if (!$targetRow) {
             fail(404, 'Account not found.');
+        }
+        if ($isPromotingToSuperadmin && !password_verify($confirmationPassword, (string)$actorRow['password_hash'])) {
+            fail(403, 'Password confirmation failed. No role changes were made.');
         }
         $superCount = (int)query("SELECT COUNT(*) FROM users WHERE role='superadmin'")->fetchColumn();
         if ($targetRow['role'] === 'superadmin' && $nextRole !== 'superadmin' && $superCount <= 1) {
@@ -764,6 +1043,100 @@ if (str_starts_with($route, 'admin/')) {
         ]);
     }
 
+    if ($route === 'admin/archive/inactive-users/export' && $method === 'GET') {
+        audit_event($user, 'admin_inactive_users_exported', null, ['format' => 'csv'], 'system');
+        $activitySql = '(SELECT u.id,GREATEST(u.created_at,COALESCE((SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id),u.created_at),COALESCE((SELECT MAX(e.created_at) FROM security_events e WHERE e.actor_user_id=u.id OR e.target_user_id=u.id),u.created_at),COALESCE((SELECT MAX(t.updated_at) FROM user_active_tabs t WHERE t.user_id=u.id),u.created_at)) last_seen_at FROM users u) activity';
+        $filter = 'activity.last_seen_at<UTC_TIMESTAMP(3)-INTERVAL 7 DAY AND NOT EXISTS(SELECT 1 FROM user_active_tabs live WHERE live.user_id=u.id AND live.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE)';
+        $sendCsv('co-studymaxx-inactive-users.csv', ['user_id','username','email','role','last_active_utc','inactive_days','joined_at_utc'], static function (callable $writeRow) use ($activitySql, $filter): void {
+            $statement = query('SELECT u.id,u.username,u.email,u.role,u.created_at,activity.last_seen_at,TIMESTAMPDIFF(DAY,activity.last_seen_at,UTC_TIMESTAMP(3)) inactive_days FROM users u JOIN ' . $activitySql . ' ON activity.id=u.id WHERE ' . $filter . ' ORDER BY activity.last_seen_at ASC,u.id ASC');
+            while ($row = $statement->fetch()) {
+                $writeRow([$row['id'],$row['username'],$row['email'],$row['role'],$row['last_seen_at'],$row['inactive_days'],$row['created_at']]);
+            }
+        });
+    }
+
+    if ($route === 'admin/archive/security-events/export' && $method === 'GET') {
+        if (!$isSuper) fail(403, 'Only a superadmin can export archived security events.');
+        audit_event($user, 'admin_archived_security_log_exported', null, ['format' => 'csv'], 'system');
+        $allCount = (int)query('SELECT COUNT(*) FROM security_events')->fetchColumn();
+        $cutoff = $allCount > 100 ? query('SELECT id FROM security_events ORDER BY id DESC LIMIT 1 OFFSET 99')->fetchColumn() : false;
+        $archivedSql = 'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \' ,e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id' . ($cutoff === false ? ' WHERE 1=0' : ' WHERE e.id<?') . ' ORDER BY e.id DESC';
+        $archivedParams = $cutoff === false ? [] : [(int)$cutoff];
+        $sendCsv('co-studymaxx-archived-security-events.csv', ['event_id','occurred_at_utc','event','actor_username','target','target_type','ip_fingerprint','details_json'], static function (callable $writeRow) use ($archivedSql, $archivedParams): void {
+            $statement = query($archivedSql, $archivedParams);
+            while ($row = $statement->fetch()) {
+                $writeRow([$row['id'],$row['created_at'],$row['event'],$row['actor'],$row['target'],$row['target_type'],$row['ip_hash'] ? substr($row['ip_hash'], 0, 16) : '',$row['details_json'] ?: '{}']);
+            }
+        });
+    }
+
+    if ($route === 'admin/archive/inactive-users' && $method === 'GET') {
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 10)));
+        $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
+        $activitySql = '(SELECT u.id,GREATEST(u.created_at,COALESCE((SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id),u.created_at),COALESCE((SELECT MAX(e.created_at) FROM security_events e WHERE e.actor_user_id=u.id OR e.target_user_id=u.id),u.created_at),COALESCE((SELECT MAX(t.updated_at) FROM user_active_tabs t WHERE t.user_id=u.id),u.created_at)) last_seen_at FROM users u) activity';
+        $filter = 'activity.last_seen_at<UTC_TIMESTAMP(3)-INTERVAL 7 DAY AND NOT EXISTS(SELECT 1 FROM user_active_tabs live WHERE live.user_id=u.id AND live.updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE)';
+        $total = (int)query('SELECT COUNT(*) FROM users u JOIN ' . $activitySql . ' ON activity.id=u.id WHERE ' . $filter)->fetchColumn();
+        $rows = query('SELECT u.id,u.username,u.email,u.role,u.created_at,COALESCE(p.display_name,u.username) display_name,COALESCE(p.avatar,\'ember\') avatar,activity.last_seen_at,TIMESTAMPDIFF(DAY,activity.last_seen_at,UTC_TIMESTAMP(3)) inactive_days FROM users u JOIN ' . $activitySql . ' ON activity.id=u.id LEFT JOIN profiles p ON p.user_id=u.id WHERE ' . $filter . ' ORDER BY activity.last_seen_at ASC,u.id ASC LIMIT ' . $limit . ' OFFSET ' . $offset)->fetchAll();
+        respond(['users'=>$rows,'total'=>$total,'limit'=>$limit,'offset'=>$offset,'inactiveAfterDays'=>7]);
+    }
+
+    if ($route === 'admin/archive/hidden-decks' && $method === 'GET') {
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 10)));
+        $offset = max(0, min(1000000, (int)($_GET['offset'] ?? 0)));
+        $total = (int)query("SELECT COUNT(*) FROM decks WHERE moderation_status='hidden' AND deleted_at IS NULL")->fetchColumn();
+        $rows = query("SELECT d.id,d.title,d.subject,d.category,d.updated_at,d.created_at,u.username owner,(SELECT COUNT(*) FROM cards c WHERE c.deck_id=d.id) card_count,(SELECT COUNT(*) FROM documents m WHERE m.deck_id=d.id) document_count,(SELECT MAX(r.reviewed_at) FROM deck_reports r WHERE r.deck_id=d.id AND r.moderation_action='hide') hidden_at FROM decks d JOIN users u ON u.id=d.user_id WHERE d.moderation_status='hidden' AND d.deleted_at IS NULL ORDER BY hidden_at DESC,d.updated_at DESC LIMIT " . $limit . ' OFFSET ' . $offset)->fetchAll();
+        respond(['decks'=>$rows,'total'=>$total,'limit'=>$limit,'offset'=>$offset]);
+    }
+
+    if ($route === 'admin/archive/hidden-decks/delete' && $method === 'DELETE') {
+        $data = input();
+        $ids = $data['ids'] ?? null;
+        if (!is_array($ids) || count($ids) < 1 || count($ids) > 100) {
+            fail(422, 'Select between 1 and 100 hidden decks to delete.');
+        }
+        $ids = array_values(array_unique(array_map(static function ($id): string {
+            if (!is_string($id) || !preg_match('/^[a-f0-9]{32}$/D', $id)) fail(422, 'Invalid deck selection.');
+            return $id;
+        }, $ids)));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $db->beginTransaction();
+        $decksToDelete = query("SELECT d.id,d.title FROM decks d WHERE d.id IN ($placeholders) AND d.moderation_status='hidden' AND d.deleted_at IS NULL FOR UPDATE", $ids)->fetchAll();
+        if (count($decksToDelete) !== count($ids)) {
+            $db->rollBack();
+            fail(404, 'One or more selected decks are no longer hidden. Refresh the archive and try again.');
+        }
+        $documents = query("SELECT deck_id,stored_name FROM documents WHERE deck_id IN ($placeholders)", $ids)->fetchAll();
+        foreach ($decksToDelete as $deck) {
+            audit_event($user, 'admin_hidden_deck_permanently_deleted', (string)$deck['id'], ['deckTitle'=>$deck['title']], 'deck');
+        }
+        query("DELETE FROM decks WHERE id IN ($placeholders) AND moderation_status='hidden' AND deleted_at IS NULL", $ids);
+        $db->commit();
+        foreach ($documents as $document) {
+            $path = $config['upload_dir'] . '/' . $document['stored_name'];
+            if (is_file($path)) unlink($path);
+        }
+        respond(['ok'=>true,'deleted'=>count($decksToDelete)]);
+    }
+
+    if ($route === 'admin/archive/security-events' && $method === 'GET') {
+        if (!$isSuper) fail(403, 'Only a superadmin can view archived security events.');
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 10)));
+        $offset = max(0, min(1000000, (int)($_GET['offset'] ?? 0)));
+        $allCount = (int)query('SELECT COUNT(*) FROM security_events')->fetchColumn();
+        $cutoff = $allCount > 100 ? query('SELECT id FROM security_events ORDER BY id DESC LIMIT 1 OFFSET 99')->fetchColumn() : false;
+        if ($cutoff === false) {
+            respond(['events'=>[],'total'=>0,'limit'=>$limit,'offset'=>$offset,'archivedAfterPages'=>10]);
+        }
+        $cutoff = (int)$cutoff;
+        $total = (int)query('SELECT COUNT(*) FROM security_events WHERE id<?', [$cutoff])->fetchColumn();
+        $rows = query('SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.id<? ORDER BY e.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset, [$cutoff])->fetchAll();
+        foreach ($rows as &$row) {
+            $row['details'] = $row['details_json'] ? json_decode($row['details_json'], true) : new stdClass();
+            unset($row['details_json']);
+        }
+        respond(['events'=>$rows,'total'=>$total,'limit'=>$limit,'offset'=>$offset,'archivedAfterPages'=>10]);
+    }
+
     if ($route === 'admin/audit' && $method === 'GET') {
         if (!$isSuper) {
             fail(403, 'Only a superadmin can view raw security events.');
@@ -776,13 +1149,15 @@ if (str_starts_with($route, 'admin/')) {
         [$start, $end] = $admin->dateRange($from, $to);
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
         $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
-        $total = (int)query(
-            'SELECT COUNT(*) FROM security_events WHERE created_at>=? AND created_at<?',
-            [$start, $end]
-        )->fetchColumn();
+        $allCount = (int)query('SELECT COUNT(*) FROM security_events')->fetchColumn();
+        $cutoff = $allCount > 100 ? query('SELECT id FROM security_events ORDER BY id DESC LIMIT 1 OFFSET 99')->fetchColumn() : false;
+        $liveClause = $cutoff === false ? '' : ' AND id>=?';
+        $auditParams = $cutoff === false ? [$start, $end] : [$start, $end, (int)$cutoff];
+        $total = (int)query('SELECT COUNT(*) FROM security_events WHERE created_at>=? AND created_at<?' . $liveClause, $auditParams)->fetchColumn();
+        $rowParams = $auditParams;
         $rows = query(
-            'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<? ORDER BY e.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
-            [$start, $end]
+            'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \',e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<?' . ($cutoff === false ? '' : ' AND e.id>=?') . ' ORDER BY e.id DESC LIMIT ' . $limit . ' OFFSET ' . $offset,
+            $rowParams
         )->fetchAll();
         foreach ($rows as &$row) {
             $row['details'] = $row['details_json'] ? json_decode($row['details_json'], true) : new stdClass();
@@ -796,6 +1171,26 @@ if (str_starts_with($route, 'admin/')) {
             'limit' => $limit,
             'offset' => $offset,
         ]);
+    }
+
+    if ($route === 'admin/audit/export' && $method === 'GET') {
+        $from = $_GET['from'] ?? gmdate('Y-m-01');
+        $to = $_GET['to'] ?? gmdate('Y-m-d');
+        if (!is_string($from) || !is_string($to)) {
+            fail(422, 'Invalid date range.');
+        }
+        [$start, $end] = $admin->dateRange($from, $to);
+        audit_event($user, 'admin_security_log_exported', null, ['from' => $from, 'to' => $to, 'format' => 'csv'], 'system');
+        $allCount = (int)query('SELECT COUNT(*) FROM security_events')->fetchColumn();
+        $cutoff = $allCount > 100 ? query('SELECT id FROM security_events ORDER BY id DESC LIMIT 1 OFFSET 99')->fetchColumn() : false;
+        $auditSql = 'SELECT e.id,e.event_code event,e.created_at,e.ip_hash,e.target_type,a.username actor,COALESCE(t.username,IF(e.target_type=\'deck\',CONCAT(\'Deck \' ,e.target_id),NULL)) target,e.details_json FROM security_events e LEFT JOIN users a ON a.id=e.actor_user_id LEFT JOIN users t ON t.id=e.target_user_id WHERE e.created_at>=? AND e.created_at<?' . ($cutoff === false ? '' : ' AND e.id>=?') . ' ORDER BY e.id DESC';
+        $auditParams = $cutoff === false ? [$start, $end] : [$start, $end, (int)$cutoff];
+        $sendCsv('co-studymaxx-security-events-' . $from . '-to-' . $to . '.csv', ['event_id','occurred_at_utc','event','actor_username','target','target_type','ip_fingerprint','details_json'], static function (callable $writeRow) use ($auditSql, $auditParams): void {
+            $statement = query($auditSql, $auditParams);
+            while ($row = $statement->fetch()) {
+                $writeRow([$row['id'],$row['created_at'],$row['event'],$row['actor'],$row['target'],$row['target_type'],$row['ip_hash'] ? substr($row['ip_hash'], 0, 16) : '',$row['details_json'] ?: '{}']);
+            }
+        });
     }
 
     fail(404, 'Endpoint not found.');
@@ -818,15 +1213,9 @@ if ($route === 'auth/logout' && $method === 'POST') {
     if ($tabHash && $browserHash) {
         query('DELETE FROM user_active_tabs WHERE user_id=? AND browser_hash=? AND active_tab_hash=?', [$user, $browserHash, $tabHash]);
     }
-    $_SESSION = [];
-    session_destroy();
-    setcookie(session_name(), '', [
-        'expires' => time() - 3600,
-        'path' => '/',
-        'secure' => (bool)$config['secure_cookie'],
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
+    $GLOBALS['csmForgetTabSession'] = true;
+    foreach (['user_id','auth_version','expires_at','last_activity','idle_logout'] as $field) unset($_SESSION[$field]);
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
     respond(['ok' => true]);
 }
 
@@ -861,6 +1250,12 @@ if ($route === 'profile' && $method === 'PATCH') {
             fail(422, 'Invalid avatar.');
         }
         query('UPDATE profiles SET avatar=? WHERE user_id=?', [$avatar, $user]);
+    }
+
+    if (array_key_exists('deckVisibility', $data)) {
+        $visibility = $data['deckVisibility'];
+        if (!is_string($visibility) || !in_array($visibility, ['private', 'public'], true)) fail(422, 'Choose public or private deck visibility.');
+        query('UPDATE profiles SET deck_visibility=? WHERE user_id=?', [$visibility, $user]);
     }
 
     respond(profile($user));
@@ -898,15 +1293,21 @@ if ($route === 'decks') {
         $subject = field($data, 'subject', 160, false);
         $category = field($data, 'category', 80, false) ?: 'Recent';
         $id = $method === 'PATCH' ? id_field($data) : uid();
+        $visibility = 'inherit';
 
         $db->beginTransaction();
         query('SELECT id FROM users WHERE id=? FOR UPDATE', [$user]);
         if ($method === 'PATCH') {
             $old = owned_deck($id, $user);
+            $visibility = (string)($old['visibility'] ?? 'inherit');
+            if (array_key_exists('visibility', $data)) {
+                if (!is_string($data['visibility']) || !in_array($data['visibility'], ['inherit', 'private', 'public'], true)) fail(422, 'Choose inherited, public, or private deck visibility.');
+                $visibility = $data['visibility'];
+            }
             if (normalized_deck_title((string)$old['title']) !== normalized_deck_title($title)) {
                 assert_unique_reviewer_title($user, $title, $id);
             }
-            $decksService->update($id, $title, $subject, $category);
+            $decksService->update($id, $title, $subject, $category, $visibility);
         } else {
             assert_unique_reviewer_title($user, $title);
             $decksService->create($id, $user, $title, $subject, $category);
@@ -939,16 +1340,46 @@ if ($route === 'decks') {
     if ($method === 'DELETE') {
         $id = id_field(input());
         owned_deck($id, $user);
-        $names = query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?', [$id, $user])->fetchAll(PDO::FETCH_COLUMN);
-        $decksService->delete($id, $user);
-        foreach ($names as $name) {
-            $path = $config['upload_dir'] . '/' . $name;
-            if (is_file($path)) {
-                unlink($path);
-            }
-        }
-        respond(['ok' => true]);
+        arena_stop_hidden_deck($id);
+        $decksService->archive($id, $user);
+        audit_event($user, 'deck_archived', $id, [], 'deck');
+        respond(['ok' => true, 'archived' => true]);
     }
+}
+
+if ($route === 'archive/decks' && $method === 'GET') {
+    $limit = max(1, min(50, (int)($_GET['limit'] ?? 10)));
+    $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
+    respond([
+        'decks' => $decksService->archivedForUser($user, $limit, $offset),
+        'total' => $decksService->archivedCountForUser($user),
+        'limit' => $limit,
+        'offset' => $offset,
+    ]);
+}
+
+if ($route === 'archive/decks/restore' && $method === 'POST') {
+    $id = id_field(input());
+    $deck = $decksService->ownedArchived($id, $user);
+    if (!$deck) fail(404, 'Archived reviewer not found.');
+    assert_unique_reviewer_title($user, (string)$deck['title'], $id);
+    $decksService->restore($id, $user);
+    audit_event($user, 'deck_restored_from_archive', $id, [], 'deck');
+    respond(['ok' => true]);
+}
+
+if ($route === 'archive/decks/permanent' && $method === 'DELETE') {
+    $id = id_field(input());
+    $deck = $decksService->ownedArchived($id, $user);
+    if (!$deck) fail(404, 'Archived reviewer not found.');
+    $names = query('SELECT stored_name FROM documents WHERE deck_id=? AND user_id=?', [$id, $user])->fetchAll(PDO::FETCH_COLUMN);
+    $decksService->delete($id, $user);
+    foreach ($names as $name) {
+        $path = $config['upload_dir'] . '/' . $name;
+        if (is_file($path)) unlink($path);
+    }
+    audit_event($user, 'deck_permanently_deleted', $id, [], 'deck');
+    respond(['ok' => true]);
 }
 
 // Deck Share links
@@ -1003,6 +1434,37 @@ if ($route === 'decks/share') {
 }
 
 // Bombcard CRUD
+if ($route === 'cards/bulk-delete' && $method === 'POST') {
+    $data = input();
+    $deck = owned_deck(id_field($data, 'deckId'), $user);
+    $rawIds = $data['ids'] ?? null;
+    if (!is_array($rawIds) || count($rawIds) < 1 || count($rawIds) > 500) {
+        fail(422, 'Select between 1 and 500 Bombcards to delete.');
+    }
+
+    $ids = array_values(array_unique(array_filter($rawIds, static fn($id) => is_string($id) && $id !== '')));
+    if (count($ids) !== count($rawIds)) {
+        fail(422, 'The selected Bombcard list is invalid.');
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $matchingCount = (int)query(
+        "SELECT COUNT(*) FROM cards WHERE deck_id=? AND id IN ($placeholders)",
+        array_merge([$deck['id']], $ids)
+    )->fetchColumn();
+    if ($matchingCount !== count($ids)) {
+        fail(404, 'One or more selected Bombcards were not found in this reviewer.');
+    }
+
+    $db->beginTransaction();
+    foreach ($ids as $id) {
+        $bombcardsService->delete($id, $deck['id']);
+    }
+    activity($user, $deck['id'], $deck['title'], 'Bombcards', 'library', 'Removed');
+    $db->commit();
+    respond(['ok' => true, 'deleted' => count($ids)]);
+}
+
 if ($route === 'cards' && in_array($method, ['POST', 'PATCH', 'DELETE'], true)) {
     $data = input();
     $deck = owned_deck(id_field($data, 'deckId'), $user);
@@ -1027,9 +1489,9 @@ if ($route === 'cards' && in_array($method, ['POST', 'PATCH', 'DELETE'], true)) 
 // 8. AI Flashcard Generator (Gemini Integration)
 // ============================================================================
 if ($route === 'ai/generate' && $method === 'POST') {
-    $apiKey = (string)($config['gemini_api_key'] ?? '');
+    $apiKey = trim((string)($config['gemini_api_key'] ?? ''));
     if ($apiKey === '') {
-        fail(503, 'Gemini AI is not configured on this server.');
+        fail(503, 'The server did not load GEMINI_API_KEY. Check the root .env variable name and format, then restart the server.');
     }
     if (!throttle_allows(hash_hmac('sha256', 'ai-generate:' . $user, (string)($config['mailer_secret'] ?: 'local-ai-throttle-key-change-this')), 20, 3600)) {
         fail(429, 'AI generation is temporarily rate-limited. Please try again later.');
@@ -1038,18 +1500,20 @@ if ($route === 'ai/generate' && $method === 'POST') {
     $data = input();
     $notes = field($data, 'notes', 60000);
     $deckId = isset($data['deckId']) && is_string($data['deckId']) && $data['deckId'] !== '' ? id_field($data, 'deckId') : null;
-    $count = isset($data['count']) ? max(1, min(25, (int)$data['count'])) : 5;
+    preg_match_all('/[\p{L}\p{N}]+(?:[\'’\-][\p{L}\p{N}]+)*/u', $notes, $wordMatches);
+    $sourceWordCount = count($wordMatches[0] ?? []);
+    $adaptiveTargetCount = min(50, max(3, (int)ceil($sourceWordCount / 80)));
     $format = field($data, 'format', 32, false) ?: 'MIXED';
     $focus = field($data, 'focus', 64, false) ?: 'comprehensive';
     $deck = $deckId ? owned_deck($deckId, $user) : null;
 
-    $instruction = "You are an expert academic study assistant for Co-StudyMaxx.\nGenerate exactly {$count} high-yield study flashcards based SOLELY on the study notes below.\n";
+    $instruction = "You are an expert academic study assistant for Co-StudyMaxx.\nCreate a comprehensive, high-quality set of study flashcards based SOLELY on the study notes below. The source contains about {$sourceWordCount} words; use approximately {$adaptiveTargetCount} cards as a guide, while letting the number reflect the distinct testable concepts and the density of the material. Cover the important concepts without repetition or filler. Never generate more than 50 cards.\n";
     if ($format === 'MULTIPLE_CHOICE') {
-        $instruction .= "All {$count} flashcards must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";
+        $instruction .= "Every card must be MULTIPLE_CHOICE with 4 distinct options, correctIndex (0-3), and correctAnswer matching options[correctIndex].\n";
     } elseif ($format === 'TRUE_FALSE') {
-        $instruction .= "All {$count} flashcards must be TRUE_FALSE statements with correctAnswer exactly True or False.\n";
+        $instruction .= "Every card must be a TRUE_FALSE statement with correctAnswer exactly True or False.\n";
     } elseif ($format === 'IDENTIFICATION') {
-        $instruction .= "All {$count} flashcards must be IDENTIFICATION with prompt and clear concise correctAnswer term/concept.\n";
+        $instruction .= "Every card must be IDENTIFICATION with a prompt and clear, concise correctAnswer term/concept.\n";
     } else {
         $instruction .= "Provide a balanced mix of MULTIPLE_CHOICE (4 options, correctIndex, correctAnswer), TRUE_FALSE (correctAnswer exactly True or False), and IDENTIFICATION (prompt, correctAnswer).\n";
     }
@@ -1078,7 +1542,7 @@ if ($route === 'ai/generate' && $method === 'POST') {
             'generationConfig' => [
                 'responseMimeType' => 'application/json',
                 'temperature' => 0.3,
-                'maxOutputTokens' => 4096,
+                'maxOutputTokens' => min(16384, max(4096, $adaptiveTargetCount * 320)),
             ],
         ]);
 
@@ -1087,7 +1551,7 @@ if ($route === 'ai/generate' && $method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'x-goog-api-key: ' . $apiKey]);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 45);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
 
@@ -1103,12 +1567,24 @@ if ($route === 'ai/generate' && $method === 'POST') {
                 $geminiResponse = $txt;
                 break;
             }
+            $finishReason = (string)($p['candidates'][0]['finishReason'] ?? 'no candidate text');
+            $lastErr = "Model $mName returned HTTP 200 without usable text (finish reason: $finishReason).";
         } else {
-            $lastErr = "Model $mName HTTP $code: " . ($raw ?: $cErr);
+            $providerBody = is_string($raw) ? json_decode($raw, true) : null;
+            $providerMessage = is_array($providerBody) && is_array($providerBody['error'] ?? null)
+                ? (string)($providerBody['error']['message'] ?? '')
+                : '';
+            $lastErr = "Model $mName HTTP $code";
+            if ($providerMessage !== '') {
+                $lastErr .= ': ' . preg_replace('/[\r\n\t]+/', ' ', $providerMessage);
+            } elseif ($cErr !== '') {
+                $lastErr .= ': cURL ' . preg_replace('/[\r\n\t]+/', ' ', $cErr);
+            }
         }
     }
 
     if (!$geminiResponse) {
+        error_log('Gemini bombcard generation failed: ' . substr($lastErr ?: 'No response from configured models.', 0, 600));
         fail(502, 'Could not generate flashcards with Gemini. Please try again in a moment.');
     }
 
@@ -1125,6 +1601,7 @@ if ($route === 'ai/generate' && $method === 'POST') {
     }
 
     if (!is_array($cardsData)) {
+        error_log('Gemini bombcard generation returned invalid JSON; response length: ' . strlen($clean));
         fail(502, 'Gemini returned an unparseable response. Please try again.');
     }
 
@@ -1217,6 +1694,111 @@ if ($route === 'ai/generate' && $method === 'POST') {
         'saved' => $saveDirectly && $deck !== null,
         'cards' => $normalized,
     ]);
+}
+
+if ($route === 'ai/reviewer' && $method === 'POST') {
+    $apiKey = trim((string)($config['gemini_api_key'] ?? ''));
+    if ($apiKey === '') {
+        fail(503, 'Gemini is not configured on the server.');
+    }
+    if (!throttle_allows(hash_hmac('sha256', 'ai-reviewer:' . $user, (string)($config['mailer_secret'] ?: 'local-ai-throttle-key-change-this')), 10, 3600)) {
+        fail(429, 'Reviewer creation is temporarily rate-limited. Please try again later.');
+    }
+
+    $data = input();
+    $notes = field($data, 'notes', 60000, false);
+    $deckTitle = field($data, 'deckTitle', 120, false) ?: 'Generated reviewer';
+    $rawCards = $data['cards'] ?? null;
+    if (!is_array($rawCards) || count($rawCards) < 1 || count($rawCards) > 50) {
+        fail(422, 'The generated Bombcards could not be read. Please generate them again.');
+    }
+    $limitText = static fn(string $value, int $limit): string => function_exists('mb_substr') ? mb_substr($value, 0, $limit, 'UTF-8') : substr($value, 0, $limit);
+    $reviewCards = [];
+    foreach ($rawCards as $card) {
+        if (!is_array($card)) continue;
+        $prompt = trim((string)($card['prompt'] ?? ''));
+        $answer = trim((string)($card['correctAnswer'] ?? ''));
+        if ($prompt === '' || $answer === '') continue;
+        $reviewCards[] = [
+            'type' => substr((string)($card['type'] ?? ''), 0, 32),
+            'prompt' => $limitText($prompt, 1200),
+            'answer' => $limitText($answer, 500),
+            'options' => is_array($card['options'] ?? null) ? array_slice(array_map(static fn($value) => is_string($value) || is_numeric($value) ? $limitText((string)$value, 300) : '', $card['options']), 0, 4) : [],
+        ];
+    }
+    if (!$reviewCards) fail(422, 'No usable Bombcards were provided.');
+
+    $instruction = "You are an expert academic study guide writer. Create an actual concept reviewer from the provided study source and generated flashcards. Write organized study notes that explain the subject for learning and offline review. Do not produce an answer sheet: never reproduce the card questions, multiple-choice options, question numbers, or an answer-by-answer list. Group related concepts under useful topic headings. Explain what ideas mean and how they relate, using concise paragraphs, term definitions, and bullet points. Include key facts and distinctions supported by the source; do not invent facts or expand beyond what is supported. Put each key term in the term field so it can be emphasized in bold, and make each core takeaway concise. Return only JSON in this schema: {\"title\":\"...\",\"sections\":[{\"heading\":\"...\",\"blocks\":[{\"type\":\"paragraph\",\"text\":\"...\"},{\"type\":\"definition\",\"term\":\"...\",\"explanation\":\"...\"},{\"type\":\"bullet\",\"text\":\"...\"},{\"type\":\"key_takeaway\",\"text\":\"...\"}]}]}. Include enough explanation to function as a study reviewer, not just a list of terms. Keep it focused and readable, with about 3 to 10 sections depending on the material.\n\nDECK/SUBJECT: " . $deckTitle . "\n\nGENERATED BOMBCARDS (use only to identify concepts and coverage; do not repeat their question format):\n" . json_encode($reviewCards, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($notes !== '') {
+        $instruction .= "\n\nSOURCE STUDY NOTES (primary factual source):\n" . $notes;
+    }
+
+    $modelsToTry = array_values(array_unique(array_filter([
+        trim((string)($config['gemini_model'] ?? 'gemini-3.8-flash')),
+        'gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-2.5-flash',
+    ])));
+    $reviewerResponse = null;
+    $lastErr = '';
+    foreach ($modelsToTry as $mName) {
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . $mName . ':generateContent';
+        $payload = json_encode([
+            'contents' => [['parts' => [['text' => $instruction]]]],
+            'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0.35, 'maxOutputTokens' => 9000],
+        ]);
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'x-goog-api-key: ' . $apiKey]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 90);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+        $raw = curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $cErr = curl_error($ch);
+        curl_close($ch);
+        if ($code === 200 && is_string($raw) && $raw !== '') {
+            $provider = json_decode($raw, true);
+            $text = $provider['candidates'][0]['content']['parts'][0]['text'] ?? '';
+            if ($text !== '') { $reviewerResponse = $text; break; }
+            $lastErr = 'Model ' . $mName . ' returned no reviewer text.';
+        } else {
+            $lastErr = 'Model ' . $mName . ' HTTP ' . $code . ($cErr !== '' ? ': ' . $cErr : '');
+        }
+    }
+    if (!$reviewerResponse) {
+        error_log('Gemini reviewer creation failed: ' . substr($lastErr ?: 'No response from configured models.', 0, 600));
+        fail(502, 'Gemini could not create the study reviewer. Please try again.');
+    }
+    $clean = trim($reviewerResponse);
+    if (str_starts_with($clean, '```')) {
+        $clean = preg_replace('/^```(?:json)?\s*/i', '', $clean);
+        $clean = preg_replace('/\s*```$/', '', $clean);
+    }
+    $reviewer = json_decode(trim($clean), true);
+    if (!is_array($reviewer) || !is_array($reviewer['sections'] ?? null)) {
+        fail(502, 'Gemini returned a reviewer in an unsupported format. Please try again.');
+    }
+    $sections = [];
+    foreach (array_slice($reviewer['sections'], 0, 12) as $section) {
+        if (!is_array($section) || trim((string)($section['heading'] ?? '')) === '' || !is_array($section['blocks'] ?? null)) continue;
+        $blocks = [];
+        foreach (array_slice($section['blocks'], 0, 30) as $block) {
+            if (!is_array($block)) continue;
+            $type = (string)($block['type'] ?? '');
+            if ($type === 'definition') {
+                $term = trim((string)($block['term'] ?? ''));
+                $explanation = trim((string)($block['explanation'] ?? ''));
+                if ($term !== '' && $explanation !== '') $blocks[] = ['type' => 'definition', 'term' => $limitText($term, 180), 'explanation' => $limitText($explanation, 1200)];
+            } elseif (in_array($type, ['paragraph', 'bullet', 'key_takeaway'], true)) {
+                $text = trim((string)($block['text'] ?? ''));
+                if ($text !== '') $blocks[] = ['type' => $type, 'text' => $limitText($text, 1800)];
+            }
+        }
+        if ($blocks) $sections[] = ['heading' => $limitText(trim((string)$section['heading']), 180), 'blocks' => $blocks];
+    }
+    if (!$sections) fail(502, 'Gemini did not return usable study notes. Please try again.');
+    respond(['ok' => true, 'reviewer' => ['title' => $limitText(trim((string)($reviewer['title'] ?? 'Study Reviewer')), 180), 'sections' => $sections]]);
 }
 
 // ============================================================================
@@ -1446,7 +2028,7 @@ if ($route === 'study/progress' && $method === 'GET') {
 if ($route === 'study/progress' && $method === 'POST') {
     $data = input();
     $card = id_field($data, 'bombcardId');
-    if (!query("SELECT c.id FROM cards c JOIN decks d ON d.id=c.deck_id WHERE c.id=? AND d.user_id=? AND d.moderation_status='visible'", [$card, $user])->fetch()) {
+    if (!query("SELECT c.id FROM cards c JOIN decks d ON d.id=c.deck_id WHERE c.id=? AND d.user_id=? AND d.moderation_status='visible' AND d.deleted_at IS NULL", [$card, $user])->fetch()) {
         fail(404, 'Bombcard not found.');
     }
     $result = field($data, 'result', 16);

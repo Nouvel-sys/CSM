@@ -28,11 +28,25 @@ if "%PHP_BIN%"=="" (
 
 echo Using PHP: %PHP_BIN%
 echo.
+
+netstat -ano -p tcp | findstr /R /C:"127.0.0.1:8080 .*LISTENING" >nul
+if not errorlevel 1 (
+    echo [ERROR] Co-StudyMaxx is already listening on http://127.0.0.1:8080.
+    echo Stop the existing PHP server window with Ctrl+C before starting another copy.
+    echo.
+    pause
+    exit /b 1
+)
+
 where npm.cmd >nul 2>nul
 if not errorlevel 1 (
-    echo Starting mailer service on http://127.0.0.1:8091 ...
-    start "" /B cmd /d /c "call npm.cmd run mailer"
-    timeout /t 2 /nobreak >nul
+    netstat -ano -p tcp | findstr /R /C:"127.0.0.1:8091 .*LISTENING" >nul
+    if not errorlevel 1 (
+        echo [INFO] Mailer service is already listening on http://127.0.0.1:8091; using the existing instance.
+    ) else (
+        echo Starting mailer service on http://127.0.0.1:8091 ...
+        start "" /B cmd /d /c "call npm.cmd run mailer"
+    )
 ) else (
     echo [WARNING] Node.js/npm was not found. The PHP app will still start, but password-recovery email will be unavailable.
     echo.

@@ -29,7 +29,7 @@ final class Admin {
         $totals=$this->db->query('SELECT
           (SELECT COUNT(*) FROM users) users,
           (SELECT COUNT(DISTINCT user_id) FROM user_active_tabs WHERE updated_at>=UTC_TIMESTAMP(3)-INTERVAL 5 MINUTE) activeNow,
-          (SELECT COUNT(*) FROM decks) decks,
+          (SELECT COUNT(*) FROM decks WHERE deleted_at IS NULL) decks,
           (SELECT COUNT(*) FROM documents) documents,
           (SELECT COALESCE(SUM(size_bytes),0) FROM documents) storageBytes,
           (SELECT COUNT(*) FROM arena_sessions) arenaSessions')->fetch();
@@ -40,7 +40,7 @@ final class Admin {
         $period=$this->db->query('SELECT
           (SELECT COUNT(*) FROM users WHERE created_at>=? AND created_at<?) newUsers,
           (SELECT COUNT(DISTINCT user_id) FROM study_activity WHERE created_at>=? AND created_at<?) activeUsers,
-          (SELECT COUNT(*) FROM decks WHERE created_at>=? AND created_at<?) newDecks,
+          (SELECT COUNT(*) FROM decks WHERE deleted_at IS NULL AND created_at>=? AND created_at<?) newDecks,
           (SELECT COUNT(*) FROM documents WHERE created_at>=? AND created_at<?) uploads,
           (SELECT COUNT(*) FROM arena_sessions WHERE started_at>=? AND started_at<?) sessions,
           (SELECT COUNT(*) FROM arena_sessions WHERE started_at>=? AND started_at<? AND status=\'completed\') completedSessions',[$start,$end,$start,$end,$start,$end,$start,$end,$start,$end,$start,$end])->fetch();

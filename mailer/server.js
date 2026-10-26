@@ -161,3 +161,11 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`Recovery mail service listening on ${HOST}:${PORT} (${ready ? TRANSPORT_MODE : 'not configured'})`);
 });
+server.on('error', error => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`Recovery mail service is already running on ${HOST}:${PORT}; keep using that instance.`);
+    return;
+  }
+  console.error(`Recovery mail service could not start: ${error.message}`);
+  process.exitCode = 1;
+});
