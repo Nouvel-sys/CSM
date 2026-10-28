@@ -2564,6 +2564,48 @@
     }
     .csm-notifications-actions button:disabled { opacity: .45; cursor: not-allowed; }
 
+    @media (max-width: 882px) {
+      /* Anchor to the full header, not the bell beside the profile controls. */
+      html:has(.app-shell), body:has(.app-shell) { min-width: 0; }
+      .csm-notifications-wrap { position: static; }
+      .csm-notifications-panel {
+        top: calc(100% + 8px);
+        left: max(12px, env(safe-area-inset-left));
+        right: max(12px, env(safe-area-inset-right));
+        width: auto;
+        display: flex;
+        flex-direction: column;
+        /* Leave room for the header, screen gutters and the app's readability zoom. */
+        max-height: min(560px, calc(100vh - 140px));
+        max-height: min(560px, calc(100dvh - 140px - env(safe-area-inset-bottom)));
+      }
+      .csm-notifications-header,
+      .csm-notifications-actions { flex: 0 0 auto; }
+      .csm-notifications-header strong { font-size: 15px; }
+      .csm-notifications-header span { font-size: 12px; }
+      .csm-notifications-list {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+      }
+      .csm-notification-item { grid-template-columns: 28px minmax(0, 1fr); }
+      .csm-notification-item-copy strong { font-size: 13px; overflow-wrap: anywhere; }
+      .csm-notification-item-copy p { font-size: 12px; }
+      .csm-notification-item-copy time { font-size: 11px; overflow-wrap: anywhere; }
+      .csm-notification-mark-read {
+        grid-column: 2;
+        justify-self: start;
+        min-height: 44px;
+        padding: 8px 0;
+        font-size: 12px;
+      }
+      .csm-notifications-actions button { height: auto; min-height: 44px; padding: 8px; font-size: 12px; }
+      .csm-notifications-empty strong { font-size: 14px; }
+      .csm-notifications-empty p { font-size: 12px; }
+    }
+
     .csm-profile {
       display: flex;
       align-items: center;
@@ -3845,7 +3887,7 @@
     .csm-field textarea {
       min-height: 100px;
       padding-top: 10px;
-      resize: vertical;
+      resize: none;
     }
 
     .csm-viewer-progress {
@@ -4953,14 +4995,18 @@
     .csm-library-header h1 {
       margin: 6px 0 5px;
       color: var(--csm-ink);
-      font-size: 30px;
+      font-size: 34px;
       letter-spacing: -.045em;
+    }
+
+    .csm-library-header .csm-kicker {
+      font-size: 12px;
     }
 
     .csm-library-header p {
       margin: 0;
       color: var(--csm-muted);
-      font-size: 12px;
+      font-size: 14px;
     }
 
     .csm-library-header-actions {
@@ -5016,7 +5062,7 @@
 
     .csm-library-overview-card small {
       color: #8b98a8;
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 800;
       letter-spacing: .08em;
       text-transform: uppercase;
@@ -5024,7 +5070,7 @@
 
     .csm-library-overview-card strong {
       color: var(--csm-ink);
-      font-size: 20px;
+      font-size: 24px;
       line-height: 1;
     }
 
@@ -5058,14 +5104,14 @@
 
     .csm-library-search input {
       width: 100%;
-      height: 36px;
+      height: 44px;
       padding: 0 12px 0 37px;
       border: 1px solid #e7ecf0;
       border-radius: 9px;
       outline: none;
       color: var(--csm-ink);
       background: #fbfcfd;
-      font-size: 10px;
+      font-size: 14px;
     }
 
     .csm-library-search input:focus {
@@ -5079,12 +5125,12 @@
       align-items: center;
       gap: 8px;
       color: #8491a0;
-      font-size: 10px;
+      font-size: 13px;
       font-weight: 800;
     }
 
     .csm-library-filter select {
-      height: 36px;
+      height: 44px;
       min-width: 145px;
       padding: 0 30px 0 11px;
       border: 1px solid #e7ecf0;
@@ -5092,7 +5138,7 @@
       outline: none;
       color: #536276;
       background: #fbfcfd;
-      font-size: 10px;
+      font-size: 13px;
       font-weight: 700;
     }
 
@@ -5115,13 +5161,17 @@
     .csm-library-section-heading h2 {
       margin: 0;
       color: var(--csm-ink);
-      font-size: 15px;
+      font-size: 18px;
       letter-spacing: -.025em;
+      text-decoration: underline;
+      text-decoration-color: #d9e1eb;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 4px;
     }
 
     .csm-library-section-heading span {
       color: #8b98a7;
-      font-size: 10px;
+      font-size: 12px;
     }
 
     .csm-library-section-heading button {
@@ -5129,8 +5179,10 @@
       border: 0;
       color: var(--csm-accent);
       background: transparent;
-      font-size: 10px;
+      font-size: 13px;
       font-weight: 800;
+      text-decoration: underline;
+      text-underline-offset: 3px;
       cursor: pointer;
     }
 
@@ -5303,16 +5355,73 @@
       overflow: hidden;
       margin: 7px 0 0;
       color: #61738b;
-      font-size: 10px;
+      font-size: 13px;
+      line-height: 1.35;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .csm-library-deck-card-copy span {
-      display: block;
+    .csm-library-deck-material-counts {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
       margin-top: 5px;
-      color: #9aa5b1;
-      font-size: 9px;
+      color: #71829a;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .csm-library-deck-material-counts > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 0;
+      color: inherit;
+      font-size: inherit;
+    }
+
+    .csm-library-deck-material-counts svg {
+      width: 13px;
+      height: 13px;
+      color: #ee4d2e;
+    }
+
+    .csm-library-deck-progress {
+      margin-top: 11px;
+    }
+
+    .csm-library-deck-progress-copy {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: #71829a;
+      font-size: 10px;
+      line-height: 1.3;
+    }
+
+    .csm-library-deck-progress-copy strong {
+      color: #52647b;
+      font-size: 10px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .csm-library-deck-progress-track {
+      height: 5px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #e9edf2;
+    }
+
+    .csm-library-deck-progress-track > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #f04c2c, #ff7956);
+      transition: width 320ms cubic-bezier(.2, .72, .22, 1);
     }
 
     .csm-library-deck-card-footer {
@@ -5334,7 +5443,7 @@
       border-radius: 7px;
       color: #8492a3;
       background: #fbfcfd;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 700;
     }
 
@@ -5348,7 +5457,7 @@
       align-items: center;
       gap: 4px;
       color: var(--csm-accent);
-      font-size: 9px;
+      font-size: 11px;
       white-space: nowrap;
     }
 
@@ -5465,11 +5574,27 @@
     }
 
     .csm-library-detail-stat {
+      display: flex;
+      align-items: center;
+      gap: 12px;
       padding: 13px 15px;
       border: 1px solid var(--csm-line);
       border-radius: 12px;
       background: #fff;
     }
+
+    .csm-library-detail-stat-icon {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      place-items: center;
+      border-radius: 11px;
+      color: var(--csm-accent);
+      background: #fff0eb;
+    }
+
+    .csm-library-detail-stat-icon svg { width: 19px; height: 19px; }
 
     .csm-library-detail-stat small {
       display: block;
@@ -5497,6 +5622,11 @@
     .csm-library-detail-stat.accent small,
     .csm-library-detail-stat.accent strong {
       color: #fff;
+    }
+
+    .csm-library-detail-stat.accent .csm-library-detail-stat-icon {
+      color: #fff;
+      background: rgba(255, 255, 255, .2);
     }
 
     .csm-library-content-section {
@@ -7219,7 +7349,7 @@
   width: min(100%, 560px);
   min-height: 460px;
   margin: clamp(24px, 7vh, 72px) auto;
-  padding: 34px 28px 30px;
+  padding: 24px 24px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7234,9 +7364,9 @@
 
 .csm-bombstyle-stopwatch {
   display: block;
-  width: min(100%, 300px);
+  width: min(100%, 250px);
   height: auto;
-  margin: 18px 0 12px;
+  margin: 10px 0 8px;
   overflow: visible;
   filter: drop-shadow(0 14px 14px rgba(26, 29, 48, .16));
 }
@@ -7291,13 +7421,13 @@
 
 @media (max-width: 640px) {
   .csm-bombstyle-countdown {
-    min-height: 430px;
+    min-height: 420px;
     margin: 20px auto;
-    padding: 30px 20px 24px;
+    padding: 20px 18px 18px;
     border-radius: 20px;
   }
   .csm-bombstyle-stopwatch {
-    width: min(100%, 270px);
+    width: min(100%, 230px);
   }
 }
 
@@ -8652,16 +8782,16 @@
 }
 
 .csm-bombstyle-countdown .csm-bombstyle-countdown-cancel {
-  min-width: 168px;
-  min-height: 44px;
-  margin-top: 18px;
-  padding: 0 20px;
+  min-width: 148px;
+  min-height: 38px;
+  margin-top: 10px;
+  padding: 0 16px;
   color: #596b83;
   background: #ffffff;
   border: 1px solid #d7e1ed;
   border-radius: 12px;
   box-shadow: 0 3px 8px rgba(25, 42, 64, .06);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 750;
   transition: color .18s ease, background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
@@ -8832,9 +8962,10 @@
 .csm-pdf-load-error a { margin-top: 15px; color: #ff9b83; font-size: 11px; font-weight: 700; }
 .csm-pdf-empty-icon { display: grid; width: 46px; height: 54px; place-items: center; border: 1px solid #596271; border-radius: 10px; color: #ffa184; background: #30353d; font-size: 12px; font-weight: 900; }
 .csm-pdf-pagination { min-height: 58px; padding: 10px 18px; border-top: 1px solid #edf1f4; }
+.csm-pdf-pagination.is-top { border-top: 0; border-bottom: 1px solid #edf1f4; }
 .csm-pdf-pagination label { display: flex; align-items: center; gap: 6px; color: #8793a1; font-size: 10px; }
 .csm-pdf-pagination input { width: 48px; height: 30px; padding: 0 5px; border: 1px solid #dce4ed; border-radius: 7px; color: #334155; text-align: center; }
-.csm-pdf-pagination .csm-secondary-button { min-height: 34px; padding: 0 10px; }
+.csm-pdf-pagination .csm-secondary-button { display: inline-flex; min-height: 34px; padding: 0 10px; align-items: center; justify-content: center; gap: 7px; }
 .csm-pdf-notes-panel { display: flex; min-height: 100%; padding: 18px; flex-direction: column; border-radius: 16px; background: #fff; box-shadow: 0 12px 34px rgba(21, 34, 52, .06); }
 .csm-pdf-notes-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid #edf1f4; }
 .csm-pdf-notes-heading .csm-kicker { font-size: 9px; }
@@ -8855,7 +8986,7 @@
 .csm-pdf-role-switch button { min-height: 31px; border: 0; border-radius: 6px; color: #758193; background: transparent; font-size: 10px; font-weight: 750; cursor: pointer; }
 .csm-pdf-role-switch button.active { color: #d94123; background: #fff0eb; box-shadow: 0 1px 3px rgba(40,50,65,.08); }
 .csm-pdf-card-composer label { margin-bottom: -5px; color: #667386; font-size: 9px; font-weight: 700; }
-.csm-pdf-card-composer textarea { width: 100%; min-height: 74px; resize: vertical; padding: 9px 10px; border: 1px solid #dce4ed; border-radius: 8px; color: #283548; background: #fff; font: inherit; font-size: 10px; line-height: 1.5; }
+.csm-pdf-card-composer textarea { width: 100%; min-height: 74px; resize: none; padding: 9px 10px; border: 1px solid #dce4ed; border-radius: 8px; color: #283548; background: #fff; font: inherit; font-size: 10px; line-height: 1.5; }
 .csm-pdf-card-composer textarea:focus, .csm-pdf-pagination input:focus, .csm-pdf-document-select:focus { border-color: #ef8a72; outline: 3px solid rgba(240,72,36,.12); }
 .csm-pdf-card-composer small { color: #8b96a4; font-size: 9px; line-height: 1.45; }
 .csm-pdf-create-card { width: 100%; }
@@ -9173,6 +9304,9 @@
 .csm-admin-deck-menu-popover button.is-restore { color: #16754c; }
 .csm-admin-deck-menu-popover button:disabled { opacity: .5; cursor: not-allowed; }
 .csm-admin-menu-item-icon { width: 15px; height: 15px; flex: 0 0 15px; }
+.csm-mastery-menu { position: relative; }
+.csm-mastery-menu-trigger { flex: 0 0 38px; }
+.csm-mastery-menu-popover { top: auto; bottom: calc(100% + 6px); }
 .csm-admin-text-button { padding: 4px 2px; color: #e34523; font-size: 11px; font-weight: 700; }
 .csm-admin-text-button:hover { text-decoration: underline; }
 .csm-admin-text-button:disabled, .csm-admin-row-actions button:disabled { opacity: .48; cursor: not-allowed; }
@@ -9208,7 +9342,7 @@
 .csm-admin-flag-modal h2 { margin: 7px 0 8px; color: #17243a; font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
 .csm-admin-flag-modal > p { margin: 0 0 19px; color: #71839b; font-size: 12px; line-height: 1.6; }
 .csm-admin-flag-label { display: block; margin-bottom: 6px; color: #40536d; font-size: 12px; font-weight: 700; text-align: left; }
-.csm-admin-flag-modal textarea { display: block; width: 100%; min-height: 108px; resize: vertical; padding: 11px 12px; border: 1px solid #d8e2ed; border-radius: 10px; outline: none; color: #17243a; background: #fff; font: inherit; font-size: 13px; line-height: 1.5; }
+.csm-admin-flag-modal textarea { display: block; width: 100%; min-height: 108px; resize: none; padding: 11px 12px; border: 1px solid #d8e2ed; border-radius: 10px; outline: none; color: #17243a; background: #fff; font: inherit; font-size: 13px; line-height: 1.5; }
 .csm-admin-flag-modal textarea::placeholder { color: #9aa7b7; }
 .csm-admin-flag-modal textarea:focus { border-color: #f04824; box-shadow: 0 0 0 3px #f048241c; }
 .csm-admin-flag-modal textarea[aria-invalid="true"] { border-color: #d95443; }
@@ -9225,7 +9359,7 @@
 .csm-admin-action-icon.is-danger { color: #b9382e; background: #fff0ee; }
 .csm-admin-action-modal h2 { margin: 7px 0 8px; color: #17243a; font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
 .csm-admin-action-modal > p { margin: 0 0 19px; color: #71839b; font-size: 12px; line-height: 1.6; }
-.csm-admin-action-modal textarea { display: block; width: 100%; min-height: 108px; resize: vertical; padding: 11px 12px; border: 1px solid #d8e2ed; border-radius: 10px; outline: none; color: #17243a; background: #fff; font: inherit; font-size: 13px; line-height: 1.5; }
+.csm-admin-action-modal textarea { display: block; width: 100%; min-height: 108px; resize: none; padding: 11px 12px; border: 1px solid #d8e2ed; border-radius: 10px; outline: none; color: #17243a; background: #fff; font: inherit; font-size: 13px; line-height: 1.5; }
 .csm-admin-action-modal input[type="password"] { display: block; width: 100%; min-height: 44px; margin-bottom: 10px; padding: 0 12px; border: 1px solid #d8e2ed; border-radius: 10px; outline: none; color: #17243a; background: #fff; font: inherit; font-size: 13px; }
 .csm-admin-action-modal input[type="password"]:focus { border-color: #f04824; box-shadow: 0 0 0 3px #f048241c; }
 .csm-admin-action-modal input[type="password"][aria-invalid="true"] { border-color: #d95443; }
@@ -10030,6 +10164,11 @@
 .csm-people-search-form .csm-primary-button svg { color: #fff; stroke: currentColor; flex: 0 0 16px; }
 .csm-people-result-count { margin: 18px 0 8px; color: #7788a0; font-size: 13px; }
 .csm-people-results { display: grid; gap: 10px; margin-top: 16px; }
+.csm-people-recent { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e8edf3; }
+.csm-people-recent-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.csm-people-recent-heading h2 { margin: 0; color: #18253a; font-size: 16px; font-weight: 800; }
+.csm-people-recent-heading button { border: 0; padding: 6px 0; background: transparent; color: #f04824; font-size: 12px; font-weight: 700; cursor: pointer; }
+.csm-people-recent-heading button:hover { text-decoration: underline; }
 .csm-people-result { display: flex; align-items: center; gap: 14px; min-width: 0; padding: 14px; border: 1px solid #e1e8f0; border-radius: 14px; background: #fff; cursor: pointer; transition: border-color .16s ease, box-shadow .16s ease, background-color .16s ease; }
 .csm-people-result:hover { border-color: #f7a08b; background: #fffdfc; box-shadow: 0 5px 16px rgb(23 36 58 / 7%); }
 .csm-people-result:focus-visible { outline: 3px solid rgb(240 76 44 / 28%); outline-offset: 2px; }
@@ -10159,7 +10298,7 @@
 .csm-people-report-modal > p { margin: 0 0 20px; color: #71829a; font-size: 13px; line-height: 1.55; }
 .csm-people-report-modal form { display: grid; gap: 9px; }
 .csm-people-report-modal label { color: #33445c; font-size: 13px; font-weight: 750; text-align: left; }
-.csm-people-report-modal textarea { min-height: 132px; resize: vertical; padding: 12px 14px; border: 1px solid #d8e2ee; border-radius: 12px; color: #19263a; font: inherit; line-height: 1.5; }
+.csm-people-report-modal textarea { min-height: 132px; resize: none; padding: 12px 14px; border: 1px solid #d8e2ee; border-radius: 12px; color: #19263a; font: inherit; line-height: 1.5; }
 .csm-people-report-modal textarea:focus { outline: 3px solid rgb(240 72 36 / 13%); border-color: #f15a38; }
 .csm-people-report-modal form > small { justify-self: end; color: #8291a5; font-size: 11px; }
 .csm-people-report-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; margin-top: 8px; }
@@ -10387,6 +10526,7 @@
 .csm-admin-report-modal .csm-kicker { margin-bottom: 7px; }
 .csm-admin-report-modal h2 { margin: 0; color: #17243a; font-size: 22px; line-height: 1.25; }
 .csm-admin-report-modal p { margin: 10px 0 22px; color: #64758d; font-size: 15px; line-height: 1.5; }
+.csm-admin-report-modal p.csm-admin-report-error { margin: -10px 0 16px; color: #b42318; font-size: 12px; }
 .csm-admin-report-modal > button { min-width: 150px; min-height: 44px; justify-content: center; }
 .csm-admin-tabs button.has-open-reports { position: relative; padding-right: 22px; }
 .csm-admin-review-dot {
@@ -10596,3 +10736,255 @@ button.csm-study-flip-card.is-swipe-settle-from-right { transform: translate3d(0
   .csm-people-deck-title-block { align-items: flex-start; flex-direction: column; gap: 14px; }
   .csm-people-deck-creator { margin: 0; align-self: flex-start; }
 }
+
+/* Shared motion language for screen changes, feedback, and everyday controls. */
+textarea { resize: none; }
+
+:root {
+  --csm-motion-ease: cubic-bezier(.2, .72, .22, 1);
+  --csm-motion-fast: 160ms;
+  --csm-motion-enter: 340ms;
+}
+
+@keyframes csm-view-enter {
+  from { opacity: 0; translate: 0 9px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes csm-library-return-from-pdf {
+  from { opacity: 0; translate: -22px 0; scale: .99; }
+  72% { opacity: 1; translate: 2px 0; scale: 1.004; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+.csm-library-detail.csm-library-return-from-pdf {
+  animation: csm-library-return-from-pdf 440ms var(--csm-motion-ease) both;
+}
+
+@keyframes csm-surface-enter {
+  from { opacity: 0; translate: 0 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes csm-backdrop-enter {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to { opacity: 1; backdrop-filter: blur(5px); }
+}
+
+@keyframes csm-dialog-enter {
+  0% { opacity: 0; transform: translateY(16px) scale(.96); }
+  72% { opacity: 1; transform: translateY(-2px) scale(1.008); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes csm-notification-pop {
+  0% { opacity: 0; scale: .94; translate: 0 -5px; }
+  70% { opacity: 1; scale: 1.01; translate: 0 1px; }
+  100% { opacity: 1; scale: 1; translate: 0 0; }
+}
+
+@keyframes csm-badge-pop {
+  0% { scale: .6; }
+  72% { scale: 1.16; }
+  100% { scale: 1; }
+}
+
+@keyframes csm-toast-pop {
+  from { opacity: 0; translate: 0 -8px; scale: .98; }
+  to { opacity: 1; translate: 0 0; scale: 1; }
+}
+
+.app-shell > main > .csm-screen,
+.app-shell > main > .home-dashboard-content,
+.app-shell > main > .game-view {
+  animation: csm-view-enter var(--csm-motion-enter) var(--csm-motion-ease) both;
+}
+
+:is(.home-stat-card, .csm-subject-mastery, .csm-chart-card, .csm-daily-goal-card,
+    .csm-arena-challenge-card, .csm-badges-card, .csm-library-deck-card,
+    .csm-people-result, .csm-people-deck, .csm-people-public-card,
+    .csm-account-card, .csm-reviewer-card) {
+  animation: csm-surface-enter var(--csm-motion-enter) var(--csm-motion-ease) backwards;
+}
+
+.home-dashboard-content .home-stat-card:nth-child(2),
+.csm-library-deck-grid > :nth-child(2),
+.csm-people-results > :nth-child(2) { animation-delay: 45ms; }
+.home-dashboard-content .home-stat-card:nth-child(3),
+.csm-library-deck-grid > :nth-child(3),
+.csm-people-results > :nth-child(3) { animation-delay: 90ms; }
+.home-dashboard-content .home-stat-card:nth-child(4),
+.csm-library-deck-grid > :nth-child(4),
+.csm-people-results > :nth-child(4) { animation-delay: 135ms; }
+
+:is(.csm-primary-button, .csm-secondary-button, .csm-danger-button,
+    .csm-admin-deck-menu-trigger, .csm-icon-button):not(:disabled) {
+  transition: translate var(--csm-motion-fast) var(--csm-motion-ease),
+    scale var(--csm-motion-fast) var(--csm-motion-ease),
+    box-shadow var(--csm-motion-fast) ease,
+    background-color var(--csm-motion-fast) ease,
+    border-color var(--csm-motion-fast) ease,
+    color var(--csm-motion-fast) ease;
+}
+
+:is(.csm-primary-button, .csm-secondary-button, .csm-danger-button,
+    .csm-admin-deck-menu-trigger, .csm-icon-button):not(:disabled):hover {
+  translate: 0 -1px;
+}
+
+:is(.csm-primary-button, .csm-secondary-button, .csm-danger-button,
+    .csm-admin-deck-menu-trigger, .csm-icon-button):not(:disabled):active {
+  scale: .975;
+  translate: 0 0;
+}
+
+.csm-modal-backdrop,
+.csm-locked-modal-overlay,
+.fixed.inset-0 { animation: csm-backdrop-enter 240ms ease-out both; }
+
+:is(.csm-modal-backdrop, .csm-locked-modal-overlay, .fixed.inset-0) > :not([aria-hidden="true"]),
+[aria-modal="true"] { animation: csm-dialog-enter 360ms var(--csm-motion-ease) both; }
+
+.csm-notifications-panel,
+.csm-account-dropdown,
+.csm-admin-deck-menu-popover,
+.csm-library-menu-popover,
+.csm-material-menu {
+  transform-origin: top right;
+  animation: csm-notification-pop 210ms var(--csm-motion-ease) both;
+}
+
+.csm-notification-item {
+  animation: csm-surface-enter 240ms var(--csm-motion-ease) both;
+}
+.csm-notification-item:nth-child(2) { animation-delay: 35ms; }
+.csm-notification-item:nth-child(3) { animation-delay: 70ms; }
+.csm-notification-item:nth-child(4) { animation-delay: 105ms; }
+.csm-notification-item-icon { transition: transform 180ms var(--csm-motion-ease); }
+.csm-notification-item:hover .csm-notification-item-icon { transform: scale(1.08) rotate(-4deg); }
+.csm-notification-badge { animation: csm-badge-pop 260ms var(--csm-motion-ease) both; }
+
+.csm-deck-visibility-toast {
+  animation-duration: 280ms;
+  animation-timing-function: var(--csm-motion-ease);
+}
+
+.csm-people-report-toast {
+  animation: csm-toast-pop 280ms var(--csm-motion-ease) both;
+}
+
+.csm-mastery-progress-toast {
+  position: fixed;
+  z-index: 260;
+  top: 82px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid #ffd0c5;
+  border-radius: 13px;
+  color: #a63520;
+  background: #fff3f0;
+  box-shadow: 0 14px 36px rgb(20 36 56 / 18%);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+  animation: csm-toast-pop 280ms var(--csm-motion-ease) both;
+}
+.csm-mastery-progress-toast > svg { flex: 0 0 19px; width: 19px; height: 19px; }
+.csm-mastery-progress-toast > span { min-width: 0; }
+.csm-mastery-progress-toast > button { flex: 0 0 24px; width: 24px; height: 24px; margin: -3px -4px -3px 2px; border: 0; border-radius: 7px; color: inherit; background: transparent; font-size: 19px; line-height: 1; cursor: pointer; }
+.csm-mastery-progress-toast > button:hover { background: rgb(166 53 32 / 9%); }
+@media (max-width: 600px) {
+  .csm-mastery-progress-toast { top: 76px; right: 12px; left: 12px; width: auto; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell > main > .csm-screen,
+  .app-shell > main > .home-dashboard-content,
+  .app-shell > main > .game-view,
+  :is(.home-stat-card, .csm-subject-mastery, .csm-chart-card, .csm-daily-goal-card,
+      .csm-arena-challenge-card, .csm-badges-card, .csm-library-deck-card,
+      .csm-people-result, .csm-people-deck, .csm-people-public-card,
+      .csm-account-card, .csm-reviewer-card),
+  .csm-modal-backdrop,
+  .csm-locked-modal-overlay,
+  .fixed.inset-0,
+  :is(.csm-modal-backdrop, .csm-locked-modal-overlay, .fixed.inset-0) > :not([aria-hidden="true"]),
+  [aria-modal="true"],
+  .csm-notifications-panel,
+  .csm-account-dropdown,
+  .csm-admin-deck-menu-popover,
+  .csm-library-menu-popover,
+  .csm-material-menu,
+  :is(.csm-primary-button, .csm-secondary-button, .csm-danger-button,
+      .csm-mastery-study-button, .csm-mastery-arena-button,
+      .csm-admin-deck-menu-trigger, .csm-icon-button):not(:disabled),
+  .csm-notification-item,
+  .csm-notification-badge,
+  .csm-library-deck-progress-track > span,
+  .csm-library-collapse-panel,
+  .csm-people-report-toast,
+  .csm-mastery-progress-toast,
+  .csm-deck-visibility-toast {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+    translate: none !important;
+    scale: none !important;
+  }
+  .csm-library-detail.csm-library-return-from-pdf { animation: none !important; }
+}
+
+/* Improve readability in the open reviewer deck without changing site-wide type. */
+.csm-library-detail .csm-library-detail-heading .csm-kicker { font-size: 11px; }
+.csm-library-detail .csm-library-detail-heading h1 { font-size: 26px; font-weight: 800; }
+.csm-library-detail .csm-library-detail-heading p { font-size: 12px; }
+.csm-library-detail .csm-deck-visibility-control > span { font-size: 14px; }
+.csm-library-detail .csm-deck-visibility-control select { min-height: 44px; font-size: 14px; }
+.csm-library-detail .csm-library-detail-actions > button,
+.csm-library-detail .csm-library-detail-actions .csm-share-button,
+.csm-library-detail .csm-library-detail-actions .csm-deck-menu-trigger { font-size: 12px; }
+.csm-library-detail .csm-library-detail-stat small { font-size: 11px; }
+.csm-library-detail .csm-library-detail-stat strong { font-size: 22px; }
+.csm-library-detail .csm-library-section-heading-left .csm-kicker { font-size: 12px; }
+.csm-library-detail .csm-library-count-pill { font-size: 11px; }
+.csm-library-detail .csm-library-section-actions > button { font-size: 13px; }
+.csm-library-detail .csm-bombcard-bulk-toolbar button { min-height: 40px; font-size: 12px; }
+.csm-library-detail .csm-bombcard-bulk-selection > span { font-size: 12px; }
+.csm-library-detail .csm-library-bombcard-top > span { font-size: 11px; }
+.csm-library-detail .csm-library-bombcard-prompt { font-size: 15px; line-height: 1.5; }
+.csm-library-detail .csm-library-bombcard-answer { font-size: 14px; }
+.csm-library-detail .csm-library-bombcard-footer small,
+.csm-library-detail .csm-library-reveal { font-size: 11px; }
+.csm-library-play-arrow { display: inline-grid; width: 24px; height: 24px; flex: 0 0 24px; place-items: center; border-radius: 50%; background: rgb(255 255 255 / 18%); }
+.csm-library-play-arrow svg { width: 15px; height: 15px; }
+.csm-library-section-heading button.csm-library-show-all,
+.csm-library-content-section .csm-library-add-pdf-button { text-decoration: none; }
+.csm-library-section-heading h2 { text-decoration: none; }
+.csm-library-collapse-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  visibility: visible;
+  transition: grid-template-rows 300ms cubic-bezier(.2, .72, .22, 1), opacity 220ms ease, visibility 0s;
+}
+.csm-library-collapse-panel-inner { min-height: 0; overflow: hidden; }
+.csm-library-collapse-panel.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: grid-template-rows 300ms cubic-bezier(.2, .72, .22, 1), opacity 220ms ease, visibility 0s linear 300ms;
+}
+.csm-library-reference-notes .csm-library-section-heading-left .csm-kicker { font-size: 13px; }
+.csm-library-reference-notes .csm-library-count-pill { font-size: 12px; }
+.csm-library-reference-notes .csm-library-add-pdf-button { font-size: 14px; }
+.csm-library-reference-notes .csm-library-document { min-height: 68px; }
+.csm-library-reference-notes .csm-library-document-icon { width: 36px; height: 40px; flex-basis: 36px; font-size: 10px; }
+.csm-library-reference-notes .csm-library-document-copy button { font-size: 14px; }
+.csm-library-reference-notes .csm-library-document-copy small { font-size: 11px; }
+.csm-library-reference-notes .csm-library-empty-row { font-size: 13px; }
+.csm-library-reference-notes .csm-material-actions > button:not(.csm-material-menu-trigger) { min-height: 34px; font-size: 12px; }

@@ -6,7 +6,9 @@ For codebase design, directory structure, and data flows, see [the architecture 
 
 ## Project layout
 
-- Root HTML pages, `index.jsx`, `api.js`, and styles: browser entry points and interface.
+- Root HTML pages, `api.js`, and styles: browser entry points and the shared API client.
+- `src/`: React entry points, shared components, feature screens, and utilities. See [the frontend guide](docs/FRONTEND.md).
+- `scripts/build-frontend.cjs`: builds `assets/app.js` and `assets/landing.js` from the React sources.
 - `assets/images/`: shared branding images.
 - `api/`, `server/`, and `classes/`: API routes, request/session handling, and database services.
 - `database/schema.sql`: the canonical empty-database schema. Use `migrate.php` and `migrate-learning-workspace.php` for existing installations and the PDF learning workspace.
@@ -29,10 +31,13 @@ This automatically detects `php` on your PATH or at `C:\xampp\php\php.exe` and l
 
 ### Option 2: Using npm
 ```powershell
+npm install
 npm run dev
 # or
 npm start
 ```
+
+The npm server builds React before starting PHP and watches `src/` for changes. Refresh the browser after editing. `start.bat` builds once when launched; use `npm run build:watch` alongside it for ongoing edits.
 
 ### Option 3: Direct Command Line
 ```powershell
@@ -40,6 +45,10 @@ php -d upload_max_filesize=10M -d post_max_size=12M -S 127.0.0.1:8080 router.php
 ```
 
 Then open `http://127.0.0.1:8080/` in your browser.
+
+For a direct PHP launch or deployment, run `npm run build` after React changes and include both generated bundles in `assets/`. The checked-in bundles let PHP serve the app without Node.js at runtime.
+
+Frontend browser checks use isolated API/PDF fixtures: run `npx playwright install chromium` once, then `npm run test:frontend`. The existing `npm test` command still runs the PHP API smoke tests.
 
 ---
 
@@ -120,7 +129,7 @@ PHP continues to issue, hash, validate, expire, and consume reset tokens. A smal
 2. Copy `mailer/.env.example` to `mailer/.env`. Generate a private shared secret with `C:\xampp\php\php.exe -r "echo bin2hex(random_bytes(32)), PHP_EOL;"` (or `php -r ...` where PHP is on PATH). Put the same generated value in `mailer/.env` as `CSM_MAILER_SECRET` and in `server/config.local.php` as `mailer_secret`. Never commit either local file.
 3. Set `APP_BASE_URL` identically in the PHP configuration and `mailer/.env`, e.g. `http://127.0.0.1:8080` for local PHP development or `http://localhost/CSM` under local XAMPP Apache. Set `mailer_url` in `server/config.local.php` to `http://127.0.0.1:8091/send`. The URL is configured explicitly and is not constructed from incoming requests.
 4. For real email delivery, set `MAILER_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURITY` (`implicit`, `starttls`, or `none` for local-only testing), `SMTP_USER`, `SMTP_PASS`, and `SMTP_FROM` in `mailer/.env`. Recovery is not considered configured until both services have a valid base URL and matching secret and all SMTP fields are supplied. Do not use `none` in production. In production set `APP_ENV=production`, `NODE_ENV=production`, use an HTTPS `APP_BASE_URL`, and set PHP `secure_cookie` to `true` behind HTTPS.
-5. Start the Node bridge in a second terminal with `npm run mailer` (`npm.cmd run mailer` in Windows PowerShell), then start PHP as above (or start XAMPP Apache). The public website and existing `npm start`/`serve` behavior remain PHP-only. Keep the mail service on the same host as PHP; do not expose its port to the network.
+5. Start the app with `npm start` (`npm.cmd start` in Windows PowerShell). When `mailer/.env` exists, the development launcher starts the Nodemailer bridge and PHP together and stops both when the launcher exits. If you use XAMPP Apache instead, start the bridge separately with `npm run mailer`. Keep the mail service on the same host as PHP; do not expose its port to the network.
 
 The bridge reports `not configured` on `/health` until its settings are complete. Recovery requests always return the same confirmation for known and unknown email addresses; SMTP sending is started after the local bridge acknowledges the request to reduce timing-based account discovery. Reset links expire after 30 minutes, are single-use, and newer requests invalidate previous links. Tokens are carried in the URL fragment (not sent in the initial page request or web-server access logs) and the reset page removes the fragment from visible history after reading it.
 

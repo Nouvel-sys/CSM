@@ -56,6 +56,13 @@ CREATE TABLE bombcard_progress (
  last_reviewed_at DATETIME(3) NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
  UNIQUE(user_id,bombcard_id),INDEX(user_id,status),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(bombcard_id) REFERENCES cards(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Actual Study interactions, separate from resettable mastery and general activity.
+-- Keep card identifiers as history even if a card is later removed; no content is stored.
+CREATE TABLE bombcard_reviews (
+ id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,bombcard_id CHAR(32) NOT NULL,
+ reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ INDEX(user_id,reviewed_at,bombcard_id),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE study_activity (
  id CHAR(32) PRIMARY KEY,user_id CHAR(32) NOT NULL,deck_id CHAR(32) NULL,material VARCHAR(255) NOT NULL,mode VARCHAR(80) NOT NULL,screen VARCHAR(32) NOT NULL,status VARCHAR(40) NOT NULL,accuracy DECIMAL(5,2) NULL,
  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),INDEX(user_id,created_at),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
@@ -95,6 +102,16 @@ CREATE TABLE user_notifications (
  INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
  FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE admin_archive_notice_state (
+ user_id CHAR(32) PRIMARY KEY,
+ last_inactive_checked_at DATETIME(3) NOT NULL DEFAULT '1970-01-01 00:00:00.000',
+ last_security_cutoff_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ pending_inactive_users INT UNSIGNED NOT NULL DEFAULT 0,
+ pending_security_events INT UNSIGNED NOT NULL DEFAULT 0,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE user_achievements (

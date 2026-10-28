@@ -40,6 +40,9 @@ if not errorlevel 1 (
 
 where npm.cmd >nul 2>nul
 if not errorlevel 1 (
+    echo Building React components ...
+    call npm.cmd run build
+    if errorlevel 1 exit /b 1
     netstat -ano -p tcp | findstr /R /C:"127.0.0.1:8091 .*LISTENING" >nul
     if not errorlevel 1 (
         echo [INFO] Mailer service is already listening on http://127.0.0.1:8091; using the existing instance.

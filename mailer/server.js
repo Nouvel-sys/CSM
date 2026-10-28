@@ -40,6 +40,7 @@ function smtpConfigIsValid() {
 }
 
 const ready = baseConfigIsValid() && (TRANSPORT_MODE === 'stub' || (TRANSPORT_MODE === 'smtp' && smtpConfigIsValid()));
+let smtpStatus = TRANSPORT_MODE === 'stub' && ready ? 'verified' : ready ? 'checking' : 'not-configured';
 const transport = ready ? (TRANSPORT_MODE === 'stub'
   ? nodemailer.createTransport({ jsonTransport: true })
   : nodemailer.createTransport({
@@ -53,6 +54,31 @@ const transport = ready ? (TRANSPORT_MODE === 'stub'
       greetingTimeout: 10000,
       socketTimeout: 15000
     })) : null;
+
+function smtpFailureCode(error) {
+  return typeof error?.code === 'string' && /^[A-Z0-9_-]{1,40}$/.test(error.code)
+    ? error.code
+    : 'verification-failed';
+}
+
+function logDeliveryFailure(error) {
+  console.error('Recovery email delivery failed.', {
+    code: smtpFailureCode(error),
+    responseCode: Number.isInteger(error?.responseCode) ? error.responseCode : undefined,
+  });
+}
+
+if (ready && TRANSPORT_MODE === 'smtp') {
+  transport.verify()
+    .then(() => {
+      smtpStatus = 'verified';
+      console.log('SMTP connection and authentication verified.');
+    })
+    .catch(error => {
+      smtpStatus = smtpFailureCode(error);
+      console.error('SMTP connection or authentication check failed.', { code: smtpStatus });
+    });
+}
 
 function sendJson(res, status, data) {
   const body = JSON.stringify(data);
@@ -108,7 +134,12 @@ function escapeHtml(value) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/health') {
-    return sendJson(res, ready ? 200 : 503, { ok: ready, transport: ready ? TRANSPORT_MODE : 'not-configured' });
+    const healthy = ready && (TRANSPORT_MODE !== 'smtp' || smtpStatus === 'verified');
+    return sendJson(res, healthy ? 200 : 503, {
+      ok: healthy,
+      transport: ready ? TRANSPORT_MODE : 'not-configured',
+      ...(ready && TRANSPORT_MODE === 'smtp' ? { smtp: smtpStatus } : {}),
+    });
   }
   if (!authorized(req)) return sendJson(res, 401, { error: 'Unauthorized.' });
 
@@ -117,7 +148,7 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { messages: outbox.filter(item => item.to.toLowerCase() === recipient.toLowerCase()).slice(-5) });
   }
   if (req.method !== 'POST' || url.pathname !== '/send') return sendJson(res, 404, { error: 'Not found.' });
-  if (!ready) return sendJson(res, 503, { sent: false });
+  if (!ready || (TRANSPORT_MODE === 'smtp' && smtpStatus !== 'verified')) return sendJson(res, 503, { sent: false });
   if (!(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return sendJson(res, 415, { sent: false });
 
   let payload;
@@ -144,8 +175,8 @@ const server = http.createServer(async (req, res) => {
       outbox.push({ to, subject: message.subject, text: message.text, html: message.html });
       if (outbox.length > 100) outbox.shift();
       return sendJson(res, 200, { sent: true });
-    } catch (_) {
-      console.error('Recovery email delivery failed.');
+    } catch (error) {
+      logDeliveryFailure(error);
       return sendJson(res, 502, { sent: false });
     }
   }
@@ -154,7 +185,10 @@ const server = http.createServer(async (req, res) => {
   sendJson(res, 200, { sent: true });
   setImmediate(async () => {
     try { await transport.sendMail(message); }
-    catch (_) { console.error('Recovery email delivery failed.'); }
+    catch (error) {
+      smtpStatus = smtpFailureCode(error);
+      logDeliveryFailure(error);
+    }
   });
 });
 

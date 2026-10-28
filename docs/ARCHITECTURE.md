@@ -4,7 +4,7 @@ Start with [the README](../README.md) for installation and commands. Static bran
 
 Co-StudyMaxx is a lightweight, high-performance study platform combining active recall flashcards ("Bombcards"), PDF annotation tools, pressure-based countdown quiz games ("Bombstyle Arena"), and AI flashcard generation.
 
-The architecture emphasizes **simplicity, zero build friction, strong data isolation, and immediate accessibility**.
+The architecture uses a modular React frontend built with esbuild and a PHP API with per-account data isolation. See [the frontend component guide](FRONTEND.md) for module ownership and build commands.
 
 ---
 
@@ -13,7 +13,7 @@ The architecture emphasizes **simplicity, zero build friction, strong data isola
 ```
 +-------------------------------------------------------------------------+
 |                              CLIENT (Browser)                           |
-|  index.html + index.jsx (React/Babel) + index.css + PDF.js + SoundEngine|
+|  index.html + assets/app.js (React) + index.css + PDF.js + SoundEngine     |
 +------------------------------------+------------------------------------+
                                      |  HTTP REST / JSON
                                      v
@@ -60,8 +60,9 @@ CSM/
 ├── docs/                 # Architecture and maintenance documentation
 ├── database/             # Canonical schema.sql and additive migrations
 │
-├── index.html            # Main SPA host page (includes React & Tailwind CDN)
-├── index.jsx             # Unified React application (Components, State, UI)
+├── index.html            # Main SPA host page (compiled React bundle + Tailwind)
+├── src/                  # React screens, reusable components, utilities, bootstrap
+├── scripts/              # Frontend build script
 ├── index.css             # Design system, glassmorphism, animations, layouts
 ├── landing.html          # Public marketing & product introduction page
 ├── login.html            # Authentication (Sign in, Register, Password Reset)
@@ -102,7 +103,7 @@ CSM/
 ## 3. Frontend Architecture
 
 ### Technology Stack
-- **React 18** via Babel Standalone (No Node.js build or bundle step required; edits reflect immediately on browser refresh).
+- **React 18** in ES modules under `src/`, bundled by esbuild into `assets/app.js` and `assets/landing.js`. `npm run dev` builds and watches the sources; direct PHP deployments serve the generated bundles without Node.js at runtime.
 - **Tailwind CSS + Custom CSS (`index.css`)**: Tailored color palette, dark mode cards, micro-animations, and smooth accordion transitions.
 - **PDF.js**: Client-side PDF rendering, text layer extraction, and highlight coordinates.
 - **SoundEngine**: Web Audio API synthesizer for tactile game audio (clicks, correct notes, detonation).

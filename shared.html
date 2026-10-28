@@ -77,10 +77,7 @@
     };
   </script>
 
-  <!-- React 18 & Babel Standalone -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Uses the same compiled React components as the authenticated workspace. -->
   <script type="module">
     window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs').then(pdfjsLib => {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs';
@@ -89,7 +86,7 @@
     }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
   </script>
 
-  <link rel="stylesheet" href="index.css?v=1.38">
+  <link rel="stylesheet" href="index.css?v=1.150">
 </head>
 
 <body>
@@ -102,7 +99,7 @@
     <?php endif; ?>
   </script>
   <script src="api.js?v=1.19"></script>
-  <script type="text/babel" src="index.jsx?v=1.53"></script>
+  <script src="assets/app.js?v=2.8"></script>
 </body>
 
 </html>

@@ -1070,6 +1070,50 @@ if (str_starts_with($route, 'admin/')) {
         });
     }
 
+    if ($route === 'admin/archive/notices' && $method === 'GET') {
+        $db->beginTransaction();
+        query('INSERT IGNORE INTO admin_archive_notice_state(user_id) VALUES(?)', [$user]);
+        $state = query('SELECT last_inactive_checked_at,last_security_cutoff_id,pending_inactive_users,pending_security_events FROM admin_archive_notice_state WHERE user_id=? FOR UPDATE', [$user])->fetch();
+        if (!$state) {
+            $db->rollBack();
+            fail(500, 'Could not load archive notifications.');
+        }
+
+        $scanTime = (string)query('SELECT UTC_TIMESTAMP(3)')->fetchColumn();
+        $activitySql = '(SELECT u.id,GREATEST(u.created_at,COALESCE((SELECT MAX(a.created_at) FROM study_activity a WHERE a.user_id=u.id),u.created_at),COALESCE((SELECT MAX(e.created_at) FROM security_events e WHERE e.actor_user_id=u.id OR e.target_user_id=u.id),u.created_at),COALESCE((SELECT MAX(t.updated_at) FROM user_active_tabs t WHERE t.user_id=u.id),u.created_at)) last_seen_at FROM users u) activity';
+        $inactiveFilter = 'activity.last_seen_at<DATE_SUB(?,INTERVAL 7 DAY) AND NOT EXISTS(SELECT 1 FROM user_active_tabs live WHERE live.user_id=u.id AND live.updated_at>=DATE_SUB(?,INTERVAL 5 MINUTE))';
+        $newInactive = (int)query(
+            'SELECT COUNT(*) FROM users u JOIN ' . $activitySql . ' ON activity.id=u.id WHERE ' . $inactiveFilter . ' AND DATE_ADD(activity.last_seen_at,INTERVAL 7 DAY)>? AND DATE_ADD(activity.last_seen_at,INTERVAL 7 DAY)<=?',
+            [$scanTime, $scanTime, $state['last_inactive_checked_at'], $scanTime]
+        )->fetchColumn();
+
+        $securityCutoff = query('SELECT id FROM security_events ORDER BY id DESC LIMIT 1 OFFSET 99')->fetchColumn();
+        $securityCutoff = $securityCutoff === false ? 0 : (int)$securityCutoff;
+        $previousSecurityCutoff = (int)$state['last_security_cutoff_id'];
+        $newSecurity = 0;
+        if ($securityCutoff > $previousSecurityCutoff) {
+            $newSecurity = $previousSecurityCutoff === 0
+                ? (int)query('SELECT COUNT(*) FROM security_events WHERE id<?', [$securityCutoff])->fetchColumn()
+                : (int)query('SELECT COUNT(*) FROM security_events WHERE id>=? AND id<?', [$previousSecurityCutoff, $securityCutoff])->fetchColumn();
+        }
+
+        query(
+            'UPDATE admin_archive_notice_state SET last_inactive_checked_at=?,last_security_cutoff_id=?,pending_inactive_users=pending_inactive_users+?,pending_security_events=pending_security_events+? WHERE user_id=?',
+            [$scanTime, max($previousSecurityCutoff, $securityCutoff), $newInactive, $newSecurity, $user]
+        );
+        $pending = query('SELECT pending_inactive_users,pending_security_events FROM admin_archive_notice_state WHERE user_id=?', [$user])->fetch();
+        $db->commit();
+        respond([
+            'inactiveUsers' => (int)$pending['pending_inactive_users'],
+            'archivedSecurityEvents' => $isSuper ? (int)$pending['pending_security_events'] : 0,
+        ]);
+    }
+
+    if ($route === 'admin/archive/notices' && $method === 'PATCH') {
+        query('UPDATE admin_archive_notice_state SET pending_inactive_users=0,pending_security_events=0 WHERE user_id=?', [$user]);
+        respond(['ok' => true]);
+    }
+
     if ($route === 'admin/archive/inactive-users' && $method === 'GET') {
         $limit = max(1, min(100, (int)($_GET['limit'] ?? 10)));
         $offset = max(0, min(100000, (int)($_GET['offset'] ?? 0)));
@@ -2021,8 +2065,26 @@ if ($route === 'highlights') {
 // ============================================================================
 // 11. Study Progress, Activity & Account Export
 // ============================================================================
+if ($route === 'study/daily-goal' && $method === 'GET') {
+    $timezone = $_GET['timezone'] ?? 'UTC';
+    if (!is_string($timezone) || strlen($timezone) > 64) fail(422, 'Invalid study time zone.');
+    try {
+        $goal = $progressService->dailyGoal($user, $timezone);
+    } catch (InvalidArgumentException $error) {
+        fail(422, $error->getMessage());
+    }
+    respond($goal);
+}
+
 if ($route === 'study/progress' && $method === 'GET') {
     respond($progressService->forUser($user));
+}
+
+if ($route === 'study/progress' && $method === 'DELETE') {
+    $data = input();
+    $deck = owned_deck(id_field($data, 'deckId'), $user);
+    $deleted = $progressService->resetDeck($user, $deck['id']);
+    respond(['ok' => true, 'deleted' => $deleted]);
 }
 
 if ($route === 'study/progress' && $method === 'POST') {
@@ -2032,7 +2094,10 @@ if ($route === 'study/progress' && $method === 'POST') {
         fail(404, 'Bombcard not found.');
     }
     $result = field($data, 'result', 16);
-    $progressService->record($user, $card, $result);
+    $database->transaction(function () use ($progressService, $user, $card, $result) {
+        $progressService->record($user, $card, $result);
+        $progressService->recordReview($user, $card);
+    });
     respond(['ok' => true], 201);
 }
 

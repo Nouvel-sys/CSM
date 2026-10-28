@@ -69,10 +69,7 @@
     };
   </script>
 
-  <!-- React 18 & Babel Standalone -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- React and the workspace components are bundled in assets/app.js. -->
   <script type="module">
     window.pdfjsReady = import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs').then(pdfjsLib => {
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs';
@@ -81,7 +78,7 @@
     }).catch(error => { console.error('PDF.js could not be loaded:', error); return null; });
   </script>
 
-  <link rel="stylesheet" href="index.css?v=1.124">
+  <link rel="stylesheet" href="index.css?v=1.150">
   <style>
     .csm-startup-shell{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;box-sizing:border-box;padding:20px;background:#f3f6fa;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
     .csm-startup-card{display:flex;align-items:center;gap:16px;width:min(100%,380px);box-sizing:border-box;padding:22px 24px;color:#18233a;background:#fff;border:1px solid #dce5ef;border-radius:16px;box-shadow:0 12px 36px rgba(26,43,68,.09)}
@@ -144,7 +141,7 @@
   </script>
 
   <script src="api.js?v=1.36"></script>
-  <script type="text/babel" src="index.jsx?v=1.144"></script>
+  <script src="assets/app.js?v=2.8"></script>
 </body>
 
 </html>

@@ -32,11 +32,40 @@ function getPhpExecutable() {
 
 const isTest = process.argv.includes('--test');
 const phpBin = getPhpExecutable();
+let mailerChild = null;
 
 if (isTest) {
   const child = spawn(phpBin, ['tests/api-smoke.php'], { stdio: 'inherit' });
   child.on('exit', (code) => process.exit(code ?? 0));
 } else {
+  startServer().catch(error => {
+    console.error('[ERROR] Frontend build failed:', error.message);
+    process.exit(1);
+  });
+}
+
+async function startServer() {
+  const { buildFrontend } = require('./scripts/build-frontend.cjs');
+  const frontend = await buildFrontend({ watch: true });
+  const mailerEnv = path.join(__dirname, 'mailer', '.env');
+  if (fs.existsSync(mailerEnv)) {
+    console.log('Starting the local Nodemailer recovery service ...');
+    mailerChild = spawn(process.execPath, ['mailer/server.js'], {
+      cwd: __dirname,
+      stdio: 'inherit',
+      windowsHide: true,
+    });
+    mailerChild.on('error', (err) => {
+      console.error('[WARNING] Nodemailer service could not start:', err.message);
+      mailerChild = null;
+    });
+    mailerChild.on('exit', (code) => {
+      if (code && code !== 0) console.error(`[WARNING] Nodemailer service exited with code ${code}.`);
+      mailerChild = null;
+    });
+  } else {
+    console.log('[INFO] mailer/.env is missing; password-recovery email is unavailable.');
+  }
   const args = [
     '-d', 'upload_max_filesize=10M',
     '-d', 'post_max_size=12M',
@@ -55,10 +84,22 @@ if (isTest) {
   child.on('error', (err) => {
     console.error('\n[ERROR] Failed to start PHP server:', err.message);
     console.error('Please ensure PHP or XAMPP is installed at C:\\xampp\\php\\php.exe\n');
+    if (mailerChild) mailerChild.kill();
+    frontend.dispose();
     process.exit(1);
   });
 
   child.on('exit', (code) => {
+    if (mailerChild) mailerChild.kill();
+    frontend.dispose();
     process.exit(code ?? 0);
   });
+
+  const stop = () => {
+    child.kill();
+    if (mailerChild) mailerChild.kill();
+    frontend.dispose();
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
 }

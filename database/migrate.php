@@ -32,6 +32,14 @@ if(!in_array('bombcard_progress',$tables,true)){
     $db->exec("CREATE TABLE bombcard_progress (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,bombcard_id CHAR(32) NOT NULL,status ENUM('new','learning','known') NOT NULL DEFAULT 'new',times_seen INT UNSIGNED NOT NULL DEFAULT 0,times_known INT UNSIGNED NOT NULL DEFAULT 0,times_unknown INT UNSIGNED NOT NULL DEFAULT 0,last_reviewed_at DATETIME(3) NULL,created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),UNIQUE(user_id,bombcard_id),INDEX(user_id,status),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,FOREIGN KEY(bombcard_id) REFERENCES cards(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     echo "Created per-user Bombcard progress. Existing cards, sessions, results, and notes were preserved.\n";
 }
+if(!in_array('bombcard_reviews',$tables,true)){
+    $db->exec("CREATE TABLE bombcard_reviews (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id CHAR(32) NOT NULL,bombcard_id CHAR(32) NOT NULL,
+        reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+        INDEX(user_id,reviewed_at,bombcard_id),FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    echo "Created actual Bombcard review history for daily goals. Existing activity and mastery were preserved.\n";
+}
 $highlightTables=$db->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
 if(in_array('highlights',$highlightTables,true)){
     $columns=array_column($db->query('SHOW COLUMNS FROM highlights')->fetchAll(),'Field');
@@ -72,6 +80,15 @@ $db->exec("CREATE TABLE IF NOT EXISTS user_notifications (
  INDEX idx_user_notifications_unread(user_id,read_at,created_at),INDEX idx_user_notifications_deck(deck_id),
  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
  FOREIGN KEY(deck_id) REFERENCES decks(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+$db->exec("CREATE TABLE IF NOT EXISTS admin_archive_notice_state (
+ user_id CHAR(32) PRIMARY KEY,
+ last_inactive_checked_at DATETIME(3) NOT NULL DEFAULT '1970-01-01 00:00:00.000',
+ last_security_cutoff_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ pending_inactive_users INT UNSIGNED NOT NULL DEFAULT 0,
+ pending_security_events INT UNSIGNED NOT NULL DEFAULT 0,
+ updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 $db->exec("CREATE TABLE IF NOT EXISTS user_achievements (
  user_id CHAR(32) NOT NULL,achievement_key VARCHAR(40) NOT NULL,
