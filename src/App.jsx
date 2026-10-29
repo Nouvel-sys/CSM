@@ -27,6 +27,7 @@ import { ArchiveDeckDialog } from "./features/library/ArchiveDeckDialog.jsx";
 import { DeckFormDialog } from "./features/library/DeckFormDialog.jsx";
 import { LibraryDeckCard } from "./features/library/LibraryDeckCard.jsx";
 import { DeckCardActions } from "./features/library/DeckCardActions.jsx";
+import { CreateBombcardsDialog } from "./features/library/CreateBombcardsDialog.jsx";
 import { LibraryScreen } from "./features/library/LibraryScreen.jsx";
 import { ShareDeckDialog } from "./features/library/ShareDeckDialog.jsx";
 import { PdfWorkspaceScreen } from "./features/pdf/PdfWorkspaceScreen.jsx";
@@ -34,7 +35,7 @@ import { PeopleScreen } from "./features/people/PeopleScreen.jsx";
 import { StudyScreen } from "./features/study/StudyScreen.jsx";
 import { canonicalDeckTitle, deckTitleKey } from "./utils/decks.js";
 import { readSidebarLockPreference } from "./utils/preferences.js";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 export function App({ isGuest = false, sharedDeck = null }) {
   // Navigation: 'home' | 'library' | 'game' | 'arena' | 'account'
   const [guestLockedSection, setGuestLockedSection] = useState(null);
@@ -323,6 +324,10 @@ export function App({ isGuest = false, sharedDeck = null }) {
   const [isAddMaterialPopupOpen, setIsAddMaterialPopupOpen] = useState(false);
   const [targetDeckForAddMaterial, setTargetDeckForAddMaterial] =
     useState(null);
+  const [isCreateBombcardsPopupOpen, setIsCreateBombcardsPopupOpen] =
+    useState(false);
+  const [targetDeckForCreateBombcards, setTargetDeckForCreateBombcards] =
+    useState(null);
   const [isDraggingAddMaterialFile, setIsDraggingAddMaterialFile] =
     useState(false);
   const addMaterialFileInputRef = useRef(null);
@@ -360,9 +365,20 @@ export function App({ isGuest = false, sharedDeck = null }) {
   const [creatorStep, setCreatorStep] = useState(1); // 1 = Question, 2 = Answers & Details
   const [creatorShowHint, setCreatorShowHint] = useState(false);
   const [creatorShowAlternates, setCreatorShowAlternates] = useState(false);
-  const [creatorCardAddedAnimation, setCreatorCardAddedAnimation] =
-    useState(false);
-  const [creatorSessionCount, setCreatorSessionCount] = useState(0);
+  const libraryReturnScrollRef = useRef(null);
+  const rememberLibraryPosition = () => {
+    const libraryScreen = document.querySelector(".csm-library-screen");
+    libraryReturnScrollRef.current = libraryScreen?.scrollTop ?? 0;
+  };
+  useLayoutEffect(() => {
+    if (activeTab !== "library" || libraryReturnScrollRef.current === null) return;
+    const frame = window.requestAnimationFrame(() => {
+      const libraryScreen = document.querySelector(".csm-library-screen");
+      if (libraryScreen) libraryScreen.scrollTop = libraryReturnScrollRef.current;
+      libraryReturnScrollRef.current = null;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab]);
   const startEditingBombcard = (deck, card) => {
     if (!card?.id) {
       triggerToast(
@@ -398,6 +414,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
     setCreatorShowAlternates(Boolean(card.alternates));
     setCreatorStep(1);
     setOpenMaterialMenuId(null);
+    rememberLibraryPosition();
     setActiveTab("creator");
   };
   const prepareNewBombcard = () => {
@@ -491,11 +508,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
         ? "Bombcard changes saved."
         : `Bombcard added to ${targetDeck.code || targetDeck.title}!`,
     );
-    if (!isEditingCard) {
-      setCreatorSessionCount((prev) => prev + 1);
-      setCreatorCardAddedAnimation(true);
-      setTimeout(() => setCreatorCardAddedAnimation(false), 900);
-    }
     setCreatorEditingCardId(null);
     setCreatorPrompt("");
     setCreatorHint("");
@@ -514,6 +526,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
   const [aiTargetDeckId, setAiTargetDeckId] = useState(
     () => window.CSM?.initial?.decks?.[0]?.id || "",
   );
+  const [aiDeckLocked, setAiDeckLocked] = useState(false);
   const [aiSourceType, setAiSourceType] = useState("pdf"); // 'pdf' | 'text'
   const [aiNotes, setAiNotes] = useState("");
   const [aiFormat, setAiFormat] = useState("MIXED"); // 'MIXED' | 'MULTIPLE_CHOICE' | 'IDENTIFICATION'
@@ -635,7 +648,11 @@ export function App({ isGuest = false, sharedDeck = null }) {
       setAiExtractingPdf(false);
     }
   };
-  const handleOpenAiGenerator = (preferredDeckId, docOrFile = null) => {
+  const handleOpenAiGenerator = (
+    preferredDeckId,
+    docOrFile = null,
+    lockDeck = false,
+  ) => {
     if (isGuest) {
       setGuestLockedSection("creator");
       return;
@@ -644,6 +661,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
       preferredDeckId ||
       creatorTargetDeckId ||
       (decks.length > 0 ? decks[0].id : "");
+    setAiDeckLocked(Boolean(docOrFile || lockDeck));
     setAiTargetDeckId(deckId);
     setAiStage("input");
     setAiGeneratorOpen(true);
@@ -1471,8 +1489,8 @@ export function App({ isGuest = false, sharedDeck = null }) {
         icon: (
           <i className="bi bi-lightning-charge-fill text-amber-500 text-lg"></i>
         ),
-        title: "Arena Champion",
-        desc: "Completed Arena match",
+        title: "Challenge Champion",
+        desc: "Completed Challenge match",
         unlocked: hasArena,
         progress: hasArena ? "Unlocked" : `${arenaSessions?.length || 0}/1`,
       },
@@ -1751,7 +1769,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
   };
 
   // --- Detail View States (Synced with decks) ---
-  const [showAllBombcards, setShowAllBombcards] = useState(false);
   const [bulkDeleteMode, setBulkDeleteMode] = useState(false);
   const [selectedBombcardIds, setSelectedBombcardIds] = useState([]);
   const currentSelectedDeck = useMemo(() => {
@@ -1767,12 +1784,10 @@ export function App({ isGuest = false, sharedDeck = null }) {
   }, [selectedDeckForFolderView?.id]);
   const visibleCards = useMemo(() => {
     if (!currentSelectedDeck || !currentSelectedDeck.cards) return [];
-    if (showAllBombcards) return currentSelectedDeck.cards;
-    return currentSelectedDeck.cards.slice(0, 3);
-  }, [currentSelectedDeck, showAllBombcards]);
+    return currentSelectedDeck.cards;
+  }, [currentSelectedDeck]);
   const handleSelectDeckForDetail = (deck) => {
     setSelectedDeckForFolderView(deck);
-    setShowAllBombcards(false);
     setBulkDeleteMode(false);
     setSelectedBombcardIds([]);
     recordActivity({
@@ -2191,7 +2206,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
       setBombstylePhase("select_deck");
     }
     recordActivity({
-      material: "Bombstyle Arena",
+      material: "Bombstyle Challenge",
       mode: "Pressure Recall",
       deckId: preselectedDeckId || null,
       screen: "arena",
@@ -2495,6 +2510,54 @@ export function App({ isGuest = false, sharedDeck = null }) {
       action,
     });
   };
+  const handleResetDeckProgress = (deck, event) => {
+    event?.stopPropagation();
+    setOpenDeckMenuId(null);
+    const deckName = deck.code || deck.title;
+    const hasProgress = studyProgress.some(
+      (progress) => String(progress.deck_id) === String(deck.id),
+    );
+    if (!hasProgress) {
+      setMasteryProgressNotice({
+        id: Date.now(),
+        message: "Progress is already empty. There is nothing to reset.",
+      });
+      return;
+    }
+    requestDeleteConfirmation({
+      kicker: "RESET DECK PROGRESS",
+      icon: "reset",
+      title: `Reset progress for ${deckName}?`,
+      message:
+        "This clears known/mastery progress for every Bombcard in this deck. Your cards and Challenge session history will remain.",
+      confirmLabel: "Reset progress",
+      action: async () => {
+        try {
+          const result = await CSM.api("study/progress", "DELETE", {
+            deckId: deck.id,
+          });
+          if (!Number(result.deleted)) {
+            setMasteryProgressNotice({
+              id: Date.now(),
+              message: "Progress is already empty. There is nothing to reset.",
+            });
+            return;
+          }
+          setStudyProgress((current) =>
+            current.filter(
+              (progress) => String(progress.deck_id) !== String(deck.id),
+            ),
+          );
+          triggerToast(`Progress for ${deckName} has been reset.`);
+        } catch (error) {
+          setMasteryProgressNotice({
+            id: Date.now(),
+            message: error.message || "Could not reset deck progress.",
+          });
+        }
+      },
+    });
+  };
   const confirmDeleteAction = () => {
     if (!deleteConfirmation) return;
     const action = deleteConfirmation.action;
@@ -2638,6 +2701,15 @@ export function App({ isGuest = false, sharedDeck = null }) {
     setTargetDeckForAddMaterial(deck);
     setIsAddMaterialPopupOpen(true);
   };
+  const handleOpenCreateBombcardsPopup = (deck, e) => {
+    if (e) e.stopPropagation();
+    if (isGuest) {
+      setGuestLockedSection("creator");
+      return;
+    }
+    setTargetDeckForCreateBombcards(deck || currentSelectedDeck || decks[0]);
+    setIsCreateBombcardsPopupOpen(true);
+  };
   const handleAddMaterialDirectUpload = async (filesToUpload) => {
     const files = Array.from(filesToUpload || []).filter(
       (f) =>
@@ -2669,13 +2741,27 @@ export function App({ isGuest = false, sharedDeck = null }) {
   };
   const handleChooseManualCreation = () => {
     prepareNewBombcard();
-    const target = targetDeckForAddMaterial || currentSelectedDeck || decks[0];
+    const target =
+      targetDeckForCreateBombcards ||
+      targetDeckForAddMaterial ||
+      currentSelectedDeck ||
+      decks[0];
     if (target) {
       setSelectedDeckIds([target.id]);
       setCreatorTargetDeckId(target.id);
     }
     setIsAddMaterialPopupOpen(false);
+    setIsCreateBombcardsPopupOpen(false);
     setActiveTab("creator");
+  };
+  const handleChooseAiCreation = () => {
+    const target =
+      targetDeckForCreateBombcards ||
+      currentSelectedDeck ||
+      targetDeckForAddMaterial ||
+      decks[0];
+    setIsCreateBombcardsPopupOpen(false);
+    handleOpenAiGenerator(target?.id);
   };
   const handlePdfUpload = (e) => {
     const files = Array.from(e.target.files || []).filter(
@@ -3138,7 +3224,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
         } catch (error) {
           bombstylePendingStartRef.current = null;
           setBombstylePhase("configure");
-          triggerToast(error.message || "Could not start the Arena session.");
+          triggerToast(error.message || "Could not start the Challenge session.");
           return;
         }
       }
@@ -3215,7 +3301,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
             setPublicArenaDeck(result.deck);
           } catch (error) {
             console.warn(
-              "Could not restore the shared deck for this Arena session:",
+              "Could not restore the shared deck for this Challenge session:",
               error,
             );
           }
@@ -3566,6 +3652,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
           deck={deck}
           handleDeleteFolder={handleDeleteFolder}
           handleOpenEditFolderInfo={handleOpenEditFolderInfo}
+          handleResetDeckProgress={handleResetDeckProgress}
           handleShareDeck={handleShareDeck}
           isGuest={isGuest}
           openDeckMenuId={openDeckMenuId}
@@ -3792,12 +3879,14 @@ export function App({ isGuest = false, sharedDeck = null }) {
             handleDeleteFolder={handleDeleteFolder}
             handleOpenAddMaterialPopup={handleOpenAddMaterialPopup}
             handleOpenAiGenerator={handleOpenAiGenerator}
+            handleOpenCreateBombcardsPopup={handleOpenCreateBombcardsPopup}
             handleOpenCreateFolderInfo={handleOpenCreateFolderInfo}
             handleOpenDeckStudy={handleOpenDeckStudy}
             handleOpenDocument={handleOpenDocument}
             handleOpenEditFolderInfo={handleOpenEditFolderInfo}
             handleRemoveBombcard={handleRemoveBombcard}
             handleRemoveDocument={handleRemoveDocument}
+            handleResetDeckProgress={handleResetDeckProgress}
             handleShareDeck={handleShareDeck}
             isGuest={isGuest}
             libraryPage={libraryPage}
@@ -3811,7 +3900,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
             orderedLibraryDecks={orderedLibraryDecks}
             pageOlderDecks={pageOlderDecks}
             pageRecentDecks={pageRecentDecks}
-            prepareNewBombcard={prepareNewBombcard}
             profile={profile}
             recentDecks={recentDecks}
             renderLibraryDeckCard={renderLibraryDeckCard}
@@ -3823,7 +3911,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
             setBulkDeleteMode={setBulkDeleteMode}
             setCollapseOlder={setCollapseOlder}
             setCollapseRecent={setCollapseRecent}
-            setCreatorTargetDeckId={setCreatorTargetDeckId}
             setGuestLockedSection={setGuestLockedSection}
             setLibraryPage={setLibraryPage}
             setLibrarySubjectFilter={setLibrarySubjectFilter}
@@ -3833,8 +3920,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
             setSelectedBombcardIds={setSelectedBombcardIds}
             setSelectedDeckForFolderView={setSelectedDeckForFolderView}
             setSelectedDeckIds={setSelectedDeckIds}
-            setShowAllBombcards={setShowAllBombcards}
-            showAllBombcards={showAllBombcards}
             startEditingBombcard={startEditingBombcard}
             toggleLibraryCardAnswer={toggleLibraryCardAnswer}
             totalBombCards={totalBombCards}
@@ -3890,20 +3975,17 @@ export function App({ isGuest = false, sharedDeck = null }) {
           <CardCreatorScreen
             creatorAlternates={creatorAlternates}
             creatorAnswer={creatorAnswer}
-            creatorCardAddedAnimation={creatorCardAddedAnimation}
             creatorCorrectIndex={creatorCorrectIndex}
             creatorEditingCardId={creatorEditingCardId}
             creatorHint={creatorHint}
             creatorOptions={creatorOptions}
             creatorPrompt={creatorPrompt}
-            creatorSessionCount={creatorSessionCount}
             creatorShowAlternates={creatorShowAlternates}
             creatorShowHint={creatorShowHint}
             creatorStep={creatorStep}
             creatorTargetDeckId={creatorTargetDeckId}
             creatorType={creatorType}
             decks={decks}
-            handleOpenAiGenerator={handleOpenAiGenerator}
             handleSaveBombcard={handleSaveBombcard}
             setActiveTab={setActiveTab}
             setCreatorAlternates={setCreatorAlternates}
@@ -3920,6 +4002,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
             setCreatorType={setCreatorType}
             setSelectedDeckForFolderView={setSelectedDeckForFolderView}
             setSelectedDeckIds={setSelectedDeckIds}
+            selectedDeckForFolderView={selectedDeckForFolderView}
             triggerToast={triggerToast}
           />
         )}
@@ -4212,14 +4295,20 @@ export function App({ isGuest = false, sharedDeck = null }) {
       {isAddMaterialPopupOpen && (
         <AddMaterialDialog
           addMaterialFileInputRef={addMaterialFileInputRef}
-          decks={decks}
           handleAddMaterialDirectUpload={handleAddMaterialDirectUpload}
-          handleChooseManualCreation={handleChooseManualCreation}
-          handleOpenAiGenerator={handleOpenAiGenerator}
           isDraggingAddMaterialFile={isDraggingAddMaterialFile}
           setIsAddMaterialPopupOpen={setIsAddMaterialPopupOpen}
           setIsDraggingAddMaterialFile={setIsDraggingAddMaterialFile}
           targetDeckForAddMaterial={targetDeckForAddMaterial}
+        />
+      )}
+
+      {isCreateBombcardsPopupOpen && (
+        <CreateBombcardsDialog
+          handleChooseAiCreation={handleChooseAiCreation}
+          handleChooseManualCreation={handleChooseManualCreation}
+          setIsCreateBombcardsPopupOpen={setIsCreateBombcardsPopupOpen}
+          targetDeckForCreateBombcards={targetDeckForCreateBombcards}
         />
       )}
 
@@ -4228,6 +4317,7 @@ export function App({ isGuest = false, sharedDeck = null }) {
               ======================================================== */}
       {aiGeneratorOpen && (
         <AiGeneratorDialog
+          aiDeckLocked={aiDeckLocked}
           aiExtractingPdf={aiExtractingPdf}
           aiFocus={aiFocus}
           aiFormat={aiFormat}

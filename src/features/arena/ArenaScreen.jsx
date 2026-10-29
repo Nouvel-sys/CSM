@@ -62,8 +62,8 @@ export function ArenaScreen({
         <div>
           <div className="csm-page-head">
             <div>
-              <span className="csm-kicker">ARENA • BOMBSTYLE</span>
-              <h1>Bombstyle Arena</h1>
+              <span className="csm-kicker">CHALLENGE • BOMBSTYLE</span>
+              <h1>Bombstyle Challenge</h1>
               <p>
                 Test your Bombcards under pressure. Active recall and one
                 countdown for the whole round. Choose a deck to start.
@@ -72,16 +72,16 @@ export function ArenaScreen({
           </div>
 
           {/* Arena High-Level Stats Overview */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="csm-arena-hub-stats grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-white border border-[#e2e8f0] rounded-2xl p-4 flex items-center gap-3.5 shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#f04824] flex items-center justify-center font-bold">
                 <IconCards className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                <span className="csm-arena-hub-stat-label text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                   Ready Decks
                 </span>
-                <span className="text-xl font-extrabold text-slate-900 leading-none">
+                <span className="csm-arena-hub-stat-value text-xl font-extrabold text-slate-900 leading-none">
                   {decks.filter((d) => d.cards && d.cards.length > 0).length}{" "}
                   Decks
                 </span>
@@ -104,10 +104,10 @@ export function ArenaScreen({
                 </svg>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                <span className="csm-arena-hub-stat-label text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                   Playable Cards
                 </span>
-                <span className="text-xl font-extrabold text-slate-900 leading-none">
+                <span className="csm-arena-hub-stat-value text-xl font-extrabold text-slate-900 leading-none">
                   {decks.reduce((acc, d) => acc + (d.cards?.length || 0), 0)}{" "}
                   Bombcards
                 </span>
@@ -131,10 +131,10 @@ export function ArenaScreen({
                 </svg>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                <span className="csm-arena-hub-stat-label text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                   Best Streak
                 </span>
-                <span className="text-xl font-extrabold text-slate-900 leading-none">
+                <span className="csm-arena-hub-stat-value text-xl font-extrabold text-slate-900 leading-none">
                   {bombstyleMaxStreak}x Recall
                 </span>
               </div>
@@ -156,10 +156,10 @@ export function ArenaScreen({
                 </svg>
               </div>
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
+                <span className="csm-arena-hub-stat-label text-[10px] uppercase font-bold text-slate-400 tracking-wider block">
                   Time Pressure
                 </span>
-                <span className="text-xl font-extrabold text-slate-900 leading-none">
+                <span className="csm-arena-hub-stat-value text-xl font-extrabold text-slate-900 leading-none">
                   10s – 30s
                 </span>
               </div>
@@ -205,7 +205,7 @@ export function ArenaScreen({
                     {isTemporary && (
                       <span
                         className="csm-arena-temporary-badge"
-                        title="This shared deck is available in Arena only and is not saved to your library."
+                        title="This shared deck is available in Challenge only and is not saved to your library."
                       >
                         <svg
                           aria-hidden="true"
@@ -221,7 +221,7 @@ export function ArenaScreen({
                         </svg>
                         <span>Temporary deck</span>
                         <span className="csm-arena-temporary-note">
-                          Arena only · not saved
+                          Challenge only · not saved
                         </span>
                       </span>
                     )}
@@ -574,7 +574,7 @@ export function ArenaScreen({
           aria-live="assertive"
           aria-label={`Game starts in ${bombstyleCountdown} ${bombstyleCountdown === 1 ? "second" : "seconds"}`}
         >
-          <span className="csm-kicker">ARENA STARTING</span>
+          <span className="csm-kicker">CHALLENGE STARTING</span>
           <svg
             className="csm-bombstyle-stopwatch"
             viewBox="0 0 300 320"
@@ -700,7 +700,7 @@ export function ArenaScreen({
                   width: "34px",
                   padding: 0,
                 }}
-                title="Exit Run to Arena Hub"
+                title="Exit Run to Challenge Hub"
                 onClick={() =>
                   requestBombstyleExit(() => setBombstylePhase("select_deck"))
                 }
@@ -1606,7 +1606,7 @@ export function ArenaScreen({
                   className="csm-arena-secondary-btn"
                   onClick={() => setBombstylePhase("select_deck")}
                 >
-                  BACK TO ARENA
+                  BACK TO CHALLENGE
                 </button>
               </div>
             </div>

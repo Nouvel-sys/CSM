@@ -104,7 +104,7 @@ export function PdfWorkspaceScreen({
   workspaceSidebarTab,
 }) {
   return (
-    <div className="csm-screen csm-highlighter-screen custom-scroll">
+    <div className="csm-screen csm-highlighter-screen csm-pdf-ai-theme custom-scroll">
       <div className="csm-page-head csm-pdf-page-head">
         <div>
           <span className="csm-kicker">DOCUMENT STUDY WORKSPACE</span>
@@ -119,12 +119,7 @@ export function PdfWorkspaceScreen({
           {activeDocument && !isGuest && (
             <button
               type="button"
-              className="csm-primary-button flex items-center gap-1.5 cursor-pointer"
-              style={{
-                background: "#7c3aed",
-                borderColor: "#6d28d9",
-                color: "#ffffff",
-              }}
+              className="csm-primary-button csm-ai-gradient-button flex items-center gap-1.5 cursor-pointer"
               onClick={() =>
                 handleOpenAiGenerator(activeDocument.deckId, activeDocument)
               }

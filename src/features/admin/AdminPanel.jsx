@@ -34,6 +34,7 @@ export function AdminPanel({ profile }) {
   const [userRoleFilter, setUserRoleFilter] = useState("all");
   const [userProfileModal, setUserProfileModal] = useState(null);
   const [userProfileTab, setUserProfileTab] = useState("activity");
+  const [userProfileReportPage, setUserProfileReportPage] = useState(1);
   const [userProfileLoading, setUserProfileLoading] = useState(false);
   const [userProfileError, setUserProfileError] = useState("");
   const [userProfileNotice, setUserProfileNotice] = useState("");
@@ -43,6 +44,17 @@ export function AdminPanel({ profile }) {
   const [deckTotal, setDeckTotal] = useState(0);
   const [deckPage, setDeckPage] = useState(1);
   const [reports, setReports] = useState([]);
+  const reportCountStorageKey = `csm-admin-open-report-count:${profile?.username || "admin"}`;
+  const [openReportCount, setOpenReportCount] = useState(() => {
+    try {
+      return Math.max(
+        0,
+        Number(window.localStorage.getItem(reportCountStorageKey)) || 0,
+      );
+    } catch {
+      return 0;
+    }
+  });
   const [events, setEvents] = useState([]);
   const [eventTotal, setEventTotal] = useState(0);
   const [eventPage, setEventPage] = useState(1);
@@ -72,6 +84,19 @@ export function AdminPanel({ profile }) {
   const deckPreviewRequestRef = useRef(0);
   const rangeInitializedRef = useRef(false);
   const rangeTouchedRef = useRef(false);
+  const syncOpenReports = (openReports) => {
+    const nextReports = Array.isArray(openReports) ? openReports : [];
+    setReports(nextReports);
+    setOpenReportCount(nextReports.length);
+    try {
+      window.localStorage.setItem(
+        reportCountStorageKey,
+        String(nextReports.length),
+      );
+    } catch {
+      // The live report list still works when browser storage is unavailable.
+    }
+  };
   useEffect(() => {
     if (!notice) return undefined;
     const timer = window.setTimeout(() => setNotice(null), 3600);
@@ -107,7 +132,7 @@ export function AdminPanel({ profile }) {
         ]);
         setDashboard(summary);
         applyWebsiteStartDate(summary);
-        setReports(reviewData.reports || []);
+        syncOpenReports(reviewData.reports);
       }
       if (section === "users") {
         const result = await CSM.api(
@@ -124,8 +149,10 @@ export function AdminPanel({ profile }) {
         setDecks(nextDecks);
         setDeckTotal(Number(result.total) || 0);
       }
-      if (section === "reports")
-        setReports((await CSM.api("admin/reports&status=open")).reports || []);
+      if (section === "reports") {
+        const result = await CSM.api("admin/reports&status=open");
+        syncOpenReports(result.reports);
+      }
       if (section === "audit" && isSuper) {
         const result = await CSM.api(
           `admin/audit&from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}&limit=10&offset=${(requestedEventPage - 1) * 10}`,
@@ -151,6 +178,31 @@ export function AdminPanel({ profile }) {
     eventPage,
   ]);
   useEffect(() => {
+    // AdminPanel can render before the session profile is ready. Start the
+    // report count request once the authenticated admin identity is available
+    // so the badge is populated even when the Review queue tab is never opened.
+    if (!profile?.id) return undefined;
+
+    let isMounted = true;
+    const refreshOpenReports = async () => {
+      try {
+        const result = await CSM.api("admin/reports&status=open");
+        if (isMounted) {
+          syncOpenReports(result.reports);
+        }
+      } catch {
+        // Keep the current badge state if the background refresh is unavailable.
+      }
+    };
+
+    refreshOpenReports();
+    const interval = window.setInterval(refreshOpenReports, 30000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
+  }, [profile?.id, profile?.username]);
+  useEffect(() => {
     if (section !== "overview") return undefined;
     const interval = window.setInterval(async () => {
       try {
@@ -162,7 +214,7 @@ export function AdminPanel({ profile }) {
         ]);
         setDashboard(summary);
         applyWebsiteStartDate(summary);
-        setReports(reviewData.reports || []);
+        syncOpenReports(reviewData.reports);
       } catch {
         /* The current dashboard remains visible; the next refresh can recover. */
       }
@@ -229,6 +281,7 @@ export function AdminPanel({ profile }) {
       menuDetails?.querySelector("summary") || event.currentTarget;
     if (menuDetails) menuDetails.open = false;
     setUserProfileTab("activity");
+    setUserProfileReportPage(1);
     setUserProfileError("");
     setUserProfileNotice("");
     setUserProfileLoading(true);
@@ -622,6 +675,97 @@ export function AdminPanel({ profile }) {
         ]
       : []),
   ];
+  const profileReports =
+    userProfileTab === "submitted"
+      ? userProfileModal?.data?.submittedReports || []
+      : userProfileModal?.data?.receivedReports || [];
+  const profileReportPageSize = 4;
+  const profileReportPageCount = Math.max(
+    1,
+    Math.ceil(profileReports.length / profileReportPageSize),
+  );
+  const currentProfileReportPage = Math.min(
+    userProfileReportPage,
+    profileReportPageCount,
+  );
+  const visibleProfileReports = profileReports.slice(
+    (currentProfileReportPage - 1) * profileReportPageSize,
+    currentProfileReportPage * profileReportPageSize,
+  );
+  const profileReportsView = profileReports.length ? (
+    <>
+      <div className="csm-admin-profile-report-grid">
+        {visibleProfileReports.map((report) => (
+          <article className="csm-admin-profile-report-card" key={report.id}>
+            <div className="csm-admin-profile-report-card-head">
+              <span
+                className={`csm-admin-status ${report.status === "open" ? "is-locked" : ""}`}
+              >
+                {report.status}
+              </span>
+              <strong>{report.deck_title}</strong>
+            </div>
+            <small>
+              {userProfileTab === "submitted"
+                ? `Deck owner: ${report.deck_owner || "Unknown"}`
+                : `Reported by: ${report.flagged_by || "Unknown"}`}
+              {" · "}
+              {new Date(`${report.created_at}Z`).toLocaleString()}
+            </small>
+            <p>{report.reason}</p>
+          </article>
+        ))}
+      </div>
+      {profileReports.length > profileReportPageSize && (
+        <nav className="csm-admin-pagination csm-admin-profile-report-pagination" aria-label="Report pages">
+          <span className="csm-admin-pagination-summary">
+            Showing {(currentProfileReportPage - 1) * profileReportPageSize + 1}–
+            {Math.min(currentProfileReportPage * profileReportPageSize, profileReports.length)} of {profileReports.length} reports
+          </span>
+          <div className="csm-admin-pagination-controls">
+            <button
+              type="button"
+              className="csm-admin-page-button"
+              onClick={() => setUserProfileReportPage((page) => Math.max(1, page - 1))}
+              disabled={currentProfileReportPage === 1}
+            >
+              Previous
+            </button>
+            {getCompactPageItems(currentProfileReportPage, profileReportPageCount).map((item) =>
+              item.type === "ellipsis" ? (
+                <span key={item.key} className="csm-admin-page-ellipsis" aria-hidden="true">…</span>
+              ) : (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`csm-admin-page-number ${item.value === currentProfileReportPage ? "active" : ""}`}
+                  aria-label={`Page ${item.value}`}
+                  aria-current={item.value === currentProfileReportPage ? "page" : undefined}
+                  onClick={() => setUserProfileReportPage(item.value)}
+                >
+                  {item.value}
+                </button>
+              ),
+            )}
+            <button
+              type="button"
+              className="csm-admin-page-button"
+              onClick={() => setUserProfileReportPage((page) => Math.min(profileReportPageCount, page + 1))}
+              disabled={currentProfileReportPage === profileReportPageCount}
+            >
+              Next
+            </button>
+          </div>
+        </nav>
+      )}
+    </>
+  ) : (
+    <div className="csm-admin-empty">
+      {userProfileTab === "submitted"
+        ? "This account has not submitted any deck reports."
+        : "No reports have been filed against this account’s decks."}
+    </div>
+  );
   return (
     <div className="csm-screen custom-scroll csm-admin-screen">
       <AdminReportArrivalNotice profile={profile} />
@@ -646,7 +790,7 @@ export function AdminPanel({ profile }) {
             type="button"
             role="tab"
             aria-selected={section === id}
-            className={`${section === id ? "active" : ""}${id === "reports" && reports.length ? " has-open-reports" : ""}`}
+            className={`${section === id ? "active" : ""}${id === "reports" && openReportCount > 0 ? " has-open-reports" : ""}`}
             onClick={() => {
               if (id === "content") setDeckPage(1);
               if (id === "users") setUserPage(1);
@@ -657,11 +801,11 @@ export function AdminPanel({ profile }) {
             }}
           >
             {label}
-            {id === "reports" && reports.length > 0 && (
+            {id === "reports" && openReportCount > 0 && (
               <span
                 className="csm-admin-review-dot"
-                aria-label={`${reports.length} open reports`}
-                title={`${reports.length} open reports`}
+                aria-label={`${openReportCount} open reports`}
+                title={`${openReportCount} open reports`}
               />
             )}
           </button>
@@ -714,7 +858,7 @@ export function AdminPanel({ profile }) {
                     ["Active users (period)", dashboard.period.activeUsers],
                     ["Total decks", dashboard.totals.decks],
                     ["PDF uploads (period)", dashboard.period.uploads],
-                    ["Arena sessions (period)", dashboard.period.sessions],
+                    ["Challenge sessions (period)", dashboard.period.sessions],
                     [
                       "PDF storage",
                       `${(dashboard.totals.storageBytes / 1048576).toFixed(1)} MB`,
@@ -765,7 +909,7 @@ export function AdminPanel({ profile }) {
                       ["New users", dashboard.period.newUsers],
                       ["New decks", dashboard.period.newDecks],
                       ["Documents uploaded", dashboard.period.uploads],
-                      ["Arena sessions", dashboard.period.sessions],
+                      ["Challenge sessions", dashboard.period.sessions],
                       [
                         "Sessions completed",
                         dashboard.period.completedSessions,
@@ -786,7 +930,7 @@ export function AdminPanel({ profile }) {
                             <th>Active users</th>
                             <th>Decks</th>
                             <th>Uploads</th>
-                            <th>Arena sessions</th>
+                            <th>Challenge sessions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -811,7 +955,7 @@ export function AdminPanel({ profile }) {
                             <th>Active users</th>
                             <th>Decks</th>
                             <th>Uploads</th>
-                            <th>Arena sessions</th>
+                            <th>Challenge sessions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -872,6 +1016,27 @@ export function AdminPanel({ profile }) {
                                 `${report.created_at}Z`,
                               ).toLocaleString()}
                             </small>
+                          </div>
+                          <div className="csm-admin-row-actions">
+                            <button
+                              type="button"
+                              className="csm-secondary-button"
+                              disabled={deckPreviewLoading}
+                              onClick={(event) => {
+                                deckPreviewTriggerRef.current = event.currentTarget;
+                                loadDeckPreview({
+                                  id: report.deckId,
+                                  title: report.deckTitle,
+                                  subject: report.subject,
+                                  owner: report.owner,
+                                });
+                              }}
+                            >
+                              {deckPreviewLoading &&
+                              deckPreview?.id === report.deckId
+                                ? "Loading deck…"
+                                : "View deck"}
+                            </button>
                           </div>
                         </article>
                       ))}
@@ -1459,9 +1624,29 @@ export function AdminPanel({ profile }) {
               {reports.map((report) => (
                 <article className="csm-admin-report" key={report.id}>
                   <div>
-                    <span className="csm-admin-status is-locked">
-                      Open review
-                    </span>
+                    <div className="csm-admin-report-heading">
+                      <span className="csm-admin-status is-locked">
+                        Open review
+                      </span>
+                      <button
+                        type="button"
+                        className="csm-secondary-button csm-admin-report-view-button"
+                        disabled={deckPreviewLoading}
+                        onClick={(event) => {
+                          deckPreviewTriggerRef.current = event.currentTarget;
+                          loadDeckPreview({
+                            id: report.deckId,
+                            title: report.deckTitle,
+                            subject: report.subject,
+                            owner: report.owner,
+                          });
+                        }}
+                      >
+                        {deckPreviewLoading && deckPreview?.id === report.deckId
+                          ? "Loading deck…"
+                          : "View deck"}
+                      </button>
+                    </div>
                     <h3>{report.deckTitle}</h3>
                     <p>
                       {report.subject || "No subject"} · owner {report.owner} ·
@@ -1774,7 +1959,7 @@ export function AdminPanel({ profile }) {
           <>
             {userProfileModal && (
               <div
-                className="csm-modal-backdrop csm-admin-profile-backdrop"
+                className={`csm-modal-backdrop csm-admin-profile-backdrop${deckPreview ? " is-owner-profile-open" : ""}`}
                 role="presentation"
                 onClick={closeUserProfile}
               >
@@ -1909,7 +2094,10 @@ export function AdminPanel({ profile }) {
                             className={
                               userProfileTab === "submitted" ? "active" : ""
                             }
-                            onClick={() => setUserProfileTab("submitted")}
+                            onClick={() => {
+                              setUserProfileTab("submitted");
+                              setUserProfileReportPage(1);
+                            }}
                           >
                             Reports submitted (
                             {userProfileModal.data.submittedReports.length})
@@ -1921,7 +2109,10 @@ export function AdminPanel({ profile }) {
                             className={
                               userProfileTab === "received" ? "active" : ""
                             }
-                            onClick={() => setUserProfileTab("received")}
+                            onClick={() => {
+                              setUserProfileTab("received");
+                              setUserProfileReportPage(1);
+                            }}
                           >
                             Reports on decks (
                             {userProfileModal.data.receivedReports.length})
@@ -1961,74 +2152,9 @@ export function AdminPanel({ profile }) {
                                 No study activity has been recorded.
                               </div>
                             ))}
-                          {userProfileTab === "submitted" &&
-                            (userProfileModal.data.submittedReports.length ? (
-                              <div className="csm-admin-profile-list">
-                                {userProfileModal.data.submittedReports.map(
-                                  (report) => (
-                                    <article
-                                      className="csm-admin-profile-report"
-                                      key={report.id}
-                                    >
-                                      <div>
-                                        <span
-                                          className={`csm-admin-status ${report.status === "open" ? "is-locked" : ""}`}
-                                        >
-                                          {report.status}
-                                        </span>
-                                        <strong>{report.deck_title}</strong>
-                                        <small>
-                                          Deck owner: {report.deck_owner} ·{" "}
-                                          {new Date(
-                                            `${report.created_at}Z`,
-                                          ).toLocaleString()}
-                                        </small>
-                                        <p>{report.reason}</p>
-                                      </div>
-                                    </article>
-                                  ),
-                                )}
-                              </div>
-                            ) : (
-                              <div className="csm-admin-empty">
-                                This account has not submitted any deck reports.
-                              </div>
-                            ))}
-                          {userProfileTab === "received" &&
-                            (userProfileModal.data.receivedReports.length ? (
-                              <div className="csm-admin-profile-list">
-                                {userProfileModal.data.receivedReports.map(
-                                  (report) => (
-                                    <article
-                                      className="csm-admin-profile-report"
-                                      key={report.id}
-                                    >
-                                      <div>
-                                        <span
-                                          className={`csm-admin-status ${report.status === "open" ? "is-locked" : ""}`}
-                                        >
-                                          {report.status}
-                                        </span>
-                                        <strong>{report.deck_title}</strong>
-                                        <small>
-                                          Reported by:{" "}
-                                          {report.flagged_by || "Unknown"} ·{" "}
-                                          {new Date(
-                                            `${report.created_at}Z`,
-                                          ).toLocaleString()}
-                                        </small>
-                                        <p>{report.reason}</p>
-                                      </div>
-                                    </article>
-                                  ),
-                                )}
-                              </div>
-                            ) : (
-                              <div className="csm-admin-empty">
-                                No reports have been filed against this
-                                account’s decks.
-                              </div>
-                            ))}
+                          {(userProfileTab === "submitted" ||
+                            userProfileTab === "received") &&
+                            profileReportsView}
                         </div>
                       </>
                     )
@@ -2409,9 +2535,10 @@ export function AdminPanel({ profile }) {
             )}
             {deckPreview && (
               <div
-                className="csm-modal-backdrop csm-admin-preview-backdrop"
+                className={`csm-modal-backdrop csm-admin-preview-backdrop${userProfileModal ? " is-owner-profile-open" : ""}`}
                 role="presentation"
                 onClick={closeDeckPreview}
+                aria-hidden={Boolean(userProfileModal)}
               >
                 <section
                   className="csm-admin-preview-modal"
@@ -2432,9 +2559,28 @@ export function AdminPanel({ profile }) {
                           "Deck preview"}
                       </h2>
                       <p>
-                        {deckPreview.owner
-                          ? `Owned by ${deckPreview.owner}`
-                          : "Loading deck owner…"}{" "}
+                        {deckPreview.owner ? (
+                          <>
+                            Owned by{" "}
+                            <button
+                              type="button"
+                              className="csm-admin-preview-owner"
+                              disabled={!deckPreview.owner_id}
+                              aria-label={`View ${deckPreview.owner}'s profile`}
+                              onClick={(event) =>
+                                viewAccountProfile(event, {
+                                  id: deckPreview.owner_id,
+                                  username: deckPreview.owner,
+                                  display_name: deckPreview.owner,
+                                })
+                              }
+                            >
+                              {deckPreview.owner}
+                            </button>
+                          </>
+                        ) : (
+                          "Loading deck owner…"
+                        )}{" "}
                         · {deckPreview.subject || "No subject"} ·{" "}
                         {deckPreview.document_count || 0} PDF(s)
                       </p>

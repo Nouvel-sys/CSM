@@ -1,15 +1,8 @@
-import {
-  IconCards,
-  IconSparkles,
-  IconUpload,
-} from "../../components/icons.jsx";
+import { IconUpload } from "../../components/icons.jsx";
 import React from "react";
 export function AddMaterialDialog({
   addMaterialFileInputRef,
-  decks,
   handleAddMaterialDirectUpload,
-  handleChooseManualCreation,
-  handleOpenAiGenerator,
   isDraggingAddMaterialFile,
   setIsAddMaterialPopupOpen,
   setIsDraggingAddMaterialFile,
@@ -32,7 +25,7 @@ export function AddMaterialDialog({
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
             <span className="text-[10px] font-extrabold text-[#f04824] uppercase tracking-wider block">
-              ADD MATERIAL
+              ADD PDF
             </span>
             <h3
               id="add-material-title"
@@ -102,64 +95,6 @@ export function AddMaterialDialog({
           </div>
         </div>
 
-        {/* Divider with 'OR' */}
-        <div className="flex items-center gap-3 my-5">
-          <div className="flex-1 border-t border-slate-200/90" />
-          <span className="text-[11px] font-extrabold tracking-widest text-slate-400 uppercase">
-            OR
-          </span>
-          <div className="flex-1 border-t border-slate-200/90" />
-        </div>
-
-        {/* 2 & 3. Options Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Option 2: Create Bombcards Manually */}
-          <div
-            onClick={handleChooseManualCreation}
-            className="bg-[#f8f9fa] hover:bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group text-left"
-          >
-            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center mb-3 group-hover:bg-[#f04824] transition-colors shadow-sm">
-              <IconCards className="w-5 h-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-black text-slate-900 group-hover:text-[#f04824] transition-colors">
-                Create Bombcards Manually
-              </h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Create your own Bombcards
-              </p>
-            </div>
-          </div>
-
-          {/* Option 3: Generate AI Bombcards */}
-          <div
-            onClick={() => {
-              const targetDeck = targetDeckForAddMaterial || decks[0];
-              setIsAddMaterialPopupOpen(false);
-              handleOpenAiGenerator(targetDeck?.id);
-            }}
-            className="bg-[#f8f9fa] hover:bg-purple-50/40 border border-slate-200/90 hover:border-purple-300 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group text-left"
-          >
-            <div>
-              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
-                <IconSparkles className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h4 className="text-xs font-black text-slate-900 group-hover:text-purple-700 transition-colors">
-                    Generate with AI
-                  </h4>
-                  <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-purple-100 text-purple-700">
-                    Gemini
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Generate Bombcards from notes with AI
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

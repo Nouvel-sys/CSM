@@ -2,6 +2,9 @@ import {
   IconArrowLeft,
   IconArrowRight,
   IconCards,
+  IconCheck,
+  IconClose,
+  IconDownload,
   IconEdit,
   IconLibrary,
   IconLock,
@@ -13,6 +16,7 @@ import {
   IconSparkles,
   IconTrash,
 } from "../../components/icons.jsx";
+import { createAiReviewerPdf, downloadAiReviewerPdf } from "../ai/reviewerPdf.js";
 import { getCompactPageItems } from "../../utils/pagination.js";
 import { DeckCardActions } from "./DeckCardActions.jsx";
 import React from "react";
@@ -27,12 +31,14 @@ export function LibraryScreen({
   handleDeleteFolder,
   handleOpenAddMaterialPopup,
   handleOpenAiGenerator,
+  handleOpenCreateBombcardsPopup,
   handleOpenCreateFolderInfo,
   handleOpenDeckStudy,
   handleOpenDocument,
   handleOpenEditFolderInfo,
   handleRemoveBombcard,
   handleRemoveDocument,
+  handleResetDeckProgress,
   handleShareDeck,
   isGuest,
   libraryPage,
@@ -46,7 +52,6 @@ export function LibraryScreen({
   orderedLibraryDecks,
   pageOlderDecks,
   pageRecentDecks,
-  prepareNewBombcard,
   profile,
   recentDecks,
   renderLibraryDeckCard,
@@ -58,7 +63,6 @@ export function LibraryScreen({
   setBulkDeleteMode,
   setCollapseOlder,
   setCollapseRecent,
-  setCreatorTargetDeckId,
   setGuestLockedSection,
   setLibraryPage,
   setLibrarySubjectFilter,
@@ -68,8 +72,6 @@ export function LibraryScreen({
   setSelectedBombcardIds,
   setSelectedDeckForFolderView,
   setSelectedDeckIds,
-  setShowAllBombcards,
-  showAllBombcards,
   startEditingBombcard,
   toggleLibraryCardAnswer,
   totalBombCards,
@@ -77,6 +79,138 @@ export function LibraryScreen({
   totalReviewers,
   visibleCards,
 }) {
+  const [bombcardSearchQuery, setBombcardSearchQuery] = React.useState("");
+  const bombcardCarouselRef = React.useRef(null);
+  const [bombcardCarouselState, setBombcardCarouselState] = React.useState({
+    canScroll: false,
+    canGoPrev: false,
+    canGoNext: false,
+  });
+  React.useEffect(() => {
+    setBombcardSearchQuery("");
+  }, [currentSelectedDeck?.id]);
+
+  const normalizedBombcardSearch = bombcardSearchQuery.trim().toLocaleLowerCase();
+  const handleDownloadBombcardReviewer = () => {
+    const cards = currentSelectedDeck?.cards || [];
+    if (!cards.length) return;
+
+    const reviewer = {
+      title: "Bombcard Reviewer",
+      sections: cards.map((card, index) => {
+        const typeLabel =
+          card.type === "MULTIPLE_CHOICE"
+            ? "MULTIPLE CHOICE"
+            : card.type === "TRUE_FALSE"
+              ? "TRUE / FALSE"
+              : "IDENTIFICATION";
+        const blocks = [];
+        if (card.prompt) blocks.push({ type: "text", text: card.prompt });
+        if (card.type === "MULTIPLE_CHOICE" && Array.isArray(card.options)) {
+          card.options.forEach((option, optionIndex) => {
+            const optionText =
+              option && typeof option === "object"
+                ? option.text ?? option.label ?? ""
+                : option;
+            if (optionText) {
+              blocks.push({
+                type: "text",
+                text: `${String.fromCharCode(65 + optionIndex)}. ${optionText}`,
+              });
+            }
+          });
+        }
+        const answer = String(card.correctAnswer ?? card.answer ?? "").trim();
+        if (answer) blocks.push({ type: "key_takeaway", text: `Answer: ${answer}` });
+        if (card.hint) blocks.push({ type: "text", text: `Hint: ${card.hint}` });
+        if (card.explanation) {
+          blocks.push({ type: "text", text: `Explanation: ${card.explanation}` });
+        }
+        return {
+          heading: `BOMBCARD ${String(index + 1).padStart(2, "0")} - ${typeLabel}`,
+          blocks,
+        };
+      }),
+    };
+
+    try {
+      const artifact = createAiReviewerPdf(reviewer, currentSelectedDeck.title);
+      const safeTitle =
+        String(currentSelectedDeck.title || "deck")
+          .normalize("NFKD")
+          .replace(/[^a-zA-Z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .toLowerCase() || "deck";
+      artifact.filename = `${safeTitle}-reviewer.pdf`;
+      downloadAiReviewerPdf(artifact);
+    } catch (error) {
+      console.error("Could not generate the Bombcard reviewer PDF.", error);
+    }
+  };
+  const filteredBombcards = visibleCards
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => {
+      if (!normalizedBombcardSearch) return true;
+      const searchableText = [
+        card.prompt,
+        card.correctAnswer,
+        card.answer,
+        card.hint,
+        card.explanation,
+        ...(Array.isArray(card.options) ? card.options : []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLocaleLowerCase();
+      return searchableText.includes(normalizedBombcardSearch);
+    });
+
+  React.useEffect(() => {
+    const track = bombcardCarouselRef.current;
+    if (!track) return undefined;
+
+    const updateCarouselState = () => {
+      const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
+      const nextState = {
+        canScroll: maxScroll > 1,
+        canGoPrev: track.scrollLeft > 1,
+        canGoNext: track.scrollLeft < maxScroll - 1,
+      };
+      setBombcardCarouselState((current) =>
+        current.canScroll === nextState.canScroll &&
+        current.canGoPrev === nextState.canGoPrev &&
+        current.canGoNext === nextState.canGoNext
+          ? current
+          : nextState,
+      );
+    };
+
+    track.scrollTo({ left: 0, behavior: "auto" });
+    updateCarouselState();
+    track.addEventListener("scroll", updateCarouselState, { passive: true });
+    window.addEventListener("resize", updateCarouselState);
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(updateCarouselState);
+    resizeObserver?.observe(track);
+
+    return () => {
+      track.removeEventListener("scroll", updateCarouselState);
+      window.removeEventListener("resize", updateCarouselState);
+      resizeObserver?.disconnect();
+    };
+  }, [currentSelectedDeck?.id, filteredBombcards.length, normalizedBombcardSearch]);
+
+  const scrollBombcardCarousel = (direction) => {
+    const track = bombcardCarouselRef.current;
+    if (!track) return;
+    track.scrollBy({
+      left: direction * Math.max(240, track.clientWidth * 0.82),
+      behavior: "smooth",
+    });
+  };
+
   return (
     <div className="csm-library-screen custom-scroll">
       {!(selectedDeckForFolderView && currentSelectedDeck) && (
@@ -217,6 +351,7 @@ export function LibraryScreen({
                   deck={currentSelectedDeck}
                   handleDeleteFolder={handleDeleteFolder}
                   handleOpenEditFolderInfo={handleOpenEditFolderInfo}
+                  handleResetDeckProgress={handleResetDeckProgress}
                   handleShareDeck={handleShareDeck}
                   isGuest={isGuest}
                   openDeckMenuId={openDeckMenuId}
@@ -275,7 +410,7 @@ export function LibraryScreen({
               className={`csm-library-detail-stat${currentSelectedDeck.cards?.length ? " accent" : ""}`}
             >
               <span className="csm-library-detail-stat-icon">
-                <IconSparkles />
+                {currentSelectedDeck.cards?.length ? <IconCheck /> : <IconClose />}
               </span>
               <div>
                 <small>Study status</small>
@@ -295,41 +430,58 @@ export function LibraryScreen({
                 </span>
               </div>
               <div className="csm-library-section-actions">
-                {currentSelectedDeck.cards?.length > 3 && (
-                  <button
-                    type="button"
-                    className="csm-library-show-all"
-                    aria-expanded={showAllBombcards}
-                    aria-controls="practice-set-cards"
-                    onClick={() => setShowAllBombcards((prev) => !prev)}
-                  >
-                    {showAllBombcards ? "Show less" : "Show all"}
-                  </button>
-                )}
-                {isGuest && (
-                  <button
-                    type="button"
-                    onClick={() => setGuestLockedSection("creator")}
-                  >
-                    <IconLock className="w-3.5 h-3.5 mr-1 text-slate-500" />{" "}
-                    Create Bombcards
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="csm-primary-button csm-library-create-bombcards-button"
+                  onClick={() => {
+                    if (isGuest) {
+                      setGuestLockedSection("creator");
+                      return;
+                    }
+                    setBulkDeleteMode(false);
+                    setSelectedBombcardIds([]);
+                    handleOpenCreateBombcardsPopup(currentSelectedDeck);
+                  }}
+                >
+                  {isGuest ? (
+                    <IconLock className="w-3.5 h-3.5" />
+                  ) : (
+                    <IconPlus />
+                  )}
+                  Create Bombcards
+                </button>
               </div>
             </div>
-            {!!currentSelectedDeck.cards?.length && !isGuest && (
+            {!!currentSelectedDeck.cards?.length && (
               <div
                 className={`csm-bombcard-bulk-toolbar ${bulkDeleteMode ? "is-selecting" : ""}`}
               >
+                <label className="csm-bombcard-search">
+                  <IconSearch />
+                  <input
+                    type="search"
+                    value={bombcardSearchQuery}
+                    onChange={(event) => setBombcardSearchQuery(event.target.value)}
+                    placeholder="Search Bombcards by question or answer"
+                    aria-label="Search Bombcards by question or answer"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="csm-bombcard-reviewer-download"
+                  onClick={handleDownloadBombcardReviewer}
+                  aria-label="Download a reviewer PDF from this deck's Bombcards"
+                >
+                  <IconDownload /> Download Reviewer PDF
+                </button>
                 <div className="csm-bombcard-bulk-controls">
-                  {!bulkDeleteMode ? (
+                  {!isGuest && !bulkDeleteMode ? (
                     <button
                       type="button"
                       className="csm-bombcard-bulk-start"
                       onClick={() => {
                         setBulkDeleteMode(true);
                         setSelectedBombcardIds([]);
-                        setShowAllBombcards(true);
                       }}
                     >
                       <IconTrash /> Select Cards
@@ -389,20 +541,6 @@ export function LibraryScreen({
                     </>
                   )}
                 </div>
-                <button
-                  type="button"
-                  className="csm-bombcard-create-button"
-                  onClick={() => {
-                    setBulkDeleteMode(false);
-                    setSelectedBombcardIds([]);
-                    prepareNewBombcard();
-                    setSelectedDeckIds([currentSelectedDeck.id]);
-                    setCreatorTargetDeckId(currentSelectedDeck.id);
-                    setActiveTab("creator");
-                  }}
-                >
-                  <IconPlus /> Create Bombcards
-                </button>
               </div>
             )}
             {!currentSelectedDeck.cards ||
@@ -421,10 +559,7 @@ export function LibraryScreen({
                       setGuestLockedSection("creator");
                       return;
                     }
-                    prepareNewBombcard();
-                    setSelectedDeckIds([currentSelectedDeck.id]);
-                    setCreatorTargetDeckId(currentSelectedDeck.id);
-                    setActiveTab("creator");
+                    handleOpenCreateBombcardsPopup(currentSelectedDeck);
                   }}
                 >
                   {isGuest ? (
@@ -439,11 +574,34 @@ export function LibraryScreen({
                 </button>
               </div>
             ) : (
-              <div
-                className="csm-library-bombcard-grid"
-                id="practice-set-cards"
-              >
-                {visibleCards.map((card, idx) => {
+              filteredBombcards.length === 0 ? (
+                <div className="csm-library-search-empty" role="status">
+                  No Bombcards match “{bombcardSearchQuery.trim()}”.
+                </div>
+              ) : (
+                <div
+                  className={`csm-library-bombcard-carousel ${bombcardCarouselState.canScroll ? "is-scrollable" : ""}`}
+                >
+                  {bombcardCarouselState.canScroll && (
+                    <button
+                      type="button"
+                      className="csm-library-carousel-arrow"
+                      onClick={() => scrollBombcardCarousel(-1)}
+                      disabled={!bombcardCarouselState.canGoPrev}
+                      aria-label="Previous Bombcards"
+                    >
+                      <IconArrowLeft />
+                    </button>
+                  )}
+                  <div
+                    className="csm-library-bombcard-grid"
+                    id="practice-set-cards"
+                    ref={bombcardCarouselRef}
+                    role="region"
+                    aria-label="Practice set Bombcards"
+                    tabIndex={0}
+                  >
+                    {filteredBombcards.map(({ card, index: idx }) => {
                   const cardId =
                     card.id || `${currentSelectedDeck.id}-card-${idx}`;
                   const isRevealed = revealedLibraryCards.includes(cardId);
@@ -474,14 +632,14 @@ export function LibraryScreen({
                             <span>
                               {currentSelectedDeck.code ||
                                 currentSelectedDeck.title}{" "}
-                              · M{idx + 1}
+                              · Q{idx + 1}
                             </span>
                           </label>
                         ) : (
                           <span>
                             {currentSelectedDeck.code ||
                               currentSelectedDeck.title}{" "}
-                            · M{idx + 1}
+                            · Q{idx + 1}
                           </span>
                         )}
                         {!isGuest && !bulkDeleteMode && (
@@ -564,8 +722,21 @@ export function LibraryScreen({
                       </div>
                     </article>
                   );
-                })}
-              </div>
+                    })}
+                  </div>
+                  {bombcardCarouselState.canScroll && (
+                    <button
+                      type="button"
+                      className="csm-library-carousel-arrow"
+                      onClick={() => scrollBombcardCarousel(1)}
+                      disabled={!bombcardCarouselState.canGoNext}
+                      aria-label="Next Bombcards"
+                    >
+                      <IconArrowRight />
+                    </button>
+                  )}
+                </div>
+              )
             )}
           </section>
 
@@ -635,10 +806,10 @@ export function LibraryScreen({
                             onClick={() =>
                               handleOpenAiGenerator(currentSelectedDeck.id, doc)
                             }
-                            className="h-7 px-2.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
+                            className="h-7 px-2.5 rounded-lg bg-[#fff1ec] hover:bg-[#ffe3d9] text-[#d93616] border border-[#f8c6b9] text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer shadow-xs"
                             title="Generate Bombcards from this PDF with Gemini AI"
                           >
-                            <IconSparkles className="w-3 h-3 text-purple-600" />
+                            <IconSparkles className="w-3 h-3 text-[#d93616]" />
                             <span>AI Cards</span>
                           </button>
                         )}
@@ -696,7 +867,7 @@ export function LibraryScreen({
                                 }}
                                 className="flex items-center gap-1.5"
                               >
-                                <IconSparkles className="w-3.5 h-3.5 text-purple-600" />{" "}
+                                <IconSparkles className="w-3.5 h-3.5 text-[#d93616]" />{" "}
                                 Generate AI Flashcards
                               </button>
                             )}

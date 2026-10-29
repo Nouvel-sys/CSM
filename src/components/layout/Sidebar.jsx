@@ -315,14 +315,16 @@ export function Sidebar({
                           ? "AI Flashcards (Sign in to unlock)"
                           : "AI Generator"
                       }
-                      className="csm-sidebar-subitem flex items-center transition-all relative text-purple-300 hover:text-purple-200"
+                      className="csm-sidebar-subitem flex items-center transition-all relative text-[#ffb49c] hover:text-white"
                       title={
                         isGuest
                           ? "AI Flashcards (Sign in to unlock)"
                           : "AI Flashcards Generator (Gemini)"
                       }
                     >
-                      <IconSparkles className="w-3.5 h-3.5 flex-shrink-0 text-purple-400" />
+                      <span className="csm-sidebar-ai-icon flex-shrink-0">
+                        <IconSparkles className="w-3.5 h-3.5 text-white" />
+                      </span>
                       {isGuest && (
                         <span
                           className="csm-sidebar-lock-badge"
@@ -353,12 +355,12 @@ export function Sidebar({
                   setActiveTab("arena");
                 });
               }}
-              data-tooltip={isGuest ? "Arena (Sign in to unlock)" : "Arena"}
+              data-tooltip={isGuest ? "Challenge (Sign in to unlock)" : "Challenge"}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 relative ${activeTab === "game" || activeTab === "arena" ? "active bg-[#f04824] text-white shadow-[0_0_15px_rgba(240,72,36,0.5)]" : "text-zinc-400 hover:text-white hover:bg-white/5"}`}
               title={
                 isGuest
-                  ? "Arena (Sign in to unlock)"
-                  : "Arena (Bombstyle Recall)"
+                  ? "Challenge (Sign in to unlock)"
+                  : "Challenge (Bombstyle Recall)"
               }
             >
               <IconCards className="w-6 h-6" />
@@ -370,7 +372,7 @@ export function Sidebar({
                   <IconLock className="w-2.5 h-2.5" />
                 </span>
               )}
-              <span className="csm-sidebar-label">Arena</span>
+              <span className="csm-sidebar-label">Challenge</span>
             </button>
           )}
 

@@ -109,6 +109,58 @@ test('library cards, dialogs, study and PDF return navigation stay connected', a
   expect(errors).toEqual([]);
 });
 
+test('Add PDF stays upload-only while Create Bombcards opens its method chooser', async ({ page }) => {
+  const { errors } = await mockWorkspace(page);
+  await page.goto('/index.html?screen=library');
+  await page.locator('.csm-library-deck-card').click();
+
+  const detail = page.locator('.csm-library-detail');
+  await detail.getByRole('button', { name: 'Create Bombcards', exact: true }).click();
+  const creatorChoice = page.getByRole('dialog', { name: 'Choose a creation method' });
+  await expect(creatorChoice).toBeVisible();
+  await expect(creatorChoice.getByRole('button', { name: 'Create manually' })).toBeVisible();
+  await expect(creatorChoice.getByRole('button', { name: /Generate with AI/ })).toBeVisible();
+  await creatorChoice.getByRole('button', { name: 'Create manually' }).click();
+  await expect(page.locator('.csm-creator-screen')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Reviewer Library', exact: true }).click();
+  await page.locator('.csm-library-deck-card').click();
+  await page.locator('.csm-library-detail').getByRole('button', { name: 'Add PDF', exact: true }).click();
+  const addPdfDialog = page.getByRole('dialog', { name: 'Physics' });
+  await expect(addPdfDialog).toBeVisible();
+  await expect(addPdfDialog.getByRole('button', { name: 'Upload File' })).toBeVisible();
+  await expect(addPdfDialog.getByText('Create manually', { exact: true })).toHaveCount(0);
+  await expect(addPdfDialog.getByText('Generate with AI', { exact: false })).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test('AI Cards opened from a PDF keeps the current deck locked', async ({ page }) => {
+  const { errors } = await mockWorkspace(page);
+  await page.goto('/index.html?screen=library');
+  await page.locator('.csm-library-deck-card').click();
+
+  const detail = page.locator('.csm-library-detail');
+  await detail.getByRole('button', { name: 'AI Cards', exact: true }).first().click();
+  const dialog = page.locator('.csm-ai-theme');
+  await expect(page.getByText('Cards will be added here', { exact: true })).toBeVisible();
+  await expect(dialog.locator('select')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Change', exact: true })).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test('Creator screen stays focused on manual Bombcard creation', async ({ page }) => {
+  const { errors } = await mockWorkspace(page);
+  await page.goto('/index.html?screen=creator');
+  const creator = page.locator('.csm-creator-screen');
+  await expect(creator.getByRole('heading', { name: 'Create Bombcards' })).toBeVisible();
+  await expect(creator.getByRole('button', { name: 'AI Generator', exact: true })).toHaveCount(0);
+  await expect(creator.getByRole('button', { name: /Go to Study/ })).toHaveCount(0);
+  await expect(creator.getByText('Deck Collection', { exact: true })).toHaveCount(0);
+  await expect(creator.getByText('Cards in this Deck', { exact: true })).toHaveCount(0);
+  await expect(creator.getByLabel('Deck for new Bombcards')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 for (const [screen, selector] of [
   ['home', '.home-dashboard-content'], ['creator', '.csm-creator-screen'],
   ['account', '.csm-account-screen'], ['people', '.csm-people-screen'],
@@ -159,6 +211,8 @@ test('archive confirmation and AI dialog can be opened and cancelled', async ({ 
   await expect(confirmation).toHaveCount(0);
   await page.getByRole('button', { name: 'AI Generator', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'AI Bombcard Maker' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Customize generation' })).toBeVisible();
+  await expect(page.getByText(/Deck PDFs \(/)).toHaveCount(0);
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'AI Bombcard Maker' })).toHaveCount(0);
   expect(requests.filter(request => request.method === 'DELETE')).toEqual([]);

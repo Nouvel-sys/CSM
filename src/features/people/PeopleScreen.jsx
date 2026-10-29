@@ -1,5 +1,6 @@
 import { CSM } from "../../services/client.js";
 import {
+  IconArrowLeft,
   IconArrowRight,
   IconClose,
   IconPdf,
@@ -11,6 +12,19 @@ import {
 } from "../../utils/accounts.js";
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
+const normalizeRecentPeople = (value) =>
+  Array.isArray(value)
+    ? value
+        .filter(
+          (person) =>
+            person &&
+            (typeof person.id === "string" || typeof person.id === "number") &&
+            typeof person.username === "string" &&
+            typeof person.display_name === "string",
+        )
+        .map((person) => ({ ...person, id: String(person.id) }))
+        .slice(0, 6)
+    : [];
 export function PeopleScreen({ onPlayDeck, currentUsername }) {
   const [search, setSearch] = useState("");
   const [people, setPeople] = useState([]);
@@ -20,20 +34,15 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
   const [recentPeople, setRecentPeople] = useState(() => {
     if (!recentStorageKey) return [];
     try {
-      const stored = JSON.parse(localStorage.getItem(recentStorageKey) || "[]");
-      return Array.isArray(stored)
-        ? stored.filter(
-            (person) =>
-              person &&
-              typeof person.id === "string" &&
-              typeof person.username === "string" &&
-              typeof person.display_name === "string",
-          ).slice(0, 6)
-        : [];
+      return normalizeRecentPeople(
+        JSON.parse(localStorage.getItem(recentStorageKey) || "[]"),
+      );
     } catch {
       return [];
     }
   });
+  const [suggestedPeople, setSuggestedPeople] = useState([]);
+  const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -53,6 +62,60 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
   const [reportError, setReportError] = useState("");
   const [reportNotice, setReportNotice] = useState("");
   const peopleSearchRequestRef = useRef(0);
+  const suggestionRequestRef = useRef(0);
+  useEffect(() => {
+    if (!recentStorageKey) {
+      setRecentPeople([]);
+      return;
+    }
+    try {
+      setRecentPeople(
+        normalizeRecentPeople(
+          JSON.parse(localStorage.getItem(recentStorageKey) || "[]"),
+        ),
+      );
+    } catch {
+      setRecentPeople([]);
+    }
+  }, [recentStorageKey]);
+  const loadSuggestedPeople = async () => {
+    const requestId = ++suggestionRequestRef.current;
+    setSuggestionsBusy(true);
+    try {
+      const result = await CSM.api("people/suggestions");
+      if (requestId !== suggestionRequestRef.current) return;
+      const candidates = Array.isArray(result.people) ? [...result.people] : [];
+      for (let index = candidates.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [candidates[index], candidates[swapIndex]] = [
+          candidates[swapIndex],
+          candidates[index],
+        ];
+      }
+      let next = candidates.slice(0, 3);
+      const currentIds = suggestedPeople.map((person) => person.id).sort().join(",");
+      if (
+        candidates.length > 3 &&
+        next.map((person) => person.id).sort().join(",") === currentIds
+      ) {
+        next = candidates.slice(1, 4);
+      } else if (
+        next.length > 1 &&
+        next.map((person) => person.id).join(",") ===
+          suggestedPeople.map((person) => person.id).join(",")
+      ) {
+        next = [...next.slice(1), next[0]];
+      }
+      setSuggestedPeople(next);
+    } catch {
+      if (requestId === suggestionRequestRef.current) setSuggestedPeople([]);
+    } finally {
+      if (requestId === suggestionRequestRef.current) setSuggestionsBusy(false);
+    }
+  };
+  useEffect(() => {
+    loadSuggestedPeople();
+  }, []);
   const loadPeople = async (term, requestedPage = 0, remember = false) => {
     const requestId = ++peopleSearchRequestRef.current;
     setBusy(true);
@@ -68,9 +131,13 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       setPeople(matches);
       setTotal(Number(result.total) || 0);
       if (remember && requestedPage === 0 && recentStorageKey) {
-        const recentIds = new Set(matches.map((person) => person.id));
+        const normalizedMatches = matches.map((person) => ({
+          ...person,
+          id: String(person.id),
+        }));
+        const recentIds = new Set(normalizedMatches.map((person) => person.id));
         const nextRecent = [
-          ...matches,
+          ...normalizedMatches,
           ...recentPeople.filter((person) => !recentIds.has(person.id)),
         ].slice(0, 6);
         setRecentPeople(nextRecent);
@@ -80,6 +147,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
           // Keep the current session usable when browser storage is unavailable.
         }
       }
+      if (remember && requestedPage === 0) loadSuggestedPeople();
     } catch (requestError) {
       if (requestId === peopleSearchRequestRef.current) {
         setError(requestError.message || "Could not search accounts.");
@@ -102,7 +170,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       return undefined;
     }
     const timer = window.setTimeout(() => {
-      loadPeople(term, 0);
+      loadPeople(term, 0, true);
     }, 350);
     return () => {
       window.clearTimeout(timer);
@@ -367,7 +435,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
               </button>
             </div>
           )}
-          {!search.trim() && recentPeople.length > 0 ? (
+          {recentPeople.length > 0 ? (
             <section className="csm-people-recent" aria-labelledby="csm-people-recent-title">
               <div className="csm-people-recent-heading">
                 <h2 id="csm-people-recent-title">Recently searched</h2>
@@ -379,12 +447,36 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
                 {recentPeople.map(renderPersonResult)}
               </div>
             </section>
-          ) : !search.trim() ? (
+          ) : null}
+          {!search.trim() && recentPeople.length === 0 && (
             <div className="csm-people-empty csm-people-hint">
               Search using at least two characters. Profiles can appear in
               results while their decks remain private.
             </div>
-          ) : null}
+          )}
+          <section className="csm-people-recent csm-people-discover" aria-labelledby="csm-people-discover-title">
+              <div className="csm-people-recent-heading">
+                <h2 id="csm-people-discover-title">Discover other users</h2>
+                <button
+                  type="button"
+                  onClick={loadSuggestedPeople}
+                  disabled={suggestionsBusy}
+                >
+                  {suggestionsBusy ? "Shuffling…" : "Shuffle users"}
+                </button>
+              </div>
+              {suggestedPeople.length > 0 ? (
+                <div className="csm-people-results">
+                  {suggestedPeople.map(renderPersonResult)}
+                </div>
+              ) : (
+                <div className="csm-people-empty csm-people-hint">
+                  {suggestionsBusy
+                    ? "Finding people to discover…"
+                    : "No other users to show yet."}
+                </div>
+              )}
+          </section>
         </section>
       )}
 
@@ -396,15 +488,6 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
                 className="csm-account-card csm-people-profile-page"
                 aria-labelledby="csm-people-profile-title"
               >
-                <div className="csm-people-preview-nav">
-                  <button
-                    type="button"
-                    className="csm-secondary-button"
-                    onClick={returnToPeopleSearch}
-                  >
-                    Back to search
-                  </button>
-                </div>
                 <button
                   type="button"
                   className="csm-people-modal-close"
@@ -413,27 +496,38 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
                 >
                   ×
                 </button>
-                <div className="csm-people-profile-heading">
-                  <span
-                    className="csm-admin-avatar"
-                    style={{
-                      background:
-                        adminAvatarBackgrounds[selectedPerson.avatar] ||
-                        adminAvatarBackgrounds.ember,
-                    }}
-                    aria-hidden="true"
-                  >
-                    {getAccountInitials({
-                      username: selectedPerson.username,
-                      display_name: selectedPerson.display_name,
-                    })}
-                  </span>
-                  <div>
-                    <span className="csm-kicker">STUDENT PROFILE</span>
-                    <h2 id="csm-people-profile-title">
-                      {selectedPerson.display_name}
-                    </h2>
-                    <p>@{selectedPerson.username}</p>
+                <div className="csm-people-profile-topline">
+                  <div className="csm-people-profile-heading">
+                    <span
+                      className="csm-admin-avatar"
+                      style={{
+                        background:
+                          adminAvatarBackgrounds[selectedPerson.avatar] ||
+                          adminAvatarBackgrounds.ember,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {getAccountInitials({
+                        username: selectedPerson.username,
+                        display_name: selectedPerson.display_name,
+                      })}
+                    </span>
+                    <div>
+                      <span className="csm-kicker">STUDENT PROFILE</span>
+                      <h2 id="csm-people-profile-title">
+                        {selectedPerson.display_name}
+                      </h2>
+                      <p>@{selectedPerson.username}</p>
+                    </div>
+                  </div>
+                  <div className="csm-people-preview-nav csm-people-profile-nav">
+                    <button
+                      type="button"
+                      className="csm-secondary-button"
+                      onClick={returnToPeopleSearch}
+                    >
+                      <IconArrowLeft /> Back to search
+                    </button>
                   </div>
                 </div>
                 {selectedPerson.loading ? (
@@ -475,7 +569,13 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
                               disabled={deckBusy}
                               onClick={() => openDeck(deck)}
                             >
-                              {deckBusy ? "Loading…" : "View deck"}
+                              {deckBusy ? (
+                                "Loading..."
+                              ) : (
+                                <>
+                                  View deck <IconArrowRight />
+                                </>
+                              )}
                             </button>
                           </article>
                         ))}
@@ -572,7 +672,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
                       onPlayDeck?.(selectedDeck);
                     }}
                   >
-                    <IconArrowRight /> Play this deck in Arena
+                    <IconArrowRight /> Play this deck in Challenge
                   </button>
                 </div>
                 {!previewStudyMode && selectedDeck.documents?.length > 0 && (

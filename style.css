@@ -1458,6 +1458,9 @@
     /* Unified secondary screens */
     .csm-screen { overflow-y: auto; padding: 31px 34px 52px; background: #f6f8fb; }
     .csm-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 26px; } .csm-page-head h1 { margin: 6px 0 5px; color: var(--csm-ink); font-size: 29px; letter-spacing: -.045em; } .csm-page-head p { margin: 0; color: var(--csm-muted); font-size: 12px; } .csm-page-actions { display: flex; gap: 8px; }
+    .csm-creator-screen .csm-page-actions > .csm-creator-nav-button { height: 46px; min-height: 46px; padding: 0 18px; gap: 9px; border-radius: 11px; font-size: 13px; white-space: nowrap; }
+    .csm-creator-screen .csm-creator-nav-button > svg { width: 17px; height: 17px; flex: 0 0 17px; }
+    @media (max-width: 560px) { .csm-creator-screen .csm-page-actions > .csm-creator-nav-button { min-width: 0; padding-inline: 12px; font-size: 12px; } }
     .csm-viewer-toolbar { display: flex; align-items: end; justify-content: space-between; margin-bottom: 14px; } .csm-viewer-toolbar label, .csm-field { display: flex; flex-direction: column; gap: 7px; color: #8693a2; font-size: 10px; font-weight: 800; letter-spacing: .03em; } .csm-viewer-toolbar select, .csm-field input, .csm-field select, .csm-field textarea { min-height: 37px; padding: 0 11px; border: 1px solid var(--csm-line); border-radius: 9px; outline: none; color: var(--csm-ink); background: #fff; font-size: 11px; font-weight: 600; } .csm-field textarea { min-height: 100px; padding-top: 10px; resize: vertical; }
     .csm-viewer-progress { color: #8693a2; font-size: 10px; font-weight: 700; }
     .csm-viewer-layout { display: grid; grid-template-columns: minmax(0,1fr) 250px; gap: 14px; } .csm-flashcard-panel, .csm-review-summary, .csm-form-card, .csm-pdf-card, .csm-highlights-card { padding: 21px; border: 1px solid var(--csm-line); border-radius: 15px; background: #fff; box-shadow: 0 8px 22px rgba(23,34,53,.04); }
@@ -1510,6 +1513,9 @@
     .csm-library-deck-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
     .csm-library-deck-card { min-height: 184px; display: flex; flex-direction: column; padding: 17px; border: 1px solid var(--csm-line); border-radius: 15px; background: #fff; box-shadow: 0 8px 22px rgba(23,34,53,.04); cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
     .csm-library-deck-card:hover { border-color: #f2b6a7; box-shadow: 0 14px 28px rgba(23,34,53,.08); transform: translateY(-2px); }
+    .csm-library-deck-card.is-opening { pointer-events: none; animation: csm-deck-card-open 160ms cubic-bezier(.2, .75, .25, 1) both; }
+    @keyframes csm-deck-card-open { 0% { transform: translateY(-2px) scale(1); opacity: 1; } 45% { transform: translateY(-5px) scale(1.015); opacity: 1; } 100% { transform: translateY(2px) scale(.985); opacity: .72; } }
+    @media (prefers-reduced-motion: reduce) { .csm-library-deck-card.is-opening { animation-duration: 1ms; } }
     .csm-library-deck-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
     .csm-library-deck-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--csm-accent); background: #fff0eb; }
     .csm-library-deck-icon svg { width: 18px; height: 18px; }
@@ -5519,4 +5525,165 @@ body.logged-out .csm-nav-capsule {
 .csm-library-reference-notes .csm-library-document-copy small { font-size: 11px; }
 .csm-library-reference-notes .csm-library-empty-row { font-size: 13px; }
 .csm-library-reference-notes .csm-material-actions > button:not(.csm-material-menu-trigger) { min-height: 34px; font-size: 12px; }
+
+/* Slightly larger Overview typography and touch targets. */
+.home-dashboard-content .home-dashboard-eyebrow { font-size: 16px; }
+.home-dashboard-content .home-dashboard-title { font-size: 36px !important; line-height: 1.05; }
+.home-dashboard-content .home-dashboard-subtitle { font-size: 16px; line-height: 1.4; }
+.home-dashboard-content .home-stat-card { min-height: 132px !important; }
+.home-dashboard-content .home-stat-card .home-stat-icon { width: 40px !important; height: 40px !important; }
+.home-dashboard-content .home-stat-card .home-stat-icon svg { width: 21px !important; height: 21px !important; }
+.home-dashboard-content .home-stat-label { font-size: 13px; }
+.home-dashboard-content .home-stat-value { font-size: 26px !important; }
+.home-dashboard-content .home-stat-description { font-size: 13px; }
+.home-dashboard-content .csm-trend { font-size: 10px; }
+.home-dashboard-content .csm-resume-hero > div:first-child > div:first-child > span:first-child { font-size: 12px; }
+.home-dashboard-content .csm-resume-hero > div:first-child > div:first-child > span:nth-child(2) { font-size: 14px; }
+.home-dashboard-content .csm-resume-hero h2 { font-size: 28px; }
+.home-dashboard-content .csm-resume-hero p { font-size: 14px; }
+.home-dashboard-content .csm-resume-hero button { min-height: 44px; font-size: 14px; }
+.home-dashboard-content .csm-chart-card h2,
+.home-dashboard-content .csm-daily-goal-card h2 { font-size: 22px; }
+.home-dashboard-content .csm-chart-card p,
+.home-dashboard-content .csm-daily-goal-card p { font-size: 14px; line-height: 1.5; }
+.home-dashboard-content .csm-chart-card .csm-kicker,
+.home-dashboard-content .csm-daily-goal-card > div > span:first-child { font-size: 12px; }
+.home-dashboard-content .csm-daily-goal-card .text-2xl { font-size: 30px; }
+.home-dashboard-content .csm-daily-goal-card .text-lg { font-size: 22px; }
+.home-dashboard-content .csm-daily-goal-card button { min-height: 44px; font-size: 14px; }
+@media (max-width: 640px) {
+  .home-dashboard-content .home-dashboard-title { font-size: 32px !important; }
+  .home-dashboard-content .home-dashboard-subtitle { font-size: 15px; }
+  .home-dashboard-content .home-stat-label { font-size: 12px; }
+  .home-dashboard-content .home-stat-description { font-size: 12px; }
+}
+
+/* Practice set search and primary actions. */
+.csm-library-section-actions { flex-direction: row; align-items: center; }
+.csm-library-create-bombcards-button { height: 40px; min-height: 40px; gap: 6px; padding: 0; white-space: nowrap; text-decoration: none; }
+.csm-library-section-heading .csm-library-create-bombcards-button,
+.csm-library-section-heading .csm-library-create-bombcards-button:hover,
+.csm-library-section-heading .csm-library-create-bombcards-button:focus-visible,
+.csm-library-section-heading .csm-library-create-bombcards-button:active { padding: 0; border: 1px solid transparent; color: var(--csm-accent); background: transparent; box-shadow: none; text-decoration: none; }
+.csm-library-section-heading .csm-library-create-bombcards-button:hover { border-color: transparent; color: var(--csm-accent-dark); background: transparent; box-shadow: none; }
+.csm-library-section-heading .csm-library-create-bombcards-button:focus-visible { outline: 3px solid rgba(240, 72, 36, .28); outline-offset: 3px; }
+.csm-library-detail .csm-library-section-actions > .csm-library-create-bombcards-button { font-size: 12px; }
+.csm-bombcard-bulk-toolbar { justify-content: flex-start; }
+.csm-bombcard-search { position: relative; display: flex; width: min(100%, 420px); min-width: 0; flex: 0 1 420px; align-items: center; }
+.csm-bombcard-search > svg { position: absolute; left: 12px; width: 17px; height: 17px; color: #8291a5; pointer-events: none; }
+.csm-bombcard-search input { width: 100%; min-width: 0; height: 44px; padding: 0 12px 0 38px; border: 1px solid #dce4ec; border-radius: 9px; outline: none; color: var(--csm-ink); background: #fff; font: inherit; font-size: 14px; }
+.csm-bombcard-search input:focus { border-color: #f2a18e; box-shadow: 0 0 0 3px rgba(240, 72, 36, .1); }
+.csm-bombcard-bulk-controls { flex: 0 0 auto; margin-left: auto; }
+.csm-library-search-empty { grid-column: 1 / -1; padding: 28px 16px; border: 1px dashed #dce4ec; border-radius: 12px; color: #71829a; font-size: 14px; text-align: center; }
+@media (max-width: 882px) { .csm-bombcard-bulk-toolbar { flex-direction: row; align-items: center; } .csm-bombcard-bulk-controls { flex-wrap: nowrap; } }
+@media (max-width: 560px) { .csm-bombcard-bulk-toolbar { flex-wrap: wrap; } .csm-bombcard-search { width: 100%; flex-basis: 100%; } .csm-bombcard-bulk-controls { margin-left: auto; } }
+
+/* Shared action sizing and responsive wrapping across workspace screens. */
+:is(.csm-primary-button, .csm-secondary-button, .csm-danger-button) { box-sizing: border-box; min-width: 0; max-width: 100%; min-height: 42px; height: auto; padding: 9px 15px; font-size: 12px; line-height: 1.25; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+:is(.csm-primary-button, .csm-secondary-button, .csm-danger-button) > svg { flex: 0 0 auto; }
+:is(.csm-page-actions, .csm-viewer-toolbar-actions, .csm-library-detail-actions, .csm-people-deck-actions, .csm-admin-row-actions, .csm-admin-profile-actions, .csm-archive-actions) { min-width: 0; flex-wrap: wrap; }
+.csm-admin-account-action, .csm-admin-row-actions .csm-admin-deck-action, .csm-admin-preview-header-actions .csm-secondary-button, .csm-pdf-pagination .csm-secondary-button { box-sizing: border-box; min-height: 42px; height: auto; padding: 9px 13px; font-size: 12px; line-height: 1.25; white-space: normal; overflow-wrap: anywhere; }
+@media (max-width: 719px) {
+  .csm-page-actions { flex-wrap: wrap; }
+  .csm-page-actions > :is(.csm-primary-button, .csm-secondary-button, .csm-danger-button) { flex: 1 1 145px; min-width: 0; }
+  .csm-flashcards-screen .csm-viewer-toolbar { grid-template-columns: minmax(0, 1fr); align-items: stretch; }
+  .csm-flashcards-screen .csm-viewer-toolbar > label, .csm-flashcards-screen .csm-viewer-toolbar > label select { width: 100%; min-width: 0; }
+  .csm-viewer-toolbar-actions { flex-wrap: wrap; }
+  .csm-viewer-toolbar-actions > button { min-width: 0; min-height: 42px; padding-inline: 12px; font-size: 12px; white-space: normal; }
+  .csm-flashcards-screen .csm-viewer-progress { grid-column: 1; justify-self: start; }
+  .csm-admin-row-actions, .csm-admin-profile-actions, .csm-archive-actions { flex-wrap: wrap; overflow: visible; }
+  .csm-admin-row-actions > button, .csm-admin-profile-actions > button, .csm-archive-actions > button { flex: 1 1 145px; min-width: 0; }
+  .csm-creator-screen .csm-page-actions > .csm-creator-nav-button { min-width: 0; white-space: normal; }
+}
+@media (max-width: 420px) {
+  :is(.csm-primary-button, .csm-secondary-button, .csm-danger-button) { padding-inline: 12px; font-size: 11px; }
+  .csm-viewer-toolbar-actions > button { flex: 1 1 135px; }
+}
+
+/* Improve readability in the Study Bombcards header and deck selector. */
+.csm-creator-screen .csm-page-head .csm-creator-kicker { font-weight: 500; letter-spacing: .11em; }
+.csm-creator-screen .csm-page-head h1 { font-weight: 700 !important; }
+.csm-flashcards-screen .csm-page-head .csm-kicker { font-size: 12px; }
+.csm-flashcards-screen .csm-page-head h1 { font-size: 36px; line-height: 1.15; }
+.csm-flashcards-screen .csm-page-head p { max-width: 760px; font-size: 15px; line-height: 1.55; }
+.csm-flashcards-screen .csm-viewer-toolbar > label { gap: 8px; font-size: 13px; }
+.csm-flashcards-screen .csm-viewer-toolbar > label select { min-height: 44px; padding-inline: 13px; font-size: 14px; }
+@media (max-width: 719px) {
+  .csm-flashcards-screen .csm-page-head h1 { font-size: 31px; }
+  .csm-flashcards-screen .csm-page-head p { font-size: 14px; }
+  .csm-flashcards-screen .csm-viewer-toolbar > label select { min-height: 46px; }
+}
+
+/* Slightly enlarge notification content for easier reading. */
+.csm-notifications-panel { width: min(410px, calc(100vw - 24px)); }
+.csm-notifications-header { padding: 16px 18px 13px; }
+.csm-notifications-header strong { font-size: 14px; }
+.csm-notifications-header span { font-size: 11px; }
+.csm-notification-item { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 11px; padding: 14px 15px; }
+.csm-notification-item-icon { width: 30px; height: 30px; font-size: 15px; }
+.csm-notification-item-copy strong { font-size: 12px; line-height: 1.45; }
+.csm-notification-item-copy p { font-size: 11px; line-height: 1.55; }
+.csm-notification-item-copy time { font-size: 10px; }
+.csm-notification-mark-read { font-size: 10px; }
+.csm-notifications-actions button { min-height: 34px; height: auto; padding: 7px 9px; font-size: 11px; }
+@media (max-width: 882px) {
+  .csm-notification-item { grid-template-columns: 32px minmax(0, 1fr); }
+  .csm-notification-item-copy strong { font-size: 14px; }
+  .csm-notification-item-copy p { font-size: 13px; }
+  .csm-notification-item-copy time { font-size: 12px; }
+  .csm-notification-mark-read { font-size: 13px; }
+}
+
+/* Keep the admin user search action wide enough for a single-line label. */
+.csm-admin-user-search-row .csm-admin-search > button.csm-secondary-button {
+  box-sizing: border-box;
+  flex: 0 0 72px;
+  width: 72px;
+  min-width: 72px;
+  padding-inline: 8px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+/* Improve readability across the admin console without scaling its layout. */
+.csm-admin-screen .csm-page-head h1 { font-size: 36px; line-height: 1.15; }
+.csm-admin-screen .csm-page-head p { font-size: 15px; line-height: 1.55; }
+.csm-admin-screen .csm-kicker { font-size: 11px; }
+.csm-admin-screen > .csm-admin-tabs { min-height: 54px; gap: 8px; padding: 6px; }
+.csm-admin-screen .csm-admin-tabs button { min-height: 40px; padding-inline: 15px; font-size: 13px; }
+.csm-admin-screen .csm-admin-tabs button.has-open-reports { padding-right: 30px; }
+.csm-admin-screen .csm-admin-review-dot {
+  top: 8px;
+  right: 10px;
+  width: 10px;
+  height: 10px;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgb(239 68 68 / 13%);
+}
+.csm-admin-screen .csm-admin-card-head h2,
+.csm-admin-screen .csm-admin-card h2 { font-size: 21px; }
+.csm-admin-screen .csm-admin-table th { padding: 13px 14px; font-size: 11px; }
+.csm-admin-screen .csm-admin-table td { padding: 14px; font-size: 13px; }
+.csm-admin-screen .csm-admin-table td strong { font-size: 13px; }
+.csm-admin-screen .csm-admin-table td small { font-size: 11px; }
+.csm-admin-screen .csm-admin-table select,
+.csm-admin-screen .csm-admin-role-filter,
+.csm-admin-screen .csm-admin-search input { font-size: 13px; }
+.csm-admin-screen .csm-admin-search input,
+.csm-admin-screen .csm-admin-search button,
+.csm-admin-screen .csm-admin-user-search-row .csm-admin-role-filter { min-height: 46px; height: 46px; }
+.csm-admin-screen .csm-secondary-button,
+.csm-admin-screen .csm-primary-button,
+.csm-admin-screen .csm-danger-button { font-size: 13px; }
+.csm-admin-screen .csm-admin-status { font-size: 12px; }
+
+@media (max-width: 742px) {
+  .csm-admin-screen .csm-page-head h1 { font-size: clamp(29px, 7vw, 34px); }
+  .csm-admin-screen .csm-page-head p { font-size: 14px; }
+  .csm-admin-screen > .csm-admin-tabs { gap: 5px; }
+  .csm-admin-screen .csm-admin-tabs button { min-height: 40px; padding-inline: 11px; font-size: 12px; }
+  .csm-admin-screen .csm-admin-card-head h2,
+  .csm-admin-screen .csm-admin-card h2 { font-size: 19px; }
+  .csm-admin-screen .csm-admin-table td { padding: 12px 10px; }
+}
 

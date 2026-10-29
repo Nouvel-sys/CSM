@@ -25,7 +25,7 @@ export function AiReviewerDialog({
         aria-labelledby="ai-reviewer-ready-title"
         aria-describedby="ai-reviewer-ready-description"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl"
+        className="csm-ai-theme w-full max-w-md rounded-3xl border border-slate-200 bg-white p-7 shadow-2xl"
       >
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-100 text-purple-700">
           <IconSparkles className="h-7 w-7" />

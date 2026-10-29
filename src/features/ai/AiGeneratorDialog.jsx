@@ -8,6 +8,7 @@ import {
 } from "../../components/icons.jsx";
 import React from "react";
 export function AiGeneratorDialog({
+  aiDeckLocked,
   aiExtractingPdf,
   aiFocus,
   aiFormat,
@@ -56,6 +57,21 @@ export function AiGeneratorDialog({
   setAiSourceType,
   setAiStage,
 }) {
+  const targetDeck =
+    decks.find((deck) => deck.id === aiTargetDeckId) || decks[0];
+  const [sourcePickerOpen, setSourcePickerOpen] = React.useState(false);
+  const [advancedOptionsOpen, setAdvancedOptionsOpen] = React.useState(false);
+  const compactPdfSource = Boolean(
+    aiSourceType === "pdf" &&
+      aiPdfSourceMode === "library" &&
+      aiSelectedLibraryDoc &&
+      !sourcePickerOpen,
+  );
+
+  React.useEffect(() => {
+    if (aiSelectedLibraryDoc) setSourcePickerOpen(false);
+  }, [aiSelectedLibraryDoc?.id]);
+
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
@@ -65,7 +81,7 @@ export function AiGeneratorDialog({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-2xl bg-white rounded-[26px] p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] relative overflow-hidden"
+        className="csm-ai-theme w-full max-w-2xl bg-white rounded-[26px] p-6 sm:p-8 shadow-2xl border border-slate-200 flex flex-col max-h-[90vh] relative overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
@@ -104,7 +120,8 @@ export function AiGeneratorDialog({
           {aiStage === "input" ? (
             <>
               {/* Top Source Mode Tabs */}
-              <div className="flex p-1 bg-slate-100/90 rounded-2xl gap-1 border border-slate-200/80">
+              {!compactPdfSource && (
+                <div className="flex p-1 bg-slate-100/90 rounded-2xl gap-1 border border-slate-200/80">
                 <button
                   type="button"
                   onClick={() => setAiSourceType("pdf")}
@@ -126,18 +143,29 @@ export function AiGeneratorDialog({
                   <IconFileText className="w-3.5 h-3.5 text-purple-600" />
                   <span>From Pasted Text / Notes</span>
                 </button>
-              </div>
+                </div>
+              )}
 
               {/* Target Reviewer Deck Selector */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-                    Target Reviewer Deck
+                    Target deck
                   </label>
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    Flashcards will be added here
-                  </span>
                 </div>
+                {aiDeckLocked && (
+                  <div className="flex h-11 items-center justify-between gap-3 rounded-xl border border-[#f4b3a2] bg-[#fff7f3] px-3.5">
+                    <span className="truncate text-xs font-black text-slate-800">
+                      {targetDeck?.code || targetDeck?.title || "Selected deck"}
+                      {" — "}
+                      {targetDeck?.title || targetDeck?.subject || "Reviewer"}
+                    </span>
+                    <span className="flex-shrink-0 text-[11px] font-bold text-[#b82d13]">
+                      Cards will be added here
+                    </span>
+                  </div>
+                )}
+                {!aiDeckLocked && (
                 <select
                   value={aiTargetDeckId}
                   onChange={(e) => handleTargetDeckChange(e.target.value)}
@@ -150,7 +178,36 @@ export function AiGeneratorDialog({
                     </option>
                   ))}
                 </select>
+                )}
               </div>
+
+              {compactPdfSource && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#f4b3a2] bg-[#fff7f3] p-3.5">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[#fff1ec] text-[#d93616]">
+                      <IconPdf className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-extrabold uppercase tracking-wider text-[#b82d13]">
+                        Source PDF
+                      </span>
+                      <p className="truncate text-xs font-black text-slate-900">
+                        {aiSelectedLibraryDoc.title}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-slate-500">
+                        Attached to this deck
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSourcePickerOpen(true)}
+                    className="flex-shrink-0 rounded-xl border border-[#f4b3a2] bg-white px-3 py-1.5 text-[11px] font-extrabold text-[#d93616] transition-colors hover:bg-[#fff1ec] cursor-pointer"
+                  >
+                    Change
+                  </button>
+                </div>
+              )}
 
               {/* SOURCE 1: FROM PDF DOCUMENT */}
               {aiSourceType === "pdf" ? (
@@ -163,7 +220,7 @@ export function AiGeneratorDialog({
                     const deckDocs = currentDeck?.documents || [];
                     return (
                       <div className="space-y-3">
-                        {deckDocs.length > 0 && (
+                        {deckDocs.length > 0 && !compactPdfSource && (
                           <div className="flex items-center gap-2 pb-1">
                             <button
                               type="button"
@@ -294,7 +351,8 @@ export function AiGeneratorDialog({
 
                         {/* Option B: Choose Attached Deck Document */}
                         {aiPdfSourceMode === "library" &&
-                          deckDocs.length > 0 && (
+                          deckDocs.length > 0 &&
+                          !compactPdfSource && (
                             <div className="space-y-2">
                               <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block">
                                 Select Deck PDF Document
@@ -350,7 +408,7 @@ export function AiGeneratorDialog({
                     <div className="bg-[#f8fafc] p-3.5 rounded-2xl border border-slate-200 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700">
-                          Pages to Forge Cards From
+                          Page range
                         </span>
                         <div className="flex items-center gap-1">
                           <button
@@ -573,7 +631,44 @@ export function AiGeneratorDialog({
                 </div>
               )}
 
-              {/* Generation Controls */}
+              {/* Advanced Generation Controls */}
+              <div className="rounded-2xl border border-slate-200 bg-[#f8fafc]">
+                <button
+                  type="button"
+                  aria-expanded={advancedOptionsOpen}
+                  onClick={() => setAdvancedOptionsOpen((open) => !open)}
+                  className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left cursor-pointer"
+                >
+                  <span>
+                    <span className="block text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                      Customize generation
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-semibold text-slate-400">
+                      {aiFormat === "MIXED"
+                        ? "Mixed"
+                        : aiFormat === "MULTIPLE_CHOICE"
+                          ? "MCQ only"
+                          : aiFormat === "TRUE_FALSE"
+                            ? "True / False only"
+                            : "Identification only"}{" "}
+                      ·{" "}
+                      {aiFocus === "comprehensive"
+                        ? "Comprehensive"
+                        : aiFocus === "key_terms"
+                          ? "Key terms"
+                          : "Application"}
+                    </span>
+                  </span>
+                  <span
+                    className="text-base font-bold text-slate-400"
+                    aria-hidden="true"
+                  >
+                    {advancedOptionsOpen ? "−" : "+"}
+                  </span>
+                </button>
+
+                {advancedOptionsOpen && (
+                  <div className="space-y-4 border-t border-slate-200 px-3.5 pb-3.5 pt-3.5">
               <div className="pt-1">
                 <div>
                   <label className="text-xs font-extrabold uppercase tracking-wider text-slate-700 block mb-1.5">
@@ -653,6 +748,9 @@ export function AiGeneratorDialog({
                     </span>
                   </button>
                 </div>
+              </div>
+                  </div>
+                )}
               </div>
             </> /* --- PREVIEW STAGE --- */
           ) : (

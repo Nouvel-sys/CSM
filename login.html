@@ -322,6 +322,78 @@
     .name-fields .field { min-width: 0; }
     .name-fields .field:nth-child(3) { grid-column: 1 / -1; }
     .optional-label { margin-left: 4px; color: rgba(255,255,255,.48); font-size: .88em; font-weight: 600; }
+
+    /* Readable auth sizing with room for wrapping and smaller screens. */
+    @media (min-width: 761px) {
+      .auth-shell { width: min(1180px, calc(100% - 56px)); min-height: 620px; max-height: calc(100vh - 40px); }
+      .brand-panel { padding: clamp(42px, 5vh, 58px) clamp(36px, 4vw, 56px) 34px; }
+      .brand-tagline { font-size: 10px; }
+      .brand-panel h1 { font-size: clamp(38px, 3.6vw, 52px); }
+      .brand-description { max-width: 420px; font-size: 14px; line-height: 1.45; }
+      .feature-list { max-width: 470px; gap: 10px 22px; font-size: 12px; }
+      .form-panel { padding: 32px clamp(36px, 5vw, 72px) 24px; }
+      .form-copy { width: min(100%, 440px); max-width: 440px; }
+      .form-title { font-size: clamp(36px, 3.2vw, 48px); line-height: 1.04; }
+      .auth-form { margin-top: 26px; gap: 15px; }
+      .field { gap: 7px; }
+      .field label { font-size: 13px; }
+      .field input { min-height: 48px; padding: 0 14px; font-size: 14px; }
+      .password-wrap input { padding-right: 64px; }
+      .password-toggle { right: 12px; font-size: 12px; }
+      .password-strength-top,
+      .password-strength-top strong,
+      .password-strength-advice,
+      .email-status { font-size: 11px; }
+      .auth-meta { min-height: 22px; font-size: 12px; }
+      .remember { gap: 8px; }
+      .remember input { width: 15px; height: 15px; }
+      .form-error { padding: 12px 14px; font-size: 13px; line-height: 1.45; }
+      .submit-button { min-height: 50px; margin-top: 6px; font-size: 14px; }
+      .button-icon { width: 18px; height: 18px; flex-basis: 18px; }
+      .form-footer { margin-top: 22px; font-size: 12px; line-height: 1.6; }
+      .form-footer button { font-size: 12px; }
+    }
+    @media (max-width: 760px) {
+      .auth-page { padding: 16px 14px 28px; }
+      .auth-shell { width: 100%; }
+      .brand-panel { min-height: 330px; padding: 28px 24px; }
+      .brand-wordmark { font-size: clamp(42px, 11vw, 50px); }
+      .brand-tagline { margin-top: 20px; font-size: 10px; }
+      .brand-panel h1 { font-size: clamp(34px, 8vw, 40px); }
+      .brand-description { max-width: min(72%, 340px); font-size: 14px; line-height: 1.45; }
+      .feature-list { max-width: min(72%, 330px); gap: 9px 14px; font-size: 11px; line-height: 1.4; }
+      .brand-mascot { width: clamp(125px, 38vw, 170px); }
+      .form-panel { padding: 30px 24px 32px; }
+      .panel-top { margin-bottom: 24px; }
+      .mode-switch button { padding: 9px 13px; font-size: 12px; }
+      .form-copy { width: 100%; max-width: 460px; }
+      .form-title { min-height: 0; font-size: clamp(32px, 8vw, 40px); line-height: 1.05; }
+      .form-description { margin: 12px 0 20px; font-size: 14px; line-height: 1.5; }
+      .auth-form { gap: 15px; }
+      .field { gap: 7px; }
+      .field label { font-size: 13px; }
+      .field input { min-height: 48px; padding: 0 13px; font-size: 14px; }
+      .password-wrap input { padding-right: 60px; }
+      .password-toggle { right: 11px; font-size: 12px; }
+      .password-strength-top,
+      .password-strength-top strong,
+      .password-strength-advice,
+      .email-status { font-size: 11px; }
+      .auth-meta { flex-wrap: wrap; font-size: 12px; }
+      .remember { gap: 8px; }
+      .remember input { width: 15px; height: 15px; }
+      .form-error { padding: 12px 13px; font-size: 13px; line-height: 1.45; }
+      .submit-button { min-height: 50px; font-size: 14px; }
+      .form-footer { margin: 20px 0 8px; font-size: 12px; line-height: 1.7; }
+      .form-footer button { font-size: 12px; }
+    }
+    @media (max-width: 380px) {
+      .brand-panel { min-height: 350px; padding-inline: 20px; }
+      .brand-description,
+      .feature-list { max-width: 68%; }
+      .form-panel { padding-inline: 19px; }
+      .mode-switch button { padding-inline: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -438,6 +510,17 @@
     </div>
   </div>
 
+  <div class="success-backdrop" id="reset-link-modal" role="alertdialog" aria-modal="true" aria-labelledby="reset-link-title" aria-describedby="reset-link-copy" hidden>
+    <div class="signout-modal">
+      <div class="signout-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      </div>
+      <h2 id="reset-link-title">Reset link has expired</h2>
+      <p id="reset-link-copy">This link is expired, invalid, or has already been used. Please request a new password reset link to continue.</p>
+      <button class="signout-confirm" id="reset-link-confirm" type="button">Got it!</button>
+    </div>
+  </div>
+
   <div class="auth-loading-backdrop" id="auth-loading" role="status" aria-live="polite" hidden>
     <div class="auth-loading-card">
       <img class="auth-loading-mascot" src="assets/images/csm-mascot.png" alt="">
@@ -447,7 +530,7 @@
     </div>
   </div>
 
-  <script src="api.js?v=1.32"></script>
+  <script src="api.js?v=1.33"></script>
   <script>
     // Retained only as migration history; the following browser-only demo auth is intentionally disabled.
     if (false) {
@@ -774,6 +857,7 @@
       const complete = byId('recovery-complete');
       const arrow = '<svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
       const signoutModal = byId('signout-modal');
+      const resetLinkModal = byId('reset-link-modal');
       const signoutNotices = {
         idle_timeout: ['Session timed out', 'You were signed out after 20 minutes of inactivity. Please sign in again to continue.'],
         'another-tab': ['Signed out of this tab', 'Your account was signed in from another tab, so this tab was signed out.'],
@@ -853,6 +937,10 @@
         error.classList.toggle('is-success', isSuccess);
         error.hidden = false;
       };
+      const showResetLinkModal = () => {
+        resetLinkModal.hidden = false;
+        requestAnimationFrame(() => byId('reset-link-confirm').focus());
+      };
 
       document.querySelectorAll('[data-mode-button]').forEach(button => button.addEventListener('click', () => {
         if (button.dataset.modeButton !== mode) {
@@ -873,6 +961,11 @@
         cleanUrl.searchParams.delete('reason');
         history.replaceState({}, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
         if (mode === 'signin') byId('username').focus();
+      });
+      byId('reset-link-confirm').addEventListener('click', () => {
+        resetLinkModal.hidden = true;
+        resetToken = '';
+        location.replace('login.html?mode=signin');
       });
       document.querySelectorAll('[data-toggle-password]').forEach(button => button.addEventListener('click', () => {
         const input = byId(button.dataset.togglePassword), visible = input.type === 'text';
@@ -947,7 +1040,13 @@
           window.setTimeout(() => location.replace(adminRequested ? 'admin' : 'index.html?screen=home'), 1200);
         } catch (failure) {
           loading.hidden = true;
-          showError(failure.message || 'The request could not be completed. Please try again.');
+          const failureMessage = failure.message || 'The request could not be completed. Please try again.';
+          if (mode === 'reset' && /reset link/i.test(failureMessage) && /(invalid|expired|already been used|already been|used)/i.test(failureMessage)) {
+            resetToken = '';
+            showResetLinkModal();
+          } else {
+            showError(failureMessage);
+          }
         } finally { submit.disabled = false; }
       });
 
@@ -962,7 +1061,34 @@
       if (initialMode === 'reset') {
         // The token remains in memory for this page only and is removed from visible browser history.
         history.replaceState({}, '', 'login.html?mode=reset');
-        if (!/^[a-f0-9]{64}$/.test(resetToken)) showError('This reset link is invalid or incomplete. Request a new password reset link.');
+        loading.hidden = false;
+        byId('loading-title').textContent = 'Checking reset link…';
+        byId('loading-copy').textContent = 'Verifying that this one-time link is still active.';
+        if (!/^[a-f0-9]{64}$/.test(resetToken)) {
+          loading.hidden = true;
+          showResetLinkModal();
+        } else {
+          CSM.api('auth/session')
+            .then(() => CSM.api('auth/password/validate', 'POST', { token: resetToken }))
+            .then(result => {
+              loading.hidden = true;
+              if (mode !== 'reset') return;
+              if (result.valid) {
+                byId('password').focus();
+              } else {
+                resetToken = '';
+                showResetLinkModal();
+              }
+            })
+            .catch(() => {
+              loading.hidden = true;
+              if (mode !== 'reset') return;
+              byId('reset-link-title').textContent = 'Could not verify reset link';
+              byId('reset-link-copy').textContent = 'We couldn’t confirm that this link is still active. Please sign in and request a new password reset link.';
+              resetToken = '';
+              showResetLinkModal();
+            });
+        }
       }
       CSM.api('auth/session').then(session => {
         if (session.authenticated && mode !== 'reset') location.replace(adminRequested && ['admin', 'superadmin'].includes(session.profile?.role) ? 'admin' : 'index.html?screen=home');

@@ -13,6 +13,8 @@ export function LibraryDeckCard({
   isGuest = false,
   studyProgress = [],
 }) {
+  const [isOpening, setIsOpening] = React.useState(false);
+  const openTimerRef = React.useRef(null);
   const cardCount = deck.cards?.length || 0;
   const documentCount = deck.documents?.length || 0;
   const deckProgress = studyProgress.filter(
@@ -27,8 +29,34 @@ export function LibraryDeckCard({
   const masteryPct = cardCount
     ? Math.min(100, Math.round((knownCount / cardCount) * 100))
     : 0;
+  React.useEffect(
+    () => () => window.clearTimeout(openTimerRef.current),
+    [],
+  );
+  const openDeck = (event) => {
+    if (event.target.closest("button, a, select, input")) return;
+    if (isOpening) return;
+    setIsOpening(true);
+    openTimerRef.current = window.setTimeout(() => onOpen(deck), 160);
+  };
   return (
-    <article className="csm-library-deck-card" onClick={() => onOpen(deck)}>
+    <article
+      className={`csm-library-deck-card${isOpening ? " is-opening" : ""}`}
+      onClick={openDeck}
+      onKeyDown={(event) => {
+        if (
+          event.target === event.currentTarget &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
+          event.preventDefault();
+          openDeck(event);
+        }
+      }}
+      role="button"
+      tabIndex={0}
+      aria-label={`Open ${deck.code || deck.title} deck`}
+      aria-disabled={isOpening}
+    >
       <div className="csm-library-deck-card-top">
         <span className="csm-library-deck-icon">
           <IconCards />

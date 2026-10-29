@@ -217,7 +217,7 @@ export function DashboardScreen({
           <div
             className="home-stat-card cursor-pointer"
             onClick={() => handleOpenGameMode()}
-            title="Test accuracy in Bombstyle Arena"
+            title="Test accuracy in Bombstyle Challenge"
           >
             <span
               className="home-stat-icon csm-stat-accuracy"
@@ -240,7 +240,7 @@ export function DashboardScreen({
               <span className="home-stat-value">
                 {accountStats.accuracy || 0}%
               </span>
-              <span className="home-stat-description">
+              <span className="home-stat-description csm-accuracy-description">
                 {(accountStats.accuracy || 0) > 0 ? (
                   <React.Fragment>
                     Across all decks ·{" "}
@@ -253,7 +253,7 @@ export function DashboardScreen({
                   </React.Fragment>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
-                    Across all decks · Test in Arena quiz <IconArrowRight />
+                    Across all decks · Test in Challenge quiz <IconArrowRight />
                   </span>
                 )}
               </span>
@@ -342,7 +342,7 @@ export function DashboardScreen({
                 className="px-4 py-2.5 rounded-xl font-bold text-xs bg-white/10 hover:bg-white/20 text-white border border-white/20 flex items-center gap-2 transition-all"
               >
                 <span className="inline-flex items-center gap-1.5">
-                  <i className="bi bi-controller"></i> Enter Arena
+                  <i className="bi bi-controller"></i> Enter Challenge
                 </span>
               </button>
               <button
@@ -398,10 +398,10 @@ export function DashboardScreen({
                     DATA & PROGRESS
                   </span>
                   <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
-                    Weekly Arena Sessions
+                    Weekly Challenge Sessions
                   </h2>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    Arena matches started each day, compared with last week.
+                    Challenge sessions started each day, compared with last week.
                   </p>
                 </div>
                 <div className="flex items-center gap-3 text-[11px] font-medium text-zinc-500">
@@ -435,7 +435,7 @@ export function DashboardScreen({
                     >
                       {/* Hover tooltip */}
                       <div className="absolute -top-7 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-[10px] font-semibold py-1 px-2 rounded pointer-events-none whitespace-nowrap z-20 shadow-md">
-                        {day}: {current} Arena session{current === 1 ? "" : "s"}{" "}
+                        {day}: {current} Challenge session{current === 1 ? "" : "s"}{" "}
                         {previous ? `(last week: ${previous})` : ""}
                       </div>
                       <div className="w-full flex items-end justify-center gap-1.5 h-full">
@@ -445,7 +445,7 @@ export function DashboardScreen({
                             style={{
                               height: `${prevHeight}%`,
                             }}
-                            title={`Last week Arena sessions: ${previous}`}
+                            title={`Last week Challenge sessions: ${previous}`}
                           />
                         )}
                         <span
@@ -453,7 +453,7 @@ export function DashboardScreen({
                           style={{
                             height: `${currHeight}%`,
                           }}
-                          title={`This week Arena sessions: ${current}`}
+                          title={`This week Challenge sessions: ${current}`}
                         />
                       </div>
                       <span
@@ -470,7 +470,7 @@ export function DashboardScreen({
             <div className="pt-3 text-xs text-zinc-500 flex items-center gap-1.5 border-t border-zinc-100">
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
               <span>
-                <b>{totalWeekActivity}</b> Arena session
+                <b>{totalWeekActivity}</b> Challenge session
                 {totalWeekActivity === 1 ? "" : "s"} this week
               </span>
             </div>
@@ -597,7 +597,7 @@ export function DashboardScreen({
                               }}
                             >
                               <IconPlay />
-                              Arena
+                              Challenge
                             </button>
                             <button
                               type="button"
@@ -618,7 +618,7 @@ export function DashboardScreen({
                                   icon: "reset",
                                   title: `Reset progress for ${deck.code || deck.title}?`,
                                   message:
-                                    "This clears known/mastery progress for every Bombcard in this deck. Your cards and Arena session history will remain.",
+                                    "This clears known/mastery progress for every Bombcard in this deck. Your cards and Challenge session history will remain.",
                                   confirmLabel: "Reset progress",
                                   action: async () => {
                                     try {
@@ -692,10 +692,10 @@ export function DashboardScreen({
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <span className="csm-kicker text-[10px] font-extrabold text-[#f04824] tracking-widest uppercase block mb-1">
-                    CO-STUDYMAXX ARENA
+                    CO-STUDYMAXX CHALLENGE
                   </span>
                   <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
-                    Arena Countdown Challenge
+                    Bombstyle Countdown Challenge
                   </h2>
                 </div>
                 <span className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-100/80 flex items-center justify-center text-[#f04824] shadow-xs">
@@ -710,7 +710,7 @@ export function DashboardScreen({
               <div className="grid grid-cols-2 gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-100 mb-4">
                 <div>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-                    Best Arena Streak
+                    Best Challenge Streak
                   </span>
                   <span className="text-xl font-extrabold text-zinc-900 flex items-center gap-1.5 mt-0.5">
                     <i className="bi bi-fire text-orange-500"></i>{" "}
@@ -722,7 +722,7 @@ export function DashboardScreen({
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">
-                    Arena Sessions
+                    Challenge Sessions
                   </span>
                   <span className="text-xl font-extrabold text-zinc-900 mt-0.5 block">
                     {arenaSessions.length}{" "}
@@ -736,7 +736,7 @@ export function DashboardScreen({
               {arenaSessions.length > 0 && arenaSessions[0] && (
                 <div className="text-xs text-zinc-600 bg-orange-50/50 p-2.5 rounded-lg border border-orange-100/60 mb-3 flex items-center justify-between">
                   <span>
-                    Latest: <b>{arenaSessions[0].title || "Arena Run"}</b>
+                    Latest: <b>{arenaSessions[0].title || "Challenge Run"}</b>
                   </span>
                   <span className="font-bold text-[#f04824]">
                     {arenaSessions[0].correctCount || 0} correct
@@ -751,7 +751,7 @@ export function DashboardScreen({
                 onClick={handleOpenGameMode}
                 className="flex-1 py-2.5 px-4 rounded-xl bg-[#f04824] hover:bg-[#d83c1b] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
               >
-                <span>Enter Bombstyle Arena</span>
+                <span>Enter Bombstyle Challenge</span>
                 <IconArrowRight />
               </button>
               {mostRecentDeck && (

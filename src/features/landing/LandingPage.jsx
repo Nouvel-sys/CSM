@@ -97,14 +97,14 @@ export function LandingPage({ onAuthenticated = () => {} }) {
   const faqs = [
     [
       "What can I study with Co-StudyMaxx?",
-      "Create and organize Bombcards in reviewer decks, attach PDFs, and use PDF Tools for notes and highlights. You can practice cards in Study or play timed Bombstyle Arena sessions.",
+      "Create and organize Bombcards in reviewer decks, attach PDFs, and use PDF Tools for notes and highlights. You can practice cards in Study or play timed Bombstyle Challenge sessions.",
     ],
     [
       "Can Gemini make Bombcards from my material?",
       "Yes. The AI Bombcard Maker can use notes or text extracted from a selected PDF. It suggests a set based on the material, and you choose which generated cards to add. AI generation requires a configured Gemini service.",
     ],
     [
-      "How does Bombstyle Arena work?",
+      "How does Bombstyle Challenge work?",
       "Choose a reviewer and play a timed quiz session. Your results contribute to your activity and progress insights.",
     ],
     [
@@ -126,7 +126,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
       label: "Turn source material into practice",
     },
     {
-      value: "Arena",
+      value: "Challenge",
       label: "Play timed quiz sessions",
     },
   ];
@@ -184,7 +184,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
             <p>
               Build reviewer decks, generate Bombcards from notes or PDFs with
               Gemini, annotate source documents, and practice in timed Bombstyle
-              Arena sessions. Track your streak, accuracy, and subject mastery
+              Challenge sessions. Track your streak, accuracy, and subject mastery
               in one workspace.
             </p>
             <div className="csm-landing-hero-actions">
@@ -237,7 +237,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
             <div className="csm-landing-proof-card">
               <strong>
                 <IconFlame />
-                Bombstyle Arena
+                Bombstyle Challenge
               </strong>
               <span>Practice with a timer</span>
             </div>
@@ -288,7 +288,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
                   <h3>One place for materials and practice.</h3>
                   <p>
                     Open a deck, work with its PDFs, review your Bombcards, or
-                    continue into Arena.
+                    continue into Challenge.
                   </p>
                   <div className="csm-landing-demo-cards">
                     {demoCards.map((card, index) => (
@@ -374,7 +374,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
                 <div className="csm-landing-feature-icon">
                   <IconFlame />
                 </div>
-                <h3>Bombstyle Arena</h3>
+                <h3>Bombstyle Challenge</h3>
                 <p>
                   Play timed quiz sessions from your decks and review your
                   session results.
@@ -386,7 +386,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
                 </div>
                 <h3>Progress insights</h3>
                 <p>
-                  Follow study streaks, average accuracy, weekly Arena activity,
+                  Follow study streaks, average accuracy, weekly Challenge activity,
                   and subject mastery.
                 </p>
               </article>
@@ -488,7 +488,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
               <span className="csm-landing-section-kicker">
                 Practice with a pulse
               </span>
-              <h2 id="countdown-heading">Play a timed Arena session.</h2>
+              <h2 id="countdown-heading">Play a timed Challenge session.</h2>
               <p>
                 Choose a deck, answer Bombcards against the clock, and use your
                 results to see where you’re gaining confidence and what to
@@ -499,7 +499,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
                 type="button"
                 onClick={onEnter}
               >
-                Explore Bombstyle Arena <IconArrowRight />
+                Explore Bombstyle Challenge <IconArrowRight />
               </button>
             </div>
             <div
@@ -512,7 +512,7 @@ export function LandingPage({ onAuthenticated = () => {} }) {
                   color: "#776d63",
                 }}
               >
-                <span>BOMBSTYLE ARENA</span>
+                <span>BOMBSTYLE CHALLENGE</span>
                 <span>SESSION</span>
               </div>
               <div

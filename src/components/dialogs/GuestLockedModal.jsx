@@ -22,10 +22,10 @@ export function GuestLockedModal({ section, onClose }) {
         "Profile customizations, avatars, password management, and study statistics are only accessible to signed-in accounts.",
     },
     arena: {
-      title: "Bombstyle Arena is Locked",
+      title: "Bombstyle Challenge is Locked",
       kicker: "SIGN IN TO PLAY",
       description:
-        "Timed pressure recall rounds, speed challenges, and leaderboard ranking require an account. Sign in or create a free account to unlock Play Bombstyle!",
+        "Timed pressure recall rounds and personal score tracking require an account. Sign in or create a free account to unlock Play Bombstyle!",
     },
   };
   const info = configs[section] || configs.home;

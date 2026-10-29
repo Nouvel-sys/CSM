@@ -123,7 +123,7 @@ export function WorkspaceHeader({
                   requestBombstyleExit(() => setBombstylePhase("select_deck"))
                 }
               >
-                Arena
+                Challenge
               </span>
               <span className="csm-topbar-sep">/</span>
               <span

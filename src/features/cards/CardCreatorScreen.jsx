@@ -1,30 +1,25 @@
 import {
+  IconArrowLeft,
   IconArrowRight,
-  IconCards,
   IconChevronDown,
   IconEdit,
-  IconFlame,
   IconPlus,
-  IconSparkles,
 } from "../../components/icons.jsx";
 import React from "react";
 export function CardCreatorScreen({
   creatorAlternates,
   creatorAnswer,
-  creatorCardAddedAnimation,
   creatorCorrectIndex,
   creatorEditingCardId,
   creatorHint,
   creatorOptions,
   creatorPrompt,
-  creatorSessionCount,
   creatorShowAlternates,
   creatorShowHint,
   creatorStep,
   creatorTargetDeckId,
   creatorType,
   decks,
-  handleOpenAiGenerator,
   handleSaveBombcard,
   setActiveTab,
   setCreatorAlternates,
@@ -41,25 +36,25 @@ export function CardCreatorScreen({
   setCreatorType,
   setSelectedDeckForFolderView,
   setSelectedDeckIds,
+  selectedDeckForFolderView,
   triggerToast,
 }) {
   return (() => {
     const currentTargetDeck =
       decks.find((d) => d.id === creatorTargetDeckId) || decks[0];
+    const returnDeck = selectedDeckForFolderView
+      ? decks.find((deck) => deck.id === selectedDeckForFolderView.id) || selectedDeckForFolderView
+      : null;
+    const returnDeckName = returnDeck?.code || returnDeck?.title;
     const deckCards = currentTargetDeck?.cards || [];
-    const mcqCards = deckCards.filter((c) => c.type === "MULTIPLE_CHOICE");
-    const idCards = deckCards.filter((c) => c.type === "IDENTIFICATION");
     return (
       <div className="csm-screen csm-creator-screen custom-scroll">
         <div className="csm-studio-container">
           {/* 1. Header */}
           <div className="csm-page-head mb-5">
             <div>
-              <span className="csm-kicker flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#f04824] animate-pulse"></span>
-                BOMBCARD STUDIO
-              </span>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+              <span className="csm-kicker csm-creator-kicker">BOMBCARD STUDIO</span>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
                 {creatorEditingCardId ? "Edit Bombcard" : "Create Bombcards"}
               </h1>
               <p className="text-xs text-slate-500 mt-1">
@@ -71,25 +66,20 @@ export function CardCreatorScreen({
             <div className="csm-page-actions flex items-center gap-2.5">
               <button
                 type="button"
-                className="csm-secondary-button"
+                className="csm-secondary-button csm-creator-nav-button"
                 onClick={() => {
-                  if (!creatorEditingCardId) setSelectedDeckForFolderView(null);
+                  if (returnDeck) {
+                    setSelectedDeckForFolderView(returnDeck);
+                    setSelectedDeckIds([returnDeck.id]);
+                  } else {
+                    setSelectedDeckForFolderView(null);
+                  }
                   setCreatorEditingCardId(null);
                   setActiveTab("library");
                 }}
               >
-                {creatorEditingCardId ? "Back to Deck" : "Back to Library"}
-              </button>
-              <button
-                type="button"
-                className="csm-primary-button"
-                onClick={() => {
-                  if (currentTargetDeck)
-                    setSelectedDeckIds([currentTargetDeck.id]);
-                  setActiveTab("flashcards");
-                }}
-              >
-                Go to Study <IconArrowRight />
+                <IconArrowLeft />
+                {returnDeckName ? `Back to ${returnDeckName}` : "Back to Library"}
               </button>
             </div>
           </div>
@@ -176,29 +166,12 @@ export function CardCreatorScreen({
               </button>
             </div>
 
-            {/* Right: Session Tracker & AI Generator Trigger */}
-            <div className="flex items-center gap-2">
-              {creatorSessionCount > 0 && (
-                <span className="text-[11px] font-extrabold text-[#f04824] bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full flex items-center gap-1.5 animate-fadeIn">
-                  <IconFlame /> {creatorSessionCount} created this session
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => handleOpenAiGenerator(currentTargetDeck?.id)}
-                className="text-[11px] font-extrabold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200/90 px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
-                title="Generate flashcards with Gemini AI"
-              >
-                <IconSparkles className="w-3.5 h-3.5 text-purple-600" />
-                <span>AI Generator</span>
-              </button>
-            </div>
           </div>
 
           {/* 3. Main Studio Workspace Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Left Column: Interactive Card Builder */}
-            <div className="lg:col-span-8">
+            <div className="lg:col-span-12">
               <div className="csm-studio-card">
                 {/* Top Bar of the Studio Card */}
                 <div className="csm-studio-card-head">
@@ -560,120 +533,6 @@ export function CardCreatorScreen({
               </div>
             </div>
 
-            {/* Right Column: Deck Collection & Quick Study */}
-            <div className="lg:col-span-4 space-y-5">
-              {/* Visual Deck Stack Card */}
-              <div
-                className={`csm-studio-card-stack ${creatorCardAddedAnimation ? "csm-studio-pulse-anim" : ""}`}
-              >
-                <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <IconCards className="w-4 h-4 text-slate-700 flex-shrink-0" />
-                    <h3 className="text-xs font-extrabold text-slate-900 truncate">
-                      Deck Collection
-                    </h3>
-                  </div>
-                  <span
-                    className="text-[11px] font-bold text-slate-400 truncate max-w-[130px] text-right"
-                    title={currentTargetDeck?.code || currentTargetDeck?.title}
-                  >
-                    {currentTargetDeck?.code || currentTargetDeck?.title}
-                  </span>
-                </div>
-
-                {/* Card Pile Visual Representation */}
-                <div className="text-center py-4 bg-white/70 rounded-2xl border border-slate-200/80 mb-4 shadow-xs">
-                  <span className="text-3xl font-black text-slate-900 tracking-tight block">
-                    {deckCards.length}
-                  </span>
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mt-0.5 block">
-                    Total Bombcards
-                  </span>
-                  <div className="flex items-center justify-center gap-3 mt-3 pt-3 border-t border-slate-100 text-[11px] font-bold text-slate-600">
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                      {mcqCards.length} MCQ
-                    </span>
-                    <span className="text-slate-300">•</span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                      {idCards.length} ID
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (currentTargetDeck)
-                      setSelectedDeckIds([currentTargetDeck.id]);
-                    setActiveTab("flashcards");
-                  }}
-                  className="w-full h-10 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm px-3"
-                >
-                  <span className="truncate">
-                    Study {currentTargetDeck?.code || "Deck"} Now
-                  </span>
-                  <IconArrowRight className="w-4 h-4 flex-shrink-0" />
-                </button>
-              </div>
-
-              {/* Cards in Deck List */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-sm">
-                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
-                  <h4 className="text-xs font-extrabold text-slate-900">
-                    Cards in this Deck
-                  </h4>
-                  <span className="text-[11px] font-bold text-slate-400">
-                    {deckCards.length} total
-                  </span>
-                </div>
-
-                {deckCards.length === 0 ? (
-                  <div className="py-6 text-center">
-                    <div className="w-10 h-10 rounded-full bg-orange-50 text-[#f04824] flex items-center justify-center mx-auto mb-2">
-                      <IconCards className="w-5 h-5" />
-                    </div>
-                    <p className="text-xs font-bold text-slate-700">
-                      No cards yet
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Write your question on the left to forge your first card!
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1">
-                    {deckCards.map((card, idx) => (
-                      <div
-                        key={card.id || idx}
-                        className="p-2.5 bg-[#f8fafc] hover:bg-slate-50 border border-slate-200/70 rounded-xl text-xs flex items-start justify-between gap-2 transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-slate-200/70 text-slate-600">
-                              #{idx + 1}
-                            </span>
-                            <span className="text-[9px] font-extrabold text-slate-400">
-                              {card.type === "MULTIPLE_CHOICE"
-                                ? "MCQ"
-                                : card.type === "TRUE_FALSE"
-                                  ? "T/F"
-                                  : "ID"}
-                            </span>
-                          </div>
-                          <p className="font-semibold text-slate-800 truncate mt-1">
-                            {card.prompt}
-                          </p>
-                        </div>
-                        <span className="text-[10px] font-black text-[#f04824] bg-white border border-slate-200 px-2 py-0.5 rounded max-w-[100px] truncate flex-shrink-0">
-                          {card.correctAnswer || "Answer"}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       </div>

@@ -93,7 +93,7 @@ export function AdminHome({ profile, onOpenAdmin }) {
                 "content",
               ],
               [
-                "Arena sessions",
+                "Challenge sessions",
                 dashboard.period.sessions,
                 "Selected 30-day period",
                 "overview",

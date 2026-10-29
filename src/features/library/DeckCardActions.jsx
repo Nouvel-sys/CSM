@@ -1,9 +1,10 @@
-import { IconEdit, IconShare, IconTrash } from "../../components/icons.jsx";
+import { IconEdit, IconReset, IconShare, IconTrash } from "../../components/icons.jsx";
 import React from "react";
 export function DeckCardActions({
   deck,
   handleDeleteFolder,
   handleOpenEditFolderInfo,
+  handleResetDeckProgress,
   handleShareDeck,
   isGuest,
   openDeckMenuId,
@@ -54,6 +55,13 @@ export function DeckCardActions({
             onClick={(e) => handleOpenEditFolderInfo(deck, e)}
           >
             <IconEdit /> Edit
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={(e) => handleResetDeckProgress(deck, e)}
+          >
+            <IconReset /> Reset progress
           </button>
           <button
             type="button"

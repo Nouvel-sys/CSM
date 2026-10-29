@@ -137,13 +137,13 @@ export function DailyStudyGoal({ onStudy }) {
         <p className="text-[11px] text-zinc-500 leading-relaxed inline-flex items-center gap-1.5">
           <i className="bi bi-lightbulb-fill text-amber-500 shrink-0" />
           <span>
-            Reveal an answer in Study or answer in Arena. Each Bombcard counts
+            Reveal an answer in Study or answer in Challenge. Each Bombcard counts
             once per day, in your local time zone.
           </span>
         </p>
         {ready && goal.arenaIncluded === false && (
           <p className="text-[11px] text-amber-700 mt-2" role="status">
-            Arena review history is temporarily unavailable; Study reviews still count.
+            Challenge review history is temporarily unavailable; Study reviews still count.
           </p>
         )}
       </div>

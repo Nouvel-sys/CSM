@@ -49,7 +49,7 @@ export function ArenaExitDialog({
         </div>
         <p id="bombstyle-exit-description">
           Your answers are saved. Leaving now will end this round and return you
-          to the Arena.
+          to the Challenge hub.
         </p>
         <div className="csm-bombstyle-exit-actions">
           <button
