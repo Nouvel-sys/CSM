@@ -83,15 +83,24 @@ export function WorkspaceHeader({
               : "Reviewer Library")}
           {activeTab === "flashcards" && (
             <>
-              <span
-                className="cursor-pointer hover:text-slate-900 transition-colors"
+              <button
+                type="button"
+                className="csm-study-return-link"
                 onClick={() => {
-                  setSelectedDeckForFolderView(null);
                   setActiveTab("library");
                 }}
+                aria-label={
+                  selectedDeckForFolderView
+                    ? `Return to ${currentSelectedDeck?.code || currentSelectedDeck?.title || "the selected reviewer"}`
+                    : "Return to Reviewer Library"
+                }
               >
-                Reviewer Library
-              </span>
+                {selectedDeckForFolderView
+                  ? currentSelectedDeck?.code ||
+                    currentSelectedDeck?.title ||
+                    "Reviewer Library"
+                  : "Reviewer Library"}
+              </button>
               <span className="csm-topbar-sep">/</span>
               <span className="text-slate-900 font-extrabold">Study</span>
             </>

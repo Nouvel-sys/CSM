@@ -240,10 +240,11 @@ export function AccountScreen({
               </p>
             </div>
             <div className="csm-policy-item">
-              <strong>Future policy links</strong>
+              <strong>Privacy notice and data controls</strong>
               <p>
-                Privacy policy, terms, account deletion, and data export links
-                will be connected here when the backend is ready.
+                The privacy policy is available below. You can export your
+                account data here; account deletion and terms are not yet
+                available in the app.
               </p>
             </div>
           </div>
@@ -273,15 +274,14 @@ export function AccountScreen({
             )}
           </div>
           <div className="csm-policy-actions">
-            <button
-              type="button"
+            <a
               className="csm-secondary-button"
-              onClick={() =>
-                triggerToast("Privacy policy is not configured yet.")
-              }
+              href="output/pdf/privacy-policy.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               View privacy policy
-            </button>
+            </a>
             <button
               type="button"
               className="csm-secondary-button"

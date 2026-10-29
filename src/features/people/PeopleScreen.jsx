@@ -41,6 +41,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       return [];
     }
   });
+  const [recentPeopleModalOpen, setRecentPeopleModalOpen] = useState(false);
   const [suggestedPeople, setSuggestedPeople] = useState([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [total, setTotal] = useState(0);
@@ -61,6 +62,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
   const [reportBusy, setReportBusy] = useState(false);
   const [reportError, setReportError] = useState("");
   const [reportNotice, setReportNotice] = useState("");
+  const recentPeopleModalCloseRef = useRef(null);
   const peopleSearchRequestRef = useRef(0);
   const suggestionRequestRef = useRef(0);
   useEffect(() => {
@@ -78,6 +80,15 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       setRecentPeople([]);
     }
   }, [recentStorageKey]);
+  useEffect(() => {
+    if (!recentPeopleModalOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === "Escape") setRecentPeopleModalOpen(false);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    recentPeopleModalCloseRef.current?.focus();
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [recentPeopleModalOpen]);
   const loadSuggestedPeople = async () => {
     const requestId = ++suggestionRequestRef.current;
     setSuggestionsBusy(true);
@@ -116,7 +127,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
   useEffect(() => {
     loadSuggestedPeople();
   }, []);
-  const loadPeople = async (term, requestedPage = 0, remember = false) => {
+  const loadPeople = async (term, requestedPage = 0) => {
     const requestId = ++peopleSearchRequestRef.current;
     setBusy(true);
     setError("");
@@ -130,24 +141,6 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       const matches = Array.isArray(result.people) ? result.people : [];
       setPeople(matches);
       setTotal(Number(result.total) || 0);
-      if (remember && requestedPage === 0 && recentStorageKey) {
-        const normalizedMatches = matches.map((person) => ({
-          ...person,
-          id: String(person.id),
-        }));
-        const recentIds = new Set(normalizedMatches.map((person) => person.id));
-        const nextRecent = [
-          ...normalizedMatches,
-          ...recentPeople.filter((person) => !recentIds.has(person.id)),
-        ].slice(0, 6);
-        setRecentPeople(nextRecent);
-        try {
-          localStorage.setItem(recentStorageKey, JSON.stringify(nextRecent));
-        } catch {
-          // Keep the current session usable when browser storage is unavailable.
-        }
-      }
-      if (remember && requestedPage === 0) loadSuggestedPeople();
     } catch (requestError) {
       if (requestId === peopleSearchRequestRef.current) {
         setError(requestError.message || "Could not search accounts.");
@@ -170,7 +163,7 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       return undefined;
     }
     const timer = window.setTimeout(() => {
-      loadPeople(term, 0, true);
+      loadPeople(term, 0);
     }, 350);
     return () => {
       window.clearTimeout(timer);
@@ -186,10 +179,11 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       setTotal(0);
       return;
     }
-    loadPeople(term, requestedPage, requestedPage === 0);
+    loadPeople(term, requestedPage);
   };
   const clearRecentPeople = () => {
     setRecentPeople([]);
+    setRecentPeopleModalOpen(false);
     if (!recentStorageKey) return;
     try {
       localStorage.removeItem(recentStorageKey);
@@ -197,7 +191,25 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
       // The visible history is still cleared for this session.
     }
   };
+  const rememberPerson = (person) => {
+    if (!recentStorageKey || !person) return;
+    const normalizedPerson = { ...person, id: String(person.id) };
+    const nextRecent = [
+      normalizedPerson,
+      ...recentPeople.filter(
+        (recent) => String(recent.id) !== normalizedPerson.id,
+      ),
+    ].slice(0, 6);
+    setRecentPeople(nextRecent);
+    try {
+      localStorage.setItem(recentStorageKey, JSON.stringify(nextRecent));
+    } catch {
+      // Keep the current session usable when browser storage is unavailable.
+    }
+  };
   const openPerson = async (person) => {
+    setRecentPeopleModalOpen(false);
+    rememberPerson(person);
     setSelectedPerson({
       ...person,
       loading: true,
@@ -439,12 +451,21 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
             <section className="csm-people-recent" aria-labelledby="csm-people-recent-title">
               <div className="csm-people-recent-heading">
                 <h2 id="csm-people-recent-title">Recently searched</h2>
-                <button type="button" onClick={clearRecentPeople}>
-                  Clear history
-                </button>
+                <div className="csm-people-recent-actions">
+                  <button
+                    type="button"
+                    className="csm-people-view-recent"
+                    onClick={() => setRecentPeopleModalOpen(true)}
+                  >
+                    View all ({recentPeople.length})
+                  </button>
+                  <button type="button" onClick={clearRecentPeople}>
+                    Clear history
+                  </button>
+                </div>
               </div>
               <div className="csm-people-results">
-                {recentPeople.map(renderPersonResult)}
+                {recentPeople.slice(0, 3).map(renderPersonResult)}
               </div>
             </section>
           ) : null}
@@ -479,6 +500,61 @@ export function PeopleScreen({ onPlayDeck, currentUsername }) {
           </section>
         </section>
       )}
+
+      {recentPeopleModalOpen && recentPeople.length > 0 &&
+        ReactDOM.createPortal(
+          <div
+            className="csm-people-modal-backdrop csm-people-recent-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget)
+                setRecentPeopleModalOpen(false);
+            }}
+          >
+            <section
+              className="csm-people-modal csm-people-recent-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="csm-people-recent-modal-title"
+              onMouseDown={(event) => event.stopPropagation()}
+            >
+              <button
+                ref={recentPeopleModalCloseRef}
+                type="button"
+                className="csm-people-modal-close"
+                onClick={() => setRecentPeopleModalOpen(false)}
+                aria-label="Close recently searched users"
+              >
+                <IconClose className="w-4 h-4" />
+              </button>
+              <span className="csm-kicker">DISCOVER</span>
+              <h2 id="csm-people-recent-modal-title">Recently searched</h2>
+              <p className="csm-people-recent-modal-description">
+                Your {recentPeople.length} most recently viewed profiles.
+              </p>
+              <div className="csm-people-recent-modal-list">
+                {recentPeople.map(renderPersonResult)}
+              </div>
+              <footer className="csm-people-recent-modal-actions">
+                <button
+                  type="button"
+                  className="csm-secondary-button"
+                  onClick={clearRecentPeople}
+                >
+                  Clear history
+                </button>
+                <button
+                  type="button"
+                  className="csm-primary-button"
+                  onClick={() => setRecentPeopleModalOpen(false)}
+                >
+                  Done
+                </button>
+              </footer>
+            </section>
+          </div>,
+          document.body,
+        )}
 
       {(selectedPerson || selectedDeck) && (
         <>

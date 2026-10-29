@@ -1,4 +1,5 @@
 import {
+  IconArrowLeft,
   IconArrowRight,
   IconCards,
   IconLock,
@@ -49,6 +50,13 @@ export function StudyScreen({
             understanding before moving forward.
           </p>
         </div>
+        <button
+          type="button"
+          className="csm-secondary-button csm-study-back-button"
+          onClick={() => setActiveTab("library")}
+        >
+          <IconArrowLeft /> Back to original deck
+        </button>
       </div>
       <div className="csm-viewer-toolbar">
         <label>

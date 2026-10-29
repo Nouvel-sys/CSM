@@ -2059,7 +2059,6 @@ export function App({ isGuest = false, sharedDeck = null }) {
       return;
     }
     setSelectedDeckIds([deck.id]);
-    setSelectedDeckForFolderView(null);
     recordActivity({
       material: deck.code || deck.title,
       mode: mode === "game" ? "BombStyle quiz" : "Flashcards",

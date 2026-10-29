@@ -123,13 +123,46 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
         if (!preg_match('/^[A-Za-z0-9_]{3,24}$/D', $username)) {
             fail(422, 'Username must contain 3–24 letters, numbers, or underscores.');
         }
+        $looksLikeKeyboardSmash = static function (string $value): bool {
+            $compact = strtolower((string)preg_replace('/[^A-Za-z0-9]/', '', $value));
+            return preg_match('/(.)\\1{3,}/', $compact) === 1
+                || preg_match('/^(.{1,3})\\1{2,}$/', $compact) === 1
+                || preg_match('/qwerty|asdf|zxcv|poiuy|lkjh|mnbv|qazwsx|1234|4321|123456|654321|abcd|dcba/i', $compact) === 1;
+        };
+        $looksLikeUsernameSmash = static function (string $value): bool {
+            $compact = strtolower((string)preg_replace('/[^A-Za-z0-9]/', '', $value));
+            return preg_match('/^(.)\\1{3,}$/', $compact) === 1
+                || preg_match('/^(qwerty|asdf|zxcv|poiuy|lkjh|mnbv|qazwsx|abcdef|fedcba)[0-9]*$/', $compact) === 1;
+        };
+        if ($looksLikeUsernameSmash($username)) {
+            fail(422, 'Choose a username that does not use repeated characters or keyboard sequences.');
+        }
         $firstName = field($data, 'firstName', 80);
         $middleName = field($data, 'middleName', 80, false);
         $lastName = field($data, 'lastName', 80);
-        foreach ([$firstName, $middleName, $lastName] as $namePart) {
-            if (preg_match('/[\x00-\x1F\x7F]/', $namePart)) {
-                fail(422, 'Names cannot contain control characters.');
+        $validName = static function (string $name) use ($looksLikeKeyboardSmash): bool {
+            return preg_match('/^[\p{L}][\p{L}\p{M} .\'\x{2019}-]*$/uD', $name) === 1
+                && !$looksLikeKeyboardSmash($name);
+        };
+        foreach ([$firstName, $lastName] as $namePart) {
+            if (!$validName($namePart)) {
+                fail(422, 'Enter a valid name using letters, spaces, apostrophes, periods, or hyphens.');
             }
+        }
+        if ($middleName !== '' && !$validName($middleName)) {
+            fail(422, 'Enter a valid middle name or leave it blank.');
+        }
+        $compactPassword = strtolower((string)preg_replace('/[^A-Za-z0-9]/', '', $pass));
+        $commonPasswords = ['12345678', '123456789', '1234567890', 'password', 'password1', 'password123', 'qwerty123', 'qwerty12345', '11111111', '00000000', '87654321', 'admin123', 'abc12345', 'iloveyou', 'letmein', 'welcome1', 'monkey123', 'dragon123', 'football1', 'baseball1'];
+        $passwordScore = (strlen($pass) >= 8 ? 1 : 0)
+            + (strlen($pass) >= 12 ? 1 : 0)
+            + (strlen($pass) >= 16 ? 1 : 0)
+            + (preg_match('/[a-z]/', $pass) ? 1 : 0)
+            + (preg_match('/[A-Z]/', $pass) ? 1 : 0)
+            + (preg_match('/[0-9]/', $pass) ? 1 : 0)
+            + (preg_match('/[^A-Za-z0-9]/', $pass) ? 1 : 0);
+        if (in_array($compactPassword, $commonPasswords, true) || $looksLikeKeyboardSmash($pass) || $passwordScore < 3) {
+            fail(422, 'Choose a less predictable password. Use at least 8 characters and avoid common words, repeated characters, or keyboard sequences.');
         }
         $email = field($data, 'email', 254);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -153,12 +186,12 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
 
     if ($row && !empty($row['banned_at'])) {
         audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_banned']);
-        fail(401, 'Incorrect username or password, or account unavailable.');
+        fail(401, 'This account is unavailable. Contact support if you think this is a mistake.', ['code' => 'account_unavailable']);
     }
 
     if ($row && $row['locked_until'] && strtotime($row['locked_until'] . ' UTC') > time()) {
         audit_event(null, 'login_blocked', $row['id'], ['reason' => 'account_locked']);
-        fail(401, 'Incorrect username or password, or account temporarily unavailable.');
+        fail(401, 'This account is temporarily locked. Please try again later.', ['code' => 'account_locked']);
     }
 
     $hash = $row['password_hash'] ?? '$2y$10$92IXUNpkjJ0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.';
@@ -173,7 +206,10 @@ if (in_array($route, ['auth/register', 'auth/login'], true) && $method === 'POST
             audit_event(null, 'account_locked', $row['id'], ['reason' => 'failed_login_threshold']);
         }
         audit_event(null, 'login_failure', $row['id'] ?? null, ['reason' => 'invalid_credentials']);
-        fail(401, 'Incorrect username or password, or account temporarily unavailable.');
+        if ($row) {
+            fail(401, 'You entered the wrong password. Check it and try again, or reset your password.', ['code' => 'wrong_password']);
+        }
+        fail(401, 'We couldn’t sign you in. Check your username and password.', ['code' => 'invalid_credentials']);
     }
 
     if (password_needs_rehash($hash, PASSWORD_DEFAULT)) {

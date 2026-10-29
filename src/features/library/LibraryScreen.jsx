@@ -81,6 +81,8 @@ export function LibraryScreen({
 }) {
   const [bombcardSearchQuery, setBombcardSearchQuery] = React.useState("");
   const bombcardCarouselRef = React.useRef(null);
+  const bombcardSlideTimerRef = React.useRef(null);
+  const [bombcardSlideDirection, setBombcardSlideDirection] = React.useState("");
   const [bombcardCarouselState, setBombcardCarouselState] = React.useState({
     canScroll: false,
     canGoPrev: false,
@@ -89,6 +91,10 @@ export function LibraryScreen({
   React.useEffect(() => {
     setBombcardSearchQuery("");
   }, [currentSelectedDeck?.id]);
+  React.useEffect(
+    () => () => window.clearTimeout(bombcardSlideTimerRef.current),
+    [],
+  );
 
   const normalizedBombcardSearch = bombcardSearchQuery.trim().toLocaleLowerCase();
   const handleDownloadBombcardReviewer = () => {
@@ -205,10 +211,31 @@ export function LibraryScreen({
   const scrollBombcardCarousel = (direction) => {
     const track = bombcardCarouselRef.current;
     if (!track) return;
-    track.scrollBy({
-      left: direction * Math.max(240, track.clientWidth * 0.82),
-      behavior: "smooth",
-    });
+    const cards = Array.from(track.children);
+    if (cards.length < 2) return;
+    const trackLeft = track.getBoundingClientRect().left;
+    const positions = cards.map(
+      (card) => card.getBoundingClientRect().left - trackLeft + track.scrollLeft,
+    );
+    const currentIndex = positions.reduce(
+      (closestIndex, position, index) =>
+        Math.abs(position - track.scrollLeft) <
+        Math.abs(positions[closestIndex] - track.scrollLeft)
+          ? index
+          : closestIndex,
+      0,
+    );
+    const nextIndex = Math.max(
+      0,
+      Math.min(cards.length - 1, currentIndex + direction),
+    );
+    if (nextIndex === currentIndex) return;
+    setBombcardSlideDirection(direction > 0 ? "next" : "previous");
+    window.clearTimeout(bombcardSlideTimerRef.current);
+    bombcardSlideTimerRef.current = window.setTimeout(() => {
+      setBombcardSlideDirection("");
+    }, 420);
+    track.scrollTo({ left: positions[nextIndex], behavior: "smooth" });
   };
 
   return (
@@ -297,12 +324,27 @@ export function LibraryScreen({
                 <IconArrowLeft />
               </button>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="csm-library-heading-topline">
                   <span className="csm-kicker">
                     {isGuest ? "SHARED REVIEWER" : "REVIEWER DECK"}
                   </span>
                   {isGuest && (
                     <span className="csm-library-shared-badge">Shared</span>
+                  )}
+                  {!isGuest && (
+                    <DeckCardActions
+                      deck={currentSelectedDeck}
+                      handleDeleteFolder={handleDeleteFolder}
+                      handleDeckVisibility={handleDeckVisibility}
+                      handleOpenEditFolderInfo={handleOpenEditFolderInfo}
+                      handleResetDeckProgress={handleResetDeckProgress}
+                      handleShareDeck={handleShareDeck}
+                      isGuest={isGuest}
+                      openDeckMenuId={openDeckMenuId}
+                      profile={profile}
+                      setOpenDeckMenuId={setOpenDeckMenuId}
+                      deckVisibilitySaving={deckVisibilitySaving}
+                    />
                   )}
                 </div>
                 <h1>{currentSelectedDeck.code || currentSelectedDeck.title}</h1>
@@ -315,29 +357,6 @@ export function LibraryScreen({
               </div>
             </div>
             <div className="csm-library-detail-actions">
-              {!isGuest && (
-                <label className="csm-deck-visibility-control">
-                  <span>Deck visibility</span>
-                  <select
-                    aria-label="Deck visibility"
-                    value={currentSelectedDeck.visibility || "inherit"}
-                    disabled={deckVisibilitySaving}
-                    onChange={(event) =>
-                      handleDeckVisibility(
-                        currentSelectedDeck,
-                        event.target.value,
-                      )
-                    }
-                  >
-                    <option value="inherit">
-                      Use profile default ({profile.deckVisibility || "private"}
-                      )
-                    </option>
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                </label>
-              )}
               <button
                 type="button"
                 className="csm-share-button"
@@ -346,18 +365,6 @@ export function LibraryScreen({
               >
                 <IconShare /> Share
               </button>
-              {!isGuest && (
-                <DeckCardActions
-                  deck={currentSelectedDeck}
-                  handleDeleteFolder={handleDeleteFolder}
-                  handleOpenEditFolderInfo={handleOpenEditFolderInfo}
-                  handleResetDeckProgress={handleResetDeckProgress}
-                  handleShareDeck={handleShareDeck}
-                  isGuest={isGuest}
-                  openDeckMenuId={openDeckMenuId}
-                  setOpenDeckMenuId={setOpenDeckMenuId}
-                />
-              )}
               <button
                 type="button"
                 className="csm-secondary-button"
@@ -470,9 +477,9 @@ export function LibraryScreen({
                   type="button"
                   className="csm-bombcard-reviewer-download"
                   onClick={handleDownloadBombcardReviewer}
-                  aria-label="Download a reviewer PDF from this deck's Bombcards"
+                  aria-label="Download PDF"
                 >
-                  <IconDownload /> Download Reviewer PDF
+                  <IconDownload /> Download PDF
                 </button>
                 <div className="csm-bombcard-bulk-controls">
                   {!isGuest && !bulkDeleteMode ? (
@@ -594,7 +601,7 @@ export function LibraryScreen({
                     </button>
                   )}
                   <div
-                    className="csm-library-bombcard-grid"
+                    className={`csm-library-bombcard-grid ${bombcardSlideDirection ? `is-sliding-${bombcardSlideDirection}` : ""}`}
                     id="practice-set-cards"
                     ref={bombcardCarouselRef}
                     role="region"
@@ -612,8 +619,34 @@ export function LibraryScreen({
                     <article
                       key={cardId}
                       className={`csm-library-bombcard ${isRevealed ? "revealed" : ""} ${isSelectedForDeletion ? "is-selected-for-delete" : ""}`}
+                      tabIndex={0}
+                      aria-label={`Bombcard ${idx + 1}. Press Enter or Space to flip.`}
+                      onKeyDown={(event) => {
+                        if (
+                          event.target === event.currentTarget &&
+                          (event.key === "Enter" || event.key === " ")
+                        ) {
+                          event.preventDefault();
+                          toggleLibraryCardAnswer(cardId);
+                        }
+                      }}
                     >
-                      <div className="csm-library-bombcard-top">
+                      <div className="csm-library-bombcard-inner">
+                        <div
+                          className="csm-library-bombcard-face csm-library-bombcard-front"
+                          aria-hidden={isRevealed}
+                          onClick={(event) => {
+                            if (
+                              event.target.closest(
+                                "button, input, label, a, .csm-material-actions, .csm-material-menu",
+                              )
+                            ) {
+                              return;
+                            }
+                            toggleLibraryCardAnswer(cardId);
+                          }}
+                        >
+                          <div className="csm-library-bombcard-top">
                         {bulkDeleteMode ? (
                           <label className="csm-bombcard-select-control">
                             <input
@@ -695,30 +728,58 @@ export function LibraryScreen({
                             )}
                           </div>
                         )}
-                      </div>
-                      <p className="csm-library-bombcard-prompt">
-                        {card.prompt}
-                      </p>
-                      {isRevealed && (
-                        <p className="csm-library-bombcard-answer">
-                          {card.correctAnswer || "Answer not saved yet."}
-                        </p>
-                      )}
-                      <div className="csm-library-bombcard-footer">
-                        <small>
-                          {card.type === "MULTIPLE_CHOICE"
-                            ? "Multiple choice"
-                            : card.type === "TRUE_FALSE"
-                              ? "True / False"
-                              : "Identification"}
-                        </small>
-                        <button
-                          type="button"
-                          className="csm-library-reveal"
-                          onClick={() => toggleLibraryCardAnswer(cardId)}
+                          </div>
+                          <p className="csm-library-bombcard-prompt">
+                            {card.prompt}
+                          </p>
+                          <div className="csm-library-bombcard-footer">
+                            <small>
+                              {card.type === "MULTIPLE_CHOICE"
+                                ? "Multiple choice"
+                                : card.type === "TRUE_FALSE"
+                                  ? "True / False"
+                                  : "Identification"}
+                            </small>
+                            <button
+                              type="button"
+                              className="csm-library-reveal"
+                              onClick={() => toggleLibraryCardAnswer(cardId)}
+                            >
+                              Reveal answer
+                            </button>
+                          </div>
+                        </div>
+                        <div
+                          className="csm-library-bombcard-face csm-library-bombcard-back"
+                          aria-hidden={!isRevealed}
+                          onClick={(event) => {
+                            if (
+                              event.target.closest(
+                                "button, input, label, a, .csm-material-actions, .csm-material-menu",
+                              )
+                            ) {
+                              return;
+                            }
+                            toggleLibraryCardAnswer(cardId);
+                          }}
                         >
-                          {isRevealed ? "Hide answer" : "Reveal answer"}
-                        </button>
+                          <div className="csm-library-bombcard-top">
+                            <span>Answer · Q{idx + 1}</span>
+                          </div>
+                          <p className="csm-library-bombcard-answer">
+                            {card.correctAnswer || "Answer not saved yet."}
+                          </p>
+                          <div className="csm-library-bombcard-footer">
+                            <small>Answer</small>
+                            <button
+                              type="button"
+                              className="csm-library-reveal"
+                              onClick={() => toggleLibraryCardAnswer(cardId)}
+                            >
+                              Show question
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </article>
                   );
